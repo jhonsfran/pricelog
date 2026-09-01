@@ -80,7 +80,7 @@ Replit was replaced with Emergent; CallFluent with Autocalls; Synthesia with Lum
 
 ## Scan corrections
 
-- Replaced the evaluation character limit and conservative byte-as-token guard with explicit transport limits: 256 KiB source, 512 KiB request, eight questions per batch. Jev enforces its actual context limit. Every batch receives the full captured Markdown. No answers are published if any batch fails or the exact model version changes.
+- Replaced the evaluation character limit with a conservative 72 KiB Markdown source cap and one Jev request containing the complete rubric. Jev 1.13 allows 64k tokens for the full request and 32k tokens for the state plus the longest question; the byte cap leaves room for the rubric and structured response. No answers are published if the complete request fails.
 - Recovered five app-builder workflows interrupted by local hot reload through the local workflow restart API. The temporary local maintenance route was removed after scans completed.
 - Existing failed attempts and their captured sources were retained. No synthetic observations or forced category assignments were inserted.
 

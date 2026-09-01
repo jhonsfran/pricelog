@@ -87,7 +87,7 @@ function setup(
   const ai = vi.fn(
     async (_model: string, input: { questions: Record<string, PersistedQuestion> }) => {
       aiCalls++;
-      if (failure === "evaluation" && aiCalls === 2) throw new Error("Second batch failed");
+      if (failure === "evaluation") throw new Error("Evaluation failed");
       if (failure === "numeric" && aiCalls > 1) throw new Error("Numeric provider failed");
       return {
         result: {
@@ -171,10 +171,10 @@ describe("scan publication boundaries", () => {
     );
     expect(scan.store.publishPending).toHaveBeenCalledOnce();
   });
-  it("does not persist or publish partial answers when a later batch fails", async () => {
+  it("does not persist or publish answers when Jev evaluation fails", async () => {
     const scan = setup("evaluation");
-    await expect(scan.run()).rejects.toThrow("Second batch failed");
-    expect(scan.ai).toHaveBeenCalledTimes(2);
+    await expect(scan.run()).rejects.toThrow("Evaluation failed");
+    expect(scan.ai).toHaveBeenCalledTimes(1);
     expect(scan.store.persistAnswers).not.toHaveBeenCalled();
     expect(scan.store.persistEvaluation).not.toHaveBeenCalled();
     expect(scan.store.preparePublication).not.toHaveBeenCalled();
