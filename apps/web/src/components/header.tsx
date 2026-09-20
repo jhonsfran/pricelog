@@ -1,30 +1,22 @@
 import { Link } from "@tanstack/react-router";
-
 import UserMenu from "./user-menu";
 
 export default function Header() {
-  const links = [
-    { to: "/", label: "Home" },
-    { to: "/dashboard", label: "Dashboard" },
-  ] as const;
-
   return (
-    <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
-          {links.map(({ to, label }) => {
-            return (
-              <Link key={to} to={to}>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="flex items-center gap-2">
-          <UserMenu />
-        </div>
-      </div>
-      <hr />
-    </div>
+    <header className="site-header">
+      <Link className="wordmark" to="/">
+        <span>▲</span>
+        <b>PRICELOG</b>
+      </Link>
+      <nav aria-label="Primary navigation">
+        <Link to="/" activeProps={{ "data-active": true }}>
+          Directory
+        </Link>
+        <Link to="/dashboard" activeProps={{ "data-active": true }}>
+          Your pages
+        </Link>
+      </nav>
+      <UserMenu />
+    </header>
   );
 }
