@@ -24,7 +24,7 @@ pnpm install
 pnpm run env:generate
 ```
 
-Required server values are `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `CORS_ORIGIN`. Keep real values in ignored environment files. Do not commit secrets.
+Required server values are `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `CORS_ORIGIN`. `CORS_ORIGIN` accepts a comma-separated allowlist, such as `http://localhost:3001,https://app.example.com`. Keep real values in ignored environment files. Do not commit secrets.
 
 Start the full Alchemy development stack:
 
@@ -33,6 +33,14 @@ pnpm run dev
 ```
 
 The default web origin is `http://localhost:3001`. The API origin is `http://localhost:3000`.
+
+For frontend hot reload against a deployed development API, keep `http://localhost:3001` in the API `CORS_ORIGIN` allowlist and run:
+
+```bash
+VITE_SERVER_URL=https://your-development-api.workers.dev pnpm run dev:web
+```
+
+This keeps Vite and its hot module replacement local. Server changes still require an Alchemy deployment because Cloudflare remote development does not support Workflow bindings.
 
 ## Database migrations
 
@@ -69,7 +77,7 @@ pnpm exec alchemy profile edit
 pnpm exec alchemy deploy --stage production
 ```
 
-After the first deployment, set `CORS_ORIGIN` to the exact deployed web origin and deploy again. Browser Run quick actions require the configured compatibility date of `2026-03-24` or later.
+After the first deployment, add the exact deployed web origin to `CORS_ORIGIN` and deploy again. Keep `http://localhost:3001` in the list if a local web app must use the deployed API. Browser Run quick actions require the configured compatibility date of `2026-03-24` or later.
 
 ## MVP behavior
 
