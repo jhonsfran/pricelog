@@ -5,6 +5,8 @@
   "scripts": {
     "build": "tsc -b ../../packages/api && tsdown",
     "check-types": "tsc -b ../../packages/api && tsc --noEmit",
+    "test": "vitest run",
+    "db:generate:do": "drizzle-kit generate --config drizzle-do.config.ts",
     "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "env:generate": "varlock codegen"
   },
@@ -16,8 +18,10 @@
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
     "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
     "evlog": "catalog:",
     "hono": "^4.13.7",
+    "ipaddr.js": "^1.9.1",
     "varlock": "catalog:",
     "zod": "catalog:"
   },
@@ -26,7 +30,9 @@
     "@my-better-t-app/config": "workspace:*",
     "@my-better-t-app/infra": "workspace:*",
     "@types/node": "catalog:",
+    "drizzle-kit": "1.0.0-rc.4",
     "tsdown": "^0.23.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

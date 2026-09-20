@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -b",
     "check-types": "tsc -b",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate:deploy": "drizzle-kit migrate"
   },
@@ -21,6 +22,7 @@
     "@my-better-t-app/config": "workspace:*",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "catalog:",
-    "varlock": "catalog:"
+    "varlock": "catalog:",
+    "vitest": "catalog:"
   }
 }

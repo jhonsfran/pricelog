@@ -9,10 +9,12 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "test": "turbo run test",
     "check-types": "turbo run check-types",
     "dev:web": "turbo run dev:bare -F web --",
     "dev:server": "turbo run dev:bare -F hono --",
     "db:generate": "turbo run db:generate -F @my-better-t-app/db --",
+    "db:generate:do": "pnpm --filter server db:generate:do",
     "deploy": "turbo run deploy -F @my-better-t-app/infra --",
     "destroy": "turbo run destroy -F @my-better-t-app/infra --",
     "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
@@ -33,7 +35,8 @@
     "oxlint": "^1.81.0",
     "turbo": "^2.10.12",
     "typescript": "catalog:",
-    "varlock": "catalog:"
+    "varlock": "catalog:",
+    "vitest": "catalog:"
   },
   "lint-staged": {
     "*": [

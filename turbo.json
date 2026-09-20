@@ -14,13 +14,16 @@
       "dependsOn": ["^check-types"],
       "outputs": ["dist/**"]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "db:generate": {
-      "cache": false,
-      "interactive": true
+      "cache": false
     },
     "deploy": {
       "cache": false,
