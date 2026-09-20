@@ -10,6 +10,7 @@ import { evlog, type EvlogVariables } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+import { serveArtifact } from "./artifacts";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { createAuth } from "./services";
@@ -45,6 +46,7 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => (await createAuth()).handler(c.req.raw));
+app.get("/api/pages/:pageId/runs/:runId/artifacts/:kind", serveArtifact);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

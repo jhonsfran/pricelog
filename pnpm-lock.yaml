@@ -292,7 +292,7 @@ importers:
         version: 1.15.1(@orpc/contract@1.15.1)(@orpc/server@1.15.1(crossws@0.4.12(srvx@1.0.5))(ws@8.21.3))(crossws@0.4.12(srvx@1.0.5))(ws@8.21.3)(zod@4.6.5)
       better-auth:
         specifier: 'catalog:'
-        version: 1.7.5(@tanstack/react-start@1.168.56(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))
+        version: 1.7.5(@tanstack/react-start@1.168.56(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5)
@@ -371,10 +371,10 @@ importers:
         version: 1.167.3(@tanstack/query-core@5.103.1)(@tanstack/react-query@5.103.1(react@19.3.0))(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@tanstack/router-core@1.171.32)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start':
         specifier: ^1.168.49
-        version: 1.168.56(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+        version: 1.168.56(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       better-auth:
         specifier: 'catalog:'
-        version: 1.7.5(@tanstack/react-start@1.168.56(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))
+        version: 1.7.5(@tanstack/react-start@1.168.56(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))
       evlog:
         specifier: 'catalog:'
         version: 2.29.0(@orpc/server@1.15.1(crossws@0.4.12(srvx@1.0.5))(ws@8.21.3))(@tanstack/start-client-core@1.170.32)(express@5.2.1)(hono@4.13.8)(nitro@3.0.260903-beta)(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
@@ -438,7 +438,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.2.2
-        version: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+        version: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
       web-vitals:
         specifier: ^6.2.1
         version: 6.2.2
@@ -463,6 +463,9 @@ importers:
       '@orpc/zod':
         specifier: 'catalog:'
         version: 1.15.1(@orpc/contract@1.15.1)(@orpc/server@1.15.1(crossws@0.4.12(srvx@1.0.5))(ws@8.21.3))(crossws@0.4.12(srvx@1.0.5))(ws@8.21.3)(zod@4.6.5)
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5)
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -487,7 +490,7 @@ importers:
         version: link:../db
       better-auth:
         specifier: 'catalog:'
-        version: 1.7.5(@tanstack/react-start@1.168.56(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))
+        version: 1.7.5(@tanstack/react-start@1.168.56(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5)
@@ -5663,7 +5666,7 @@ snapshots:
       '@effect/platform-bun': 4.0.0-rc.115(effect@4.0.0-rc.115)
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
       rolldown: 1.2.5
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@types/node'
       - proxy-agent
@@ -7447,7 +7450,7 @@ snapshots:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   '@tanstack/devtools-event-client@0.4.4': {}
 
@@ -7489,7 +7492,7 @@ snapshots:
       '@tanstack/react-store': 0.11.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
     optionalDependencies:
-      '@tanstack/react-start': 1.168.56(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/react-start': 1.168.56(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
     transitivePeerDependencies:
       - react-dom
 
@@ -7546,14 +7549,14 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@tanstack/react-start-rsc@0.1.55(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))':
+  '@tanstack/react-start-rsc@0.1.55(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
       '@tanstack/react-router': 1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-core': 1.171.32
       '@tanstack/router-utils': 1.162.3
       '@tanstack/start-client-core': 1.170.32
       '@tanstack/start-fn-stubs': 1.162.0
-      '@tanstack/start-plugin-core': 1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/start-plugin-core': 1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       '@tanstack/start-storage-context': 1.167.34
       pathe: 2.0.3
       react: 19.3.0
@@ -7582,21 +7585,21 @@ snapshots:
     transitivePeerDependencies:
       - crossws
 
-  '@tanstack/react-start@1.168.56(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))':
+  '@tanstack/react-start@1.168.56(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
       '@tanstack/react-router': 1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start-client': 1.168.36(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@tanstack/react-start-rsc': 0.1.55(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/react-start-rsc': 0.1.55(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       '@tanstack/react-start-server': 1.167.43(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/router-utils': 1.162.3
       '@tanstack/start-client-core': 1.170.32
-      '@tanstack/start-plugin-core': 1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/start-plugin-core': 1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       '@tanstack/start-server-core': 1.169.37(crossws@0.4.12(srvx@1.0.5))
       pathe: 2.0.3
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -7646,7 +7649,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@tanstack/router-plugin@1.168.40(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))':
+  '@tanstack/router-plugin@1.168.40(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/template': 7.29.7
@@ -7655,11 +7658,11 @@ snapshots:
       '@tanstack/router-generator': 1.167.38
       '@tanstack/router-utils': 1.162.3
       chokidar: 5.0.0
-      unplugin: 3.4.0(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      unplugin: 3.4.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       zod: 4.6.5
     optionalDependencies:
       '@tanstack/react-router': 1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -7697,7 +7700,7 @@ snapshots:
 
   '@tanstack/start-fn-stubs@1.162.0': {}
 
-  '@tanstack/start-plugin-core@1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))':
+  '@tanstack/start-plugin-core@1.171.46(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(crossws@0.4.12(srvx@1.0.5))(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/core': 7.29.7
@@ -7705,7 +7708,7 @@ snapshots:
       '@jridgewell/remapping': 2.3.5
       '@tanstack/router-core': 1.171.32
       '@tanstack/router-generator': 1.167.38
-      '@tanstack/router-plugin': 1.168.40(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/router-plugin': 1.168.40(@tanstack/react-router@1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       '@tanstack/router-utils': 1.162.3
       '@tanstack/start-server-core': 1.169.37(crossws@0.4.12(srvx@1.0.5))
       exsolve: 1.1.1
@@ -7721,7 +7724,7 @@ snapshots:
       xmlbuilder2: 4.0.3
       zod: 4.6.5
     optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@farmfe/core'
       - '@rspack/core'
@@ -7847,7 +7850,7 @@ snapshots:
   '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   '@vitest/mocker@5.0.1(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))':
     dependencies:
@@ -7856,7 +7859,7 @@ snapshots:
       estree-walker: 3.0.3
       magic-string: 1.4.1
     optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   '@vitest/spy@5.0.1': {}
 
@@ -7994,7 +7997,7 @@ snapshots:
     optionalDependencies:
       '@effect/platform-bun': 4.0.0-rc.115(effect@4.0.0-rc.115)
       '@effect/platform-node': 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
       ws: 8.21.3
     transitivePeerDependencies:
       - '@types/node'
@@ -8051,7 +8054,7 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  better-auth@1.7.5(@tanstack/react-start@1.168.56(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))):
+  better-auth@1.7.5(@tanstack/react-start@1.168.56(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)))(drizzle-kit@1.0.0-rc.4)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)(vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))):
     dependencies:
       '@better-auth/core': 1.7.5(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3)
       '@better-auth/drizzle-adapter': 1.7.5(@better-auth/core@1.7.5(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3))(@better-auth/utils@0.4.2)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))
@@ -8071,7 +8074,7 @@ snapshots:
       nanostores: 1.5.3
       zod: 4.6.5
     optionalDependencies:
-      '@tanstack/react-start': 1.168.56(crossws@0.4.12(srvx@1.0.5))(esbuild@0.25.12)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1))
+      '@tanstack/react-start': 1.168.56(crossws@0.4.12(srvx@1.0.5))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1))
       drizzle-kit: 1.0.0-rc.4
       drizzle-orm: 1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5)
       react: 19.3.0
@@ -8452,7 +8455,7 @@ snapshots:
       hono: 4.13.8
       nitro: 3.0.260903-beta
       react: 19.3.0
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   execa@5.1.1:
     dependencies:
@@ -9869,15 +9872,14 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unplugin@3.4.0(esbuild@0.25.12)(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)):
+  unplugin@3.4.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       picomatch: 4.0.7
       webpack-virtual-modules: 0.6.2
     optionalDependencies:
-      esbuild: 0.25.12
       rolldown: 1.2.9
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   unstorage@2.0.0-alpha.10: {}
 
@@ -9910,7 +9912,7 @@ snapshots:
 
   verkit@0.4.1: {}
 
-  vite@8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1):
+  vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -9919,14 +9921,13 @@ snapshots:
       tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 26.6.1
-      esbuild: 0.25.12
       fsevents: 2.3.3
       jiti: 2.7.0
       yaml: 2.9.1
 
   vitefu@1.1.3(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)):
     optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
 
   vitest@5.0.1(@types/node@26.6.1)(jsdom@30.1.0(@noble/hashes@2.4.0))(vite@8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)):
     dependencies:
@@ -9942,7 +9943,7 @@ snapshots:
       tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      vite: 8.3.0(@types/node@26.6.1)(esbuild@0.25.12)(jiti@2.7.0)(yaml@2.9.1)
+      vite: 8.3.0(@types/node@26.6.1)(jiti@2.7.0)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.6.1

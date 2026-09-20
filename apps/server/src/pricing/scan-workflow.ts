@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { budgetMarkdown, calculateOverallScore, normalizeJevScore } from "./score";
 import type { PageStore } from "./page-store";
-import type { ArtifactManifest, ScanWorkflowParams } from "./types";
+import type { ArtifactManifest, PersistedQuestion, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
 import { artifactKeys, parseJevAnswers } from "./scan-workflow-logic";
 
@@ -127,7 +127,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const artifact = await this.env.ARTIFACTS.get(manifest.contentKey);
         if (!artifact) throw new Error("Archived Markdown is missing");
         const questions = Object.fromEntries(
-          rubric.questions.map((item) => [
+          rubric.questions.map((item: PersistedQuestion) => [
             item.key,
             { type: item.type, instructions: item.instructions, criteria: item.criteria },
           ]),

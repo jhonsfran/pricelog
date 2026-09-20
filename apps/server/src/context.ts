@@ -3,6 +3,7 @@ import type { Context as HonoContext } from "hono";
 
 import { getDb } from "./services";
 import { createAuth } from "./services";
+import { pageMonitorService } from "./pricing/service";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -18,6 +19,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
   return {
     db,
     session,
+    pageMonitor: pageMonitorService,
   };
 }
 
