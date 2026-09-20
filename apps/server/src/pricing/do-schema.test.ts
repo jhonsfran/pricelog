@@ -35,4 +35,13 @@ describe("page durable object schema", () => {
     expect(Object.keys(pageVersion)).not.toContain("html");
     expect(Object.keys(pageVersion)).not.toContain("screenshot");
   });
+
+  it("stores typed Jev questions and answers", () => {
+    expect(Object.keys(question)).toEqual(
+      expect.arrayContaining(["type", "criteria", "minimum", "maximum"]),
+    );
+    expect(Object.keys(answer)).toEqual(
+      expect.arrayContaining(["type", "score", "choice", "noul", "confidence", "probabilities"]),
+    );
+  });
 });

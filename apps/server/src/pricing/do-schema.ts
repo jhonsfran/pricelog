@@ -96,11 +96,13 @@ export const question = sqliteTable(
       .notNull()
       .references(() => questionSet.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
-    type: text("type", { enum: ["score"] }).notNull(),
+    type: text("type", { enum: ["score", "choice", "noul"] }).notNull(),
     instructions: text("instructions").notNull(),
-    criteria: text("criteria_json", { mode: "json" }).$type<string[]>().notNull(),
-    minimum: integer("minimum").default(0).notNull(),
-    maximum: integer("maximum").default(4).notNull(),
+    criteria: text("criteria_json", { mode: "json" })
+      .$type<string[] | Record<string, string>>()
+      .notNull(),
+    minimum: integer("minimum"),
+    maximum: integer("maximum"),
     position: integer("position").notNull(),
   },
   (table) => [primaryKey({ columns: [table.questionSetId, table.key] })],
@@ -114,17 +116,34 @@ export const answer = sqliteTable(
       .references(() => pageVersion.id, { onDelete: "cascade" }),
     questionSetId: text("question_set_id").notNull(),
     questionKey: text("question_key").notNull(),
-    score: real("score").notNull(),
-    confidence: real("confidence").notNull(),
-    legend: text("legend_json", { mode: "json" }).$type<Record<string, string>>().notNull(),
-    probabilities: text("probabilities_json", { mode: "json" })
-      .$type<Record<string, number>>()
+    type: text("type", { enum: ["score", "choice", "noul"] })
+      .default("score")
       .notNull(),
+    score: real("score"),
+    choice: text("choice"),
+    noul: real("noul"),
+    confidence: real("confidence"),
+    legend: text("legend_json", { mode: "json" }).$type<Record<string, string>>(),
+    probabilities: text("probabilities_json", { mode: "json" }).$type<Record<string, number>>(),
     createdAt: integer("created_at").default(now).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.versionId, table.questionSetId, table.questionKey] }),
-    check("answer_score_check", sql`${table.score} >= 0 and ${table.score} <= 4`),
-    check("answer_confidence_check", sql`${table.confidence} >= 0 and ${table.confidence} <= 1`),
+    check(
+      "answer_value_check",
+      sql`(${table.type} = 'score' and ${table.score} is not null and ${table.choice} is null and ${table.noul} is null) or (${table.type} = 'choice' and ${table.score} is null and ${table.choice} is not null and ${table.noul} is null) or (${table.type} = 'noul' and ${table.score} is null and ${table.choice} is null and ${table.noul} is not null)`,
+    ),
+    check(
+      "answer_score_check",
+      sql`${table.score} is null or (${table.score} >= 0 and ${table.score} <= 4)`,
+    ),
+    check(
+      "answer_confidence_check",
+      sql`${table.confidence} is null or (${table.confidence} >= 0 and ${table.confidence} <= 1)`,
+    ),
+    check(
+      "answer_noul_check",
+      sql`${table.noul} is null or (${table.noul} >= 0 and ${table.noul} <= 1)`,
+    ),
   ],
 );

@@ -2,11 +2,24 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
+import type { PricingChoiceKey, PricingScoreKey, PricingSignalKey } from "../pricing-intelligence";
 
 export type PageScore = {
-  key: string;
+  key: PricingScoreKey;
   score: number;
   confidence: number;
+};
+
+export type PageChoice = {
+  key: PricingChoiceKey;
+  choice: string;
+  confidence: number;
+  probabilities: Record<string, number>;
+};
+
+export type PageSignal = {
+  key: PricingSignalKey;
+  probability: number;
 };
 
 export const page = sqliteTable(
@@ -50,6 +63,18 @@ export const pagePublicSummary = sqliteTable(
     model: text("model").notNull(),
     overallScore: real("overall_score").notNull(),
     scores: text("scores_json", { mode: "json" }).$type<PageScore[]>().notNull(),
+    choices: text("choices_json", { mode: "json" })
+      .$type<PageChoice[]>()
+      .default(sql`'[]'`)
+      .notNull(),
+    signals: text("signals_json", { mode: "json" })
+      .$type<PageSignal[]>()
+      .default(sql`'[]'`)
+      .notNull(),
+    tags: text("tags_json", { mode: "json" })
+      .$type<string[]>()
+      .default(sql`'[]'`)
+      .notNull(),
     browserEngine: text("browser_engine", { enum: ["chromium"] }).notNull(),
     scannedAt: integer("scanned_at", { mode: "timestamp_ms" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
