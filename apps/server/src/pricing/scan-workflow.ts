@@ -9,6 +9,8 @@ import type { ArtifactManifest, PersistedQuestion, ScanWorkflowParams } from "./
 import { normalizePricingUrl } from "./url";
 import {
   artifactKeys,
+  assertUsableCapture,
+  CONSENT_DISMISS_SCRIPT,
   isJevProviderCredentialError,
   parseJevAnswers,
   scorePricingHeuristically,
@@ -17,7 +19,7 @@ import {
 type SnapshotResult = {
   success: true;
   result: { content?: string; screenshot?: string; markdown?: string };
-  meta: { status: number; title: string; finalUrl?: string };
+  meta: { status?: number; title: string; finalUrl?: string };
 };
 
 type JevBinding = {
@@ -71,8 +73,10 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const response = await this.env.BROWSER.quickAction("snapshot", {
           url: params.canonicalUrl,
           formats: ["content", "markdown", "screenshot"],
+          addScriptTag: [{ content: CONSENT_DISMISS_SCRIPT }],
           screenshotOptions: { fullPage: true, type: "png" },
           gotoOptions: { waitUntil: "networkidle2", timeout: 60_000 },
+          waitForTimeout: 3_000,
         });
         if (!response.ok) throw new Error(`Browser Run failed with ${response.status}`);
         const snapshot = (await response.json()) as SnapshotResult;
@@ -81,6 +85,13 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const screenshot = snapshot.result.screenshot;
         if (!html || !markdown || !screenshot)
           throw new Error("Browser Run returned an incomplete snapshot");
+
+        const httpStatus = assertUsableCapture({
+          httpStatus: snapshot.meta.status,
+          title: snapshot.meta.title,
+          html,
+          markdown,
+        });
 
         const finalUrl = snapshot.meta.finalUrl ?? params.canonicalUrl;
         const normalized = await normalizePricingUrl(finalUrl, resolveHost);
@@ -108,7 +119,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         ]);
         return {
           capturedAt: Date.now(),
-          httpStatus: snapshot.meta.status,
+          httpStatus,
           finalUrl: normalized.canonicalUrl,
           title: snapshot.meta.title || null,
           ...keys,

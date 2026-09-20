@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   artifactKeys,
+  assertUsableCapture,
+  CONSENT_DISMISS_SCRIPT,
   isJevProviderCredentialError,
   parseJevAnswers,
   scorePricingHeuristically,
@@ -14,6 +16,63 @@ describe("artifactKeys", () => {
       screenshotKey: "pages/example.com/runs/run-1/page.png",
       contentKey: "pages/example.com/runs/run-1/page.md",
     });
+  });
+});
+
+describe("capture validation", () => {
+  it("rejects a capture without a target status", () => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: undefined,
+        title: "Pricing",
+        html: "<main>Pricing</main>",
+        markdown: "# Pricing",
+      }),
+    ).toThrow("Target response status is missing");
+  });
+
+  it("rejects an origin error before it can be archived", () => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: 403,
+        title: "Attention Required! | Cloudflare",
+        html: "<h1>Sorry, you have been blocked</h1>",
+        markdown: "# Sorry, you have been blocked",
+      }),
+    ).toThrow("Target returned HTTP 403");
+  });
+
+  it("rejects a bot challenge that returns HTTP 200", () => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: 200,
+        title: "Just a moment...",
+        html: '<form id="challenge-form"><div class="cf-chl-widget"></div></form>',
+        markdown: "Enable JavaScript and cookies to continue",
+      }),
+    ).toThrow("Target returned a bot challenge");
+  });
+
+  it("allows a normal pricing page", () => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: 200,
+        title: "Pricing",
+        html: "<main><h1>Pricing</h1><p>Pro: $20 per month</p></main>",
+        markdown: "# Pricing\n\nPro: $20 per month",
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("consent dismissal", () => {
+  it("prefers non-essential cookie rejection and covers Cookiebot", () => {
+    expect(CONSENT_DISMISS_SCRIPT).toContain(
+      "CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll",
+    );
+    expect(CONSENT_DISMISS_SCRIPT.indexOf("onetrust-reject-all-handler")).toBeLessThan(
+      CONSENT_DISMISS_SCRIPT.indexOf("onetrust-accept-btn-handler"),
+    );
   });
 });
 
