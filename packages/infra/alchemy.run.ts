@@ -8,13 +8,21 @@ export const db = Cloudflare.D1.Database("database", {
   migrations: "../../packages/db/src/migrations",
 });
 
+export const artifacts = Cloudflare.R2.Bucket("pricing-artifacts");
+
 export const server = Cloudflare.Worker("server", {
   main: "../../apps/server/src/index.ts",
   compatibility: {
+    date: "2026-03-24",
     flags: ["nodejs_compat"],
   },
   env: {
     DB: db,
+    ARTIFACTS: artifacts,
+    BROWSER: Cloudflare.Browser("BROWSER"),
+    AI: Cloudflare.Workers.AI("AI"),
+    PAGE_STORE: Cloudflare.DurableObject("PageStore", { className: "PageStore" }),
+    SCAN_WORKFLOW: Cloudflare.Workflow("ScanWorkflow", { className: "ScanWorkflow" }),
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,

@@ -14,8 +14,11 @@ import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { createAuth } from "./services";
 
+export { PageStore } from "./pricing/page-store";
+export { ScanWorkflow } from "./pricing/scan-workflow";
+
 initLogger({
-  env: { service: "my-better-t-app-server" },
+  env: { service: "pricelog" },
 });
 
 const identifyUser = createAuthMiddleware((await createAuth()) as BetterAuthInstance, {
