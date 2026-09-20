@@ -1,6 +1,8 @@
 import type { Session } from "@my-better-t-app/auth";
 import type { Database } from "@my-better-t-app/db";
 
+import type { DescendingTimestampCursor } from "./pagination";
+
 export type PageMonitorRun = {
   id: string;
   trigger: "initial" | "scheduled" | "manual";
@@ -26,10 +28,10 @@ export type PageMonitorService = {
   listRuns(
     domain: string,
     limit?: number,
-    cursor?: number,
+    cursor?: DescendingTimestampCursor,
   ): Promise<{
     items: PageMonitorRun[];
-    nextCursor: number | null;
+    nextCursor: DescendingTimestampCursor | null;
   }>;
   getRun(domain: string, runId: string): Promise<PageMonitorRun | null>;
   triggerManual(domain: string, requestedByUserId: string): Promise<PageMonitorRun>;

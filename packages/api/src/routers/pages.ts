@@ -5,8 +5,59 @@ import { z } from "zod";
 
 import type { Context } from "../context";
 import { protectedProcedure } from "../index";
+import { descendingTimestampCursorSchema } from "../pagination-schema";
 
 const pageIdInput = z.object({ pageId: z.string().min(1) });
+
+type ProvisioningRecord = {
+  id: string;
+  ownerUserId: string;
+  normalizedDomain: string;
+  canonicalUrl: string;
+  slug: string;
+  state: "pending" | "active";
+};
+
+type ProvisioningDependencies<TPage extends ProvisioningRecord> = {
+  findByDomain: (normalizedDomain: string) => Promise<TPage | null>;
+  createRecords: (record: ProvisioningRecord) => Promise<unknown>;
+  ensureOwnerState: (pageId: string) => Promise<unknown>;
+  initializeAndStart: (input: {
+    pageId: string;
+    normalizedDomain: string;
+    canonicalUrl: string;
+    requestedByUserId: string;
+  }) => Promise<unknown>;
+};
+
+export async function provisionOwnedPage<TPage extends ProvisioningRecord>(
+  input: { record: ProvisioningRecord; requestedByUserId: string },
+  dependencies: ProvisioningDependencies<TPage>,
+): Promise<TPage> {
+  let owned = await dependencies.findByDomain(input.record.normalizedDomain);
+  if (!owned) {
+    try {
+      await dependencies.createRecords(input.record);
+    } catch (error) {
+      owned = await dependencies.findByDomain(input.record.normalizedDomain);
+      if (!owned) throw error;
+    }
+    owned ??= await dependencies.findByDomain(input.record.normalizedDomain);
+    if (!owned) throw new Error("Page provisioning did not create a domain record");
+  }
+  if (owned.ownerUserId !== input.requestedByUserId) {
+    throw new ORPCError("CONFLICT", { message: "This domain already has an owner" });
+  }
+
+  await dependencies.ensureOwnerState(owned.id);
+  await dependencies.initializeAndStart({
+    pageId: owned.id,
+    normalizedDomain: owned.normalizedDomain,
+    canonicalUrl: owned.canonicalUrl,
+    requestedByUserId: input.requestedByUserId,
+  });
+  return owned;
+}
 
 export async function findOwnedPage(context: Context, pageId: string, ownerUserId: string) {
   const [result] = await context.db
@@ -55,16 +106,6 @@ export const pagesRouter = {
     .input(z.object({ url: z.string().trim().url().max(2048) }))
     .handler(async ({ context, input }) => {
       const normalized = await context.pageMonitor.normalizeUrl(input.url);
-      const [existing] = await context.db
-        .select()
-        .from(page)
-        .where(eq(page.normalizedDomain, normalized.normalizedDomain))
-        .limit(1);
-      if (existing) {
-        if (existing.ownerUserId === context.session.user.id) return existing;
-        throw new ORPCError("CONFLICT", { message: "This domain already has an owner" });
-      }
-
       const pageId = crypto.randomUUID();
       const record = {
         id: pageId,
@@ -74,43 +115,55 @@ export const pagesRouter = {
         slug: normalized.normalizedDomain,
         state: "pending" as const,
       };
-      try {
-        await context.db.insert(page).values(record);
-        await context.db.insert(pageOwnerState).values({ pageId });
-      } catch (error) {
-        const [winner] = await context.db
-          .select()
-          .from(page)
-          .where(eq(page.normalizedDomain, normalized.normalizedDomain))
-          .limit(1);
-        if (winner?.ownerUserId === context.session.user.id) return winner;
-        if (winner)
-          throw new ORPCError("CONFLICT", { message: "This domain already has an owner" });
-        throw error;
-      }
-      await context.pageMonitor.initializeAndStart({
-        pageId,
-        ...normalized,
-        requestedByUserId: context.session.user.id,
-      });
-      return record;
+      return provisionOwnedPage(
+        { record, requestedByUserId: context.session.user.id },
+        {
+          async findByDomain(normalizedDomain) {
+            const [result] = await context.db
+              .select()
+              .from(page)
+              .where(eq(page.normalizedDomain, normalizedDomain))
+              .limit(1);
+            return result ?? null;
+          },
+          createRecords(candidate) {
+            return context.db.batch([
+              context.db.insert(page).values(candidate),
+              context.db.insert(pageOwnerState).values({ pageId: candidate.id }),
+            ]);
+          },
+          ensureOwnerState(ownedPageId) {
+            return context.db
+              .insert(pageOwnerState)
+              .values({ pageId: ownedPageId })
+              .onConflictDoNothing();
+          },
+          initializeAndStart: context.pageMonitor.initializeAndStart,
+        },
+      );
     }),
 
-  getOwned: protectedProcedure.input(pageIdInput).handler(async ({ context, input }) => {
-    const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
-    const [state] = await context.db
-      .select()
-      .from(pageOwnerState)
-      .where(eq(pageOwnerState.pageId, owned.id))
-      .limit(1);
-    const [summary] = await context.db
-      .select()
-      .from(pagePublicSummary)
-      .where(eq(pagePublicSummary.pageId, owned.id))
-      .limit(1);
-    const runs = await context.pageMonitor.listRuns(owned.normalizedDomain);
-    return { page: owned, state: state ?? null, summary: summary ?? null, runs };
-  }),
+  getOwned: protectedProcedure
+    .input(pageIdInput.extend({ cursor: descendingTimestampCursorSchema.optional() }))
+    .handler(async ({ context, input }) => {
+      const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
+      const [state] = await context.db
+        .select()
+        .from(pageOwnerState)
+        .where(eq(pageOwnerState.pageId, owned.id))
+        .limit(1);
+      const [summary] = await context.db
+        .select()
+        .from(pagePublicSummary)
+        .where(eq(pagePublicSummary.pageId, owned.id))
+        .limit(1);
+      const runs = await context.pageMonitor.listRuns(
+        owned.normalizedDomain,
+        undefined,
+        input.cursor,
+      );
+      return { page: owned, state: state ?? null, summary: summary ?? null, runs };
+    }),
 
   triggerRun: protectedProcedure.input(pageIdInput).handler(async ({ context, input }) => {
     const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
