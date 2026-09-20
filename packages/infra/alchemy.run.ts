@@ -4,6 +4,8 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import "varlock/auto-load";
 
+import { browserBinding } from "./browser-binding";
+
 export const db = Cloudflare.D1.Database("database", {
   migrations: "../../packages/db/src/migrations",
 });
@@ -19,7 +21,7 @@ export const server = Cloudflare.Worker("server", {
   env: {
     DB: db,
     ARTIFACTS: artifacts,
-    BROWSER: Cloudflare.Browser("BROWSER"),
+    BROWSER: browserBinding,
     AI: Cloudflare.Workers.AI("AI"),
     PAGE_STORE: Cloudflare.DurableObject("PageStore", { className: "PageStore" }),
     SCAN_WORKFLOW: Cloudflare.Workflow("ScanWorkflow", { className: "ScanWorkflow" }),
