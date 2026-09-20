@@ -200,6 +200,23 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.directory-tags,
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.directory-tags span,
+.page-tag {
+  width: max-content;
+  padding: 3px 6px;
+  border: 1px solid #303030;
+  color: #8e8e8e;
+  font-size: 7px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
 .quality-score {
   font: 500 27px/1 var(--display);
   font-variant-numeric: tabular-nums;
@@ -218,6 +235,21 @@ a {
   color: var(--muted);
   font-size: 12px;
   border-bottom: 1px solid var(--line);
+}
+.load-more-button {
+  display: block;
+  margin: 24px auto 0;
+  padding: 11px 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--paper);
+  font: 600 10px var(--mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.load-more-button:hover:not(:disabled) {
+  border-color: var(--acid);
+  color: var(--acid);
 }
 .profile-shell {
   padding: 56px 0 100px;
@@ -339,6 +371,53 @@ a {
   margin-top: 7px;
   color: #5f5f5f;
   font-size: 8px;
+  text-transform: uppercase;
+}
+.intelligence-card {
+  margin-top: 18px;
+  padding: 22px 26px 26px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.intelligence-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+.intelligence-choices > div {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 116px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.intelligence-choices span,
+.intelligence-choices small {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.intelligence-choices strong {
+  font: 500 15px/1.2 var(--display);
+}
+.intelligence-choices small {
+  margin-top: auto;
+  color: #5f5f5f;
+}
+.intelligence-card .tag-list {
+  margin-top: 22px;
+}
+.signal-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 20px;
+  color: var(--acid);
+  font-size: 9px;
   text-transform: uppercase;
 }
 .state-page {
@@ -594,6 +673,9 @@ button:disabled {
   }
   .profile-grid {
     grid-template-columns: 1fr;
+  }
+  .intelligence-choices {
+    grid-template-columns: 1fr 1fr;
   }
   .owner-row {
     grid-template-columns: 1fr auto;

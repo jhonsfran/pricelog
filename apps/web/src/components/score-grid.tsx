@@ -1,12 +1,13 @@
-const SCORE_LABELS: Record<string, string> = {
-  pricing_transparency: "Transparency",
-  pricing_clarity: "Clarity",
-  pricing_completeness: "Completeness",
-  plan_comparability: "Comparability",
-  purchase_actionability: "Actionability",
-};
+import {
+  PRICING_SCORE_CATALOG,
+  type PricingScoreKey,
+} from "@my-better-t-app/api/pricing-intelligence";
 
-export type DisplayScore = { key: string; score: number; confidence: number };
+export type DisplayScore = { key: PricingScoreKey; score: number; confidence: number };
+
+function scoreLabel(key: PricingScoreKey): string {
+  return PRICING_SCORE_CATALOG[key].label;
+}
 
 export function ScoreGrid({ scores }: { scores: DisplayScore[] }) {
   return (
@@ -14,13 +15,13 @@ export function ScoreGrid({ scores }: { scores: DisplayScore[] }) {
       {scores.map((item, index) => (
         <div className="score-row" key={item.key} style={{ animationDelay: `${index * 45}ms` }}>
           <div className="score-meta">
-            <span>{SCORE_LABELS[item.key] ?? item.key}</span>
+            <span>{scoreLabel(item.key)}</span>
             <span className="score-number">{Math.round(item.score)}</span>
           </div>
           <div
             className="score-track"
             role="progressbar"
-            aria-label={SCORE_LABELS[item.key] ?? item.key}
+            aria-label={scoreLabel(item.key)}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(item.score)}

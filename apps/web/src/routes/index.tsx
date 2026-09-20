@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({ component: DirectoryPage });
@@ -9,12 +11,19 @@ export const Route = createFileRoute("/")({ component: DirectoryPage });
 function DirectoryPage() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const directory = useQuery(
-    orpc.directory.list.queryOptions({
-      input: deferredSearch.trim() ? { search: deferredSearch.trim(), limit: 50 } : { limit: 50 },
+  const normalizedSearch = deferredSearch.trim();
+  const directory = useInfiniteQuery(
+    orpc.directory.list.infiniteOptions({
+      input: (cursor: DescendingTimestampCursor | null) => ({
+        ...(normalizedSearch ? { search: normalizedSearch } : {}),
+        ...(cursor ? { cursor } : {}),
+        limit: 50,
+      }),
+      initialPageParam: null as DescendingTimestampCursor | null,
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
     }),
   );
-  const items = directory.data?.items ?? [];
+  const items = directory.data?.pages.flatMap((result) => result.items) ?? [];
 
   return (
     <main className="directory-shell">
@@ -24,8 +33,8 @@ function DirectoryPage() {
           <h1>PRICELOG</h1>
         </div>
         <p className="hero-copy">
-          A weekly record of how software companies explain what they charge. Each page is captured,
-          archived, and scored against the same five questions.
+          Commercial pricing intelligence for pricing teams and founders. Each page is captured,
+          classified, and scored against the same question set every week.
         </p>
       </section>
       <section className="directory-section" aria-labelledby="directory-title">
@@ -73,6 +82,15 @@ function DirectoryPage() {
                 <span className="page-identity">
                   <strong>{item.displayName ?? item.normalizedDomain}</strong>
                   <small>{item.normalizedDomain}</small>
+                  {item.tags.length > 0 && (
+                    <span className="directory-tags">
+                      {prioritizeTags(item.tags)
+                        .slice(0, 3)
+                        .map((tag) => (
+                          <span key={tag}>{formatToken(tag)}</span>
+                        ))}
+                    </span>
+                  )}
                 </span>
                 <span className="quality-score">{Math.round(item.overallScore)}</span>
                 <span className="scan-date">{formatDate(item.scannedAt)}</span>
@@ -81,6 +99,15 @@ function DirectoryPage() {
             ))
           )}
         </div>
+        {directory.hasNextPage ? (
+          <button
+            className="load-more-button"
+            disabled={directory.isFetchingNextPage}
+            onClick={() => directory.fetchNextPage()}
+          >
+            {directory.isFetchingNextPage ? "Loading…" : "Load more"}
+          </button>
+        ) : null}
       </section>
     </main>
   );

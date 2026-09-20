@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { ScoreGrid } from "@/components/score-grid";
 import { orpc } from "@/utils/orpc";
 
@@ -58,6 +59,7 @@ function PublicPageProfile() {
           </div>
         </aside>
       </section>
+      <IntelligenceProfile choices={item.choices} signals={item.signals} tags={item.tags} />
     </main>
   );
 }

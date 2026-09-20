@@ -1,7 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Play } from "lucide-react";
 import { toast } from "sonner";
+import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { RunStatus } from "@/components/run-status";
 import { ScoreGrid } from "@/components/score-grid";
 import { ENV } from "@/env.public";
@@ -13,8 +15,16 @@ export const Route = createFileRoute("/_auth/dashboard/pages/$pageId")({
 
 function OwnerPageDetail() {
   const { pageId } = Route.useParams();
-  const detail = useQuery(
-    orpc.pages.getOwned.queryOptions({ input: { pageId }, refetchInterval: 5_000 }),
+  const detail = useInfiniteQuery(
+    orpc.pages.getOwned.infiniteOptions({
+      input: (cursor: DescendingTimestampCursor | null) => ({
+        pageId,
+        ...(cursor ? { cursor } : {}),
+      }),
+      initialPageParam: null as DescendingTimestampCursor | null,
+      getNextPageParam: (lastPage) => lastPage.runs.nextCursor,
+      refetchInterval: 5_000,
+    }),
   );
   const trigger = useMutation(
     orpc.pages.triggerRun.mutationOptions({
@@ -30,9 +40,11 @@ function OwnerPageDetail() {
     }),
   );
   if (detail.isLoading) return <div className="state-page">Loading owner record…</div>;
-  if (!detail.data) return <div className="state-page">Page not found.</div>;
-  const data = detail.data;
-  const active = data.runs.items.find((run) => run.id === data.state?.activeRunId);
+  const pages = detail.data?.pages;
+  if (!pages?.length) return <div className="state-page">Page not found.</div>;
+  const data = pages[0]!;
+  const runs = pages.flatMap((result) => result.runs.items);
+  const active = runs.find((run) => run.id === data.state?.activeRunId);
   return (
     <main className="dashboard-shell detail-shell">
       <Link className="back-link" to="/dashboard">
@@ -62,20 +74,27 @@ function OwnerPageDetail() {
         </div>
       ) : null}
       {data.summary ? (
-        <section className="profile-card owner-score-card">
-          <div className="section-kicker">
-            <span>LATEST QUALITY SCORE</span>
-            <strong>{Math.round(data.summary.overallScore)} / 100</strong>
-          </div>
-          <ScoreGrid scores={data.summary.scores} />
-        </section>
+        <>
+          <section className="profile-card owner-score-card">
+            <div className="section-kicker">
+              <span>LATEST QUALITY SCORE</span>
+              <strong>{Math.round(data.summary.overallScore)} / 100</strong>
+            </div>
+            <ScoreGrid scores={data.summary.scores} />
+          </section>
+          <IntelligenceProfile
+            choices={data.summary.choices}
+            signals={data.summary.signals}
+            tags={data.summary.tags}
+          />
+        </>
       ) : null}
       <section className="run-history">
         <div className="section-kicker">
           <span>SCAN HISTORY</span>
-          <span>{data.runs.items.length} RUNS</span>
+          <span>{runs.length} RUNS</span>
         </div>
-        {data.runs.items.map((run) => (
+        {runs.map((run) => (
           <article className="run-row" key={run.id}>
             <div>
               <RunStatus status={run.status} />
@@ -99,6 +118,15 @@ function OwnerPageDetail() {
             )}
           </article>
         ))}
+        {detail.hasNextPage ? (
+          <button
+            className="load-more-button"
+            disabled={detail.isFetchingNextPage}
+            onClick={() => detail.fetchNextPage()}
+          >
+            {detail.isFetchingNextPage ? "Loading…" : "Load older runs"}
+          </button>
+        ) : null}
       </section>
     </main>
   );
