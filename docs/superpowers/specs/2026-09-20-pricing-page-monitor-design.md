@@ -147,18 +147,18 @@ The existing Better Auth tables remain unchanged.
 
 ### `page`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | text | Primary key |
-| `owner_user_id` | text | Not null, foreign key to `user.id` |
-| `normalized_domain` | text | Not null, unique |
-| `canonical_url` | text | Not null |
-| `slug` | text | Not null, unique |
-| `display_name` | text | Nullable until first successful scan |
-| `description` | text | Nullable, derived from page metadata |
-| `state` | text | `pending` or `active` |
-| `created_at` | integer | Unix milliseconds |
-| `updated_at` | integer | Unix milliseconds |
+| Column              | Type    | Rules                                |
+| ------------------- | ------- | ------------------------------------ |
+| `id`                | text    | Primary key                          |
+| `owner_user_id`     | text    | Not null, foreign key to `user.id`   |
+| `normalized_domain` | text    | Not null, unique                     |
+| `canonical_url`     | text    | Not null                             |
+| `slug`              | text    | Not null, unique                     |
+| `display_name`      | text    | Nullable until first successful scan |
+| `description`       | text    | Nullable, derived from page metadata |
+| `state`             | text    | `pending` or `active`                |
+| `created_at`        | integer | Unix milliseconds                    |
+| `updated_at`        | integer | Unix milliseconds                    |
 
 Indexes:
 
@@ -169,17 +169,17 @@ Indexes:
 
 ### `page_public_summary`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `page_id` | text | Primary key, foreign key to `page.id` |
-| `run_id` | text | Not null, unique |
-| `rubric_id` | text | Not null |
-| `model` | text | Not null |
-| `overall_score` | real | Not null, range 0 through 100 |
-| `scores_json` | text | Not null, validated JSON |
-| `browser_engine` | text | `chromium` |
-| `scanned_at` | integer | Unix milliseconds |
-| `updated_at` | integer | Unix milliseconds |
+| Column           | Type    | Rules                                 |
+| ---------------- | ------- | ------------------------------------- |
+| `page_id`        | text    | Primary key, foreign key to `page.id` |
+| `run_id`         | text    | Not null, unique                      |
+| `rubric_id`      | text    | Not null                              |
+| `model`          | text    | Not null                              |
+| `overall_score`  | real    | Not null, range 0 through 100         |
+| `scores_json`    | text    | Not null, validated JSON              |
+| `browser_engine` | text    | `chromium`                            |
+| `scanned_at`     | integer | Unix milliseconds                     |
+| `updated_at`     | integer | Unix milliseconds                     |
 
 Indexes:
 
@@ -190,14 +190,14 @@ The projection update uses `scanned_at` as a monotonic guard. An older Workflow 
 
 ### `page_owner_state`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `page_id` | text | Primary key, foreign key to `page.id` |
-| `active_run_id` | text | Nullable |
-| `last_run_id` | text | Nullable |
-| `last_run_status` | text | Nullable, `queued`, `running`, `succeeded`, or `failed` |
-| `next_scan_at` | integer | Nullable Unix milliseconds |
-| `updated_at` | integer | Unix milliseconds |
+| Column            | Type    | Rules                                                   |
+| ----------------- | ------- | ------------------------------------------------------- |
+| `page_id`         | text    | Primary key, foreign key to `page.id`                   |
+| `active_run_id`   | text    | Nullable                                                |
+| `last_run_id`     | text    | Nullable                                                |
+| `last_run_status` | text    | Nullable, `queued`, `running`, `succeeded`, or `failed` |
+| `next_scan_at`    | integer | Nullable Unix milliseconds                              |
+| `updated_at`      | integer | Unix milliseconds                                       |
 
 This is a small owner-dashboard projection, not run history. Public procedures never select or return it. The Page Durable Object remains authoritative and the Workflow repairs this projection after retries.
 
@@ -207,40 +207,40 @@ Each Page Durable Object has the same schema, but the data belongs to one domain
 
 ### `page_config`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | integer | Primary key, always `1` |
-| `page_id` | text | Not null, unique |
-| `normalized_domain` | text | Not null |
-| `canonical_url` | text | Not null |
-| `created_at` | integer | Unix milliseconds |
-| `updated_at` | integer | Unix milliseconds |
+| Column              | Type    | Rules                   |
+| ------------------- | ------- | ----------------------- |
+| `id`                | integer | Primary key, always `1` |
+| `page_id`           | text    | Not null, unique        |
+| `normalized_domain` | text    | Not null                |
+| `canonical_url`     | text    | Not null                |
+| `created_at`        | integer | Unix milliseconds       |
+| `updated_at`        | integer | Unix milliseconds       |
 
 ### `scheduler_state`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | integer | Primary key, always `1` |
-| `active_run_id` | text | Nullable |
-| `next_scan_at` | integer | Nullable Unix milliseconds |
-| `updated_at` | integer | Unix milliseconds |
+| Column          | Type    | Rules                      |
+| --------------- | ------- | -------------------------- |
+| `id`            | integer | Primary key, always `1`    |
+| `active_run_id` | text    | Nullable                   |
+| `next_scan_at`  | integer | Nullable Unix milliseconds |
+| `updated_at`    | integer | Unix milliseconds          |
 
 ### `run`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | text | Primary key |
-| `trigger` | text | `initial`, `scheduled`, or `manual` |
-| `status` | text | `queued`, `running`, `succeeded`, or `failed` |
-| `stage` | text | `queued`, `capture`, `persist`, `evaluate`, `publish`, or `complete` |
-| `workflow_instance_id` | text | Not null, unique |
-| `requested_by_user_id` | text | Nullable for scheduled runs |
-| `browser_engine` | text | Nullable until capture, then `chromium` |
-| `error_code` | text | Nullable |
-| `error_message` | text | Nullable, safe for the owner UI |
-| `created_at` | integer | Unix milliseconds |
-| `started_at` | integer | Nullable Unix milliseconds |
-| `completed_at` | integer | Nullable Unix milliseconds |
+| Column                 | Type    | Rules                                                                |
+| ---------------------- | ------- | -------------------------------------------------------------------- |
+| `id`                   | text    | Primary key                                                          |
+| `trigger`              | text    | `initial`, `scheduled`, or `manual`                                  |
+| `status`               | text    | `queued`, `running`, `succeeded`, or `failed`                        |
+| `stage`                | text    | `queued`, `capture`, `persist`, `evaluate`, `publish`, or `complete` |
+| `workflow_instance_id` | text    | Not null, unique                                                     |
+| `requested_by_user_id` | text    | Nullable for scheduled runs                                          |
+| `browser_engine`       | text    | Nullable until capture, then `chromium`                              |
+| `error_code`           | text    | Nullable                                                             |
+| `error_message`        | text    | Nullable, safe for the owner UI                                      |
+| `created_at`           | integer | Unix milliseconds                                                    |
+| `started_at`           | integer | Nullable Unix milliseconds                                           |
+| `completed_at`         | integer | Nullable Unix milliseconds                                           |
 
 Indexes:
 
@@ -249,62 +249,62 @@ Indexes:
 
 ### `page_version`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | text | Primary key |
-| `run_id` | text | Not null, unique, foreign key to `run.id` |
-| `captured_at` | integer | Unix milliseconds |
-| `http_status` | integer | Origin response status |
-| `final_url` | text | Not null |
-| `title` | text | Nullable |
-| `browser_engine` | text | `chromium` |
-| `html_key` | text | Not null |
-| `screenshot_key` | text | Not null |
-| `content_key` | text | Not null |
-| `html_sha256` | text | Not null |
-| `screenshot_sha256` | text | Not null |
-| `content_sha256` | text | Not null |
-| `html_bytes` | integer | Not null |
-| `screenshot_bytes` | integer | Not null |
-| `content_bytes` | integer | Not null |
+| Column              | Type    | Rules                                     |
+| ------------------- | ------- | ----------------------------------------- |
+| `id`                | text    | Primary key                               |
+| `run_id`            | text    | Not null, unique, foreign key to `run.id` |
+| `captured_at`       | integer | Unix milliseconds                         |
+| `http_status`       | integer | Origin response status                    |
+| `final_url`         | text    | Not null                                  |
+| `title`             | text    | Nullable                                  |
+| `browser_engine`    | text    | `chromium`                                |
+| `html_key`          | text    | Not null                                  |
+| `screenshot_key`    | text    | Not null                                  |
+| `content_key`       | text    | Not null                                  |
+| `html_sha256`       | text    | Not null                                  |
+| `screenshot_sha256` | text    | Not null                                  |
+| `content_sha256`    | text    | Not null                                  |
+| `html_bytes`        | integer | Not null                                  |
+| `screenshot_bytes`  | integer | Not null                                  |
+| `content_bytes`     | integer | Not null                                  |
 
 ### `question_set`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `id` | text | Primary key, for example `pricing-quality-v1` |
-| `model` | text | Not null, initially `typesafe/jev` |
-| `version` | integer | Not null |
-| `active` | integer | Boolean |
-| `created_at` | integer | Unix milliseconds |
+| Column       | Type    | Rules                                         |
+| ------------ | ------- | --------------------------------------------- |
+| `id`         | text    | Primary key, for example `pricing-quality-v1` |
+| `model`      | text    | Not null, initially `typesafe/jev`            |
+| `version`    | integer | Not null                                      |
+| `active`     | integer | Boolean                                       |
+| `created_at` | integer | Unix milliseconds                             |
 
 ### `question`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `question_set_id` | text | Foreign key to `question_set.id` |
-| `key` | text | Stable question key |
-| `type` | text | `score` in the MVP |
-| `instructions` | text | Not null |
-| `criteria_json` | text | Five ordered anchors |
-| `minimum` | integer | `0` |
-| `maximum` | integer | `4` |
-| `position` | integer | Display order |
+| Column            | Type    | Rules                            |
+| ----------------- | ------- | -------------------------------- |
+| `question_set_id` | text    | Foreign key to `question_set.id` |
+| `key`             | text    | Stable question key              |
+| `type`            | text    | `score` in the MVP               |
+| `instructions`    | text    | Not null                         |
+| `criteria_json`   | text    | Five ordered anchors             |
+| `minimum`         | integer | `0`                              |
+| `maximum`         | integer | `4`                              |
+| `position`        | integer | Display order                    |
 
 Primary key: `(question_set_id, key)`.
 
 ### `answer`
 
-| Column | Type | Rules |
-| --- | --- | --- |
-| `version_id` | text | Foreign key to `page_version.id` |
-| `question_set_id` | text | Not null |
-| `question_key` | text | Not null |
-| `score` | real | Jev score from 0 through 4 |
-| `confidence` | real | Range 0 through 1 |
-| `legend_json` | text | Jev response legend |
-| `probabilities_json` | text | Jev probability map |
-| `created_at` | integer | Unix milliseconds |
+| Column               | Type    | Rules                            |
+| -------------------- | ------- | -------------------------------- |
+| `version_id`         | text    | Foreign key to `page_version.id` |
+| `question_set_id`    | text    | Not null                         |
+| `question_key`       | text    | Not null                         |
+| `score`              | real    | Jev score from 0 through 4       |
+| `confidence`         | real    | Range 0 through 1                |
+| `legend_json`        | text    | Jev response legend              |
+| `probabilities_json` | text    | Jev probability map              |
+| `created_at`         | integer | Unix milliseconds                |
 
 Primary key: `(version_id, question_set_id, question_key)`.
 
@@ -418,7 +418,7 @@ The Durable Object performs the state decision in one SQLite transaction:
 1. Read `active_run_id`.
 2. If it points to a queued or running run, return that run.
 3. Otherwise, insert a new queued run and set `active_run_id`.
-After the transaction commits, it creates the Workflow with `id = run.id`. External Workflow I/O never runs inside the SQLite transaction. If Workflow creation fails, the object marks the run failed, clears `active_run_id`, and sets the alarm for one day later.
+   After the transaction commits, it creates the Workflow with `id = run.id`. External Workflow I/O never runs inside the SQLite transaction. If Workflow creation fails, the object marks the run failed, clears `active_run_id`, and sets the alarm for one day later.
 
 The alarm uses the same operation with trigger `scheduled`. The manual API uses trigger `manual` and records the user ID.
 

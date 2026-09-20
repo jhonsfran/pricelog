@@ -12,9 +12,13 @@ export async function findOwnedPage(context: Context, pageId: string, ownerUserI
   const [result] = await context.db
     .select()
     .from(page)
-    .where(and(eq(page.id, pageId), eq(page.ownerUserId, ownerUserId)))
+    .where(ownedPageCondition(pageId, ownerUserId))
     .limit(1);
   return result ?? null;
+}
+
+export function ownedPageCondition(pageId: string, ownerUserId: string) {
+  return and(eq(page.id, pageId), eq(page.ownerUserId, ownerUserId));
 }
 
 async function requireOwnedPage(context: Context, pageId: string, ownerUserId: string) {

@@ -1,139 +1,93 @@
-# my-better-t-app
+# Pricelog
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Hono, ORPC, and more.
+Pricelog is a public directory and private monitor for software pricing pages. It captures each page with Chromium, archives HTML, Markdown, and a full-page screenshot, and evaluates five pricing-quality dimensions with TypeSafe AI Jev.
 
-## Features
+## Architecture
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **workers** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **Cloudflare D1** - Database engine
-- **Authentication** - Better-Auth
-- **Husky** - Git hooks for code quality
-- **Oxlint** - Oxlint + Oxfmt (linting & formatting)
-- **Turborepo** - Optimized monorepo build system
+- **TanStack Start** serves the public directory and owner dashboard.
+- **Hono and oRPC** provide the public and authenticated API.
+- **Better Auth** owns user sessions. A page has one owner in this MVP.
+- **Cloudflare D1** stores users, page ownership, public summaries, and small owner dashboard projections.
+- **One SQLite Durable Object per normalized domain** owns scan history, page-version metadata, rubric questions, deduplication, and the next alarm.
+- **Cloudflare Workflows** coordinate capture, archive, evaluation, projection, and terminal state.
+- **Cloudflare Browser Run** captures one Chromium snapshot.
+- **Cloudflare R2** stores private artifacts.
+- **Workers AI `typesafe/jev`** scores transparency, clarity, completeness, comparability, and actionability.
+- **Alchemy** provisions D1, Durable Objects, Workflows, R2, Browser Run, Workers AI, and both Workers.
 
-## Getting Started
+## Local setup
 
-First, install the dependencies:
+Install dependencies and generate environment accessors from the existing schemas:
 
 ```bash
 pnpm install
+pnpm run env:generate
 ```
 
-## Database Setup
+Required server values are `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `CORS_ORIGIN`. Keep real values in ignored environment files. Do not commit secrets.
 
-This project uses Cloudflare D1 (SQLite) with Drizzle ORM.
-
-Runtime database access uses the Cloudflare `DB` binding from `packages/infra/alchemy.run.ts`. If a local `DATABASE_URL` is present, it is only for database tooling.
-
-Alchemy provisions the D1 database and applies migrations during `deploy`.
-
-1. Generate migration files:
-
-```bash
-pnpm run db:generate
-```
-
-Then, run the development server:
+Start the full Alchemy development stack:
 
 ```bash
 pnpm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+The default web origin is `http://localhost:3001`. The API origin is `http://localhost:3000`.
 
-## UI Customization
+## Database migrations
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+D1 and Durable Object SQLite use separate Drizzle migration streams:
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+pnpm run db:generate
+pnpm run db:generate:do
 ```
 
-Import shared components like this:
+- D1 migrations: `packages/db/src/migrations`
+- Durable Object migrations: `apps/server/src/pricing/drizzle`
 
-```tsx
-import { Button } from "@my-better-t-app/ui/components/button";
+Alchemy applies the D1 migrations during deployment. Each PageStore applies its Durable Object migrations during initialization.
+
+## Tests and verification
+
+```bash
+pnpm run check
+pnpm run check-types
+pnpm test
+pnpm run build
 ```
 
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment Configuration
-
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `pnpm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
-
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-For Cloudflare, Alchemy loads and validates deployment inputs with `varlock/auto-load` in its Node/Bun deployment process. Worker code reads native bindings; web clients use the framework's public env API through `src/env.public.ts` where needed. Alchemy supplies resource URLs and managed database credentials. In-Worker Varlock protections are deferred until an official Alchemy integration is available; see [the non-Wrangler deployment guidance](https://varlock.dev/integrations/cloudflare/#non-wrangler-deploy-tools-alchemy-sst-pulumi).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
+Tests cover central and Durable Object schemas, URL safety, score normalization, alarm intervals, artifact keys, Jev response validation, and the owner lookup constraint.
 
 ## Deployment
 
-### Alchemy
-
-- Target: web on Cloudflare + server on Cloudflare
-- Configure provider accounts: `cd packages/infra && pnpm exec alchemy profile edit`
-- Dev: pnpm run dev
-- Deploy: pnpm run deploy
-- Destroy: pnpm run destroy
-
-`alchemy profile edit` stores the selected Axiom, Cloudflare, Neon, PlanetScale, and/or Prisma provider profiles under `~/.alchemy`; no provider-specific setup command is required by this scaffold.
-
-Deploys are staged and default to a personal `dev_<username>` stage. For production, run the deploy with an explicit stage from `packages/infra`:
+Configure the Cloudflare provider once, then deploy through Alchemy:
 
 ```bash
-cd packages/infra && pnpm exec alchemy deploy --stage production
+cd packages/infra
+pnpm exec alchemy profile edit
+pnpm exec alchemy deploy --stage production
 ```
 
-### Production origins
+After the first deployment, set `CORS_ORIGIN` to the exact deployed web origin and deploy again. Browser Run quick actions require the configured compatibility date of `2026-03-24` or later.
 
-- Required after the first deploy: set `CORS_ORIGIN` in `apps/server/.env` to the exact deployed web origin, such as `https://app.example.com`, then deploy the server again.
+## MVP behavior
 
-## Git Hooks and Formatting
+- One HTTPS URL and one normalized domain per page.
+- The first authenticated user to add a domain becomes its owner.
+- The initial scan starts asynchronously.
+- One scan can be active for a page. A duplicate manual request returns that active run.
+- A successful scan schedules the next alarm seven days later.
+- A failed scan schedules one retry for the next day.
+- A later manual success resets the seven-day schedule.
+- Public routes show only the latest successful summary.
+- Only the owner can view run history or download artifacts.
 
-- Initialize hooks: `pnpm run prepare`
-- Run checks: `pnpm run check`
+## Current limits
 
-## Project Structure
-
-```
-my-better-t-app/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Start)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run dev:server`: Start only the server
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run db:generate`: Generate database client/types
-- `pnpm run check`: Run Oxlint and Oxfmt
+- No domain ownership verification.
+- No teams, roles, quotas, or billing integration.
+- No pause, delete, or URL-change flow.
+- No content-diff view between versions.
+- The rubric is fixed and versioned as `pricing-quality-v1`.
+- Chromium is the only browser engine.
