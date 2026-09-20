@@ -40,3 +40,34 @@ export type ArtifactManifest = {
   screenshotBytes: number;
   contentBytes: number;
 };
+
+export type PersistedQuestion = {
+  key: string;
+  type: "score";
+  instructions: string;
+  criteria: string[];
+  minimum: number;
+  maximum: number;
+  position: number;
+};
+
+export type PersistedRubric = {
+  id: string;
+  model: string;
+  version: number;
+  questions: PersistedQuestion[];
+};
+
+export type JevAnswer = {
+  key: string;
+  score: number;
+  confidence: number;
+  legend: Record<string, string>;
+  probabilities: Record<string, number>;
+};
+
+export type ArtifactReference = {
+  key: string;
+  contentType: string;
+  filename: string;
+};
