@@ -11,9 +11,8 @@ import {
   artifactKeys,
   assertUsableCapture,
   CONSENT_DISMISS_SCRIPT,
-  isJevProviderCredentialError,
+  jevGatewayOptions,
   parseJevAnswers,
-  scorePricingHeuristically,
 } from "./scan-workflow-logic";
 
 type SnapshotResult = {
@@ -26,6 +25,7 @@ type JevBinding = {
   run(
     model: "typesafe/jev",
     input: { state: string; questions: Record<string, unknown> },
+    options: ReturnType<typeof jevGatewayOptions>,
   ): Promise<unknown>;
 };
 
@@ -149,19 +149,12 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             { type: item.type, instructions: item.instructions, criteria: item.criteria },
           ]),
         );
-        let model = rubric.model;
-        let answers;
-        try {
-          const response = await (this.env.AI as unknown as JevBinding).run("typesafe/jev", {
-            state: markdown,
-            questions,
-          });
-          answers = parseJevAnswers(response, rubric.questions);
-        } catch (error) {
-          if (!isJevProviderCredentialError(error)) throw error;
-          model = "heuristic-v1";
-          answers = scorePricingHeuristically(markdown, rubric.questions);
-        }
+        const response = await (this.env.AI as unknown as JevBinding).run(
+          "typesafe/jev",
+          { state: markdown, questions },
+          jevGatewayOptions(),
+        );
+        const answers = parseJevAnswers(response, rubric.questions);
         await store.persistAnswers(params.runId, rubric.id, answers);
         const scores = answers.map((item) => ({
           key: item.key,
@@ -170,7 +163,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         }));
         return {
           rubricId: rubric.id,
-          model,
+          model: rubric.model,
           scores,
           overallScore: calculateOverallScore(scores.map((item) => item.score)),
         };

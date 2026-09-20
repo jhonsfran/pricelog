@@ -4,9 +4,8 @@ import {
   artifactKeys,
   assertUsableCapture,
   CONSENT_DISMISS_SCRIPT,
-  isJevProviderCredentialError,
+  jevGatewayOptions,
   parseJevAnswers,
-  scorePricingHeuristically,
 } from "./scan-workflow-logic";
 
 describe("artifactKeys", () => {
@@ -114,47 +113,50 @@ describe("parseJevAnswers", () => {
     ]);
   });
 
+  it("unwraps the completed AI Gateway response", () => {
+    expect(
+      parseJevAnswers(
+        {
+          state: "Completed",
+          result: {
+            model: "jev-1.13.0",
+            answers: {
+              clarity: {
+                type: "score",
+                score: 0.6,
+                confidence: 0.7,
+                probabilities: { "0": 0.4, "1": 0.6 },
+              },
+            },
+          },
+          gatewayMetadata: { keySource: "BYOK" },
+        },
+        questions,
+      ),
+    ).toEqual([
+      {
+        key: "clarity",
+        score: 0.6,
+        confidence: 0.7,
+        legend: { "0": "unclear", "1": "clear" },
+        probabilities: { "0": 0.4, "1": 0.6 },
+      },
+    ]);
+  });
+
   it("rejects missing answers", () => {
     expect(() => parseJevAnswers({ answers: {} }, questions)).toThrow("clarity");
   });
 });
 
-describe("Jev fallback", () => {
-  const questions = [
-    "pricing_transparency",
-    "pricing_clarity",
-    "pricing_completeness",
-    "plan_comparability",
-    "purchase_actionability",
-  ].map((key, position) => ({
-    key,
-    type: "score" as const,
-    instructions: key,
-    criteria: ["none", "low", "medium", "good", "complete"],
-    minimum: 0,
-    maximum: 4,
-    position,
-  }));
-
-  it("recognizes only the Jev provider credential failure", () => {
-    expect(
-      isJevProviderCredentialError(new Error("AiGatewayError: 2049: Invalid User Credentials")),
-    ).toBe(true);
-    expect(isJevProviderCredentialError(new Error("Browser Run failed with 500"))).toBe(false);
-  });
-
-  it("produces explicit low-confidence scores from pricing content", () => {
-    const answers = scorePricingHeuristically(
-      `# Pricing\n## Starter — $10 per month\nIncludes 5 users and email support.\n## Pro — $25 per month\nIncludes unlimited projects. Extra users cost $5.\nStart free trial or contact sales. Cancel any time.`,
-      questions,
-    );
-
-    expect(answers).toHaveLength(5);
-    expect(answers.every((answer) => answer.confidence === 0.25)).toBe(true);
-    expect(answers.every((answer) => answer.score >= 0 && answer.score <= 4)).toBe(true);
-    expect(
-      answers.find((answer) => answer.key === "pricing_transparency")?.score,
-    ).toBeGreaterThanOrEqual(3);
-    expect(answers.find((answer) => answer.key === "purchase_actionability")?.score).toBe(4);
+describe("Jev gateway", () => {
+  it("routes Jev through the configured default gateway without caching", () => {
+    expect(jevGatewayOptions()).toEqual({
+      gateway: {
+        id: "default",
+        skipCache: true,
+        collectLog: true,
+      },
+    });
   });
 });
