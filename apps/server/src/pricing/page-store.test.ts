@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { artifactReference, nextAlarmAt } from "./page-store-logic";
+import { artifactReference, nextAlarmAt, resolveRunCompletion } from "./page-store-logic";
 
 const completedAt = Date.UTC(2026, 8, 20, 12);
 
@@ -11,6 +11,14 @@ describe("PageStore scheduling", () => {
 
   it("retries one day after a failed scan", () => {
     expect(nextAlarmAt("failure", completedAt)).toBe(completedAt + 24 * 60 * 60 * 1000);
+  });
+
+  it("makes terminal run outcomes immutable and idempotent", () => {
+    expect(resolveRunCompletion("running", "succeeded")).toBe("apply");
+    expect(resolveRunCompletion("succeeded", "succeeded")).toBe("reuse");
+    expect(() => resolveRunCompletion("succeeded", "failed")).toThrow(
+      "Cannot change completed run from succeeded to failed",
+    );
   });
 });
 

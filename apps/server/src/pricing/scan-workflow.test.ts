@@ -4,9 +4,11 @@ import {
   artifactKeys,
   assertUsableCapture,
   CONSENT_DISMISS_SCRIPT,
+  extractPageDescription,
   jevGatewayOptions,
   parseJevAnswers,
 } from "./scan-workflow-logic";
+import type { PersistedQuestion } from "./types";
 
 describe("artifactKeys", () => {
   it("uses deterministic private paths", () => {
@@ -64,6 +66,32 @@ describe("capture validation", () => {
   });
 });
 
+describe("page metadata", () => {
+  it("extracts and normalizes a standard description regardless of attribute order", () => {
+    expect(
+      extractPageDescription(
+        '<meta content="  Predict costs &amp; compare plans.  " data-source="site" name="description">',
+      ),
+    ).toBe("Predict costs & compare plans.");
+  });
+
+  it("falls back to Open Graph metadata", () => {
+    expect(
+      extractPageDescription('<meta content="Pricing for every team" property="og:description">'),
+    ).toBe("Pricing for every team");
+  });
+
+  it("returns null when description metadata is absent", () => {
+    expect(extractPageDescription("<title>Pricing</title>")).toBeNull();
+  });
+
+  it("keeps malformed entities without failing the scan", () => {
+    expect(extractPageDescription('<meta name="description" content="Plans &#9999999999;">')).toBe(
+      "Plans &#9999999999;",
+    );
+  });
+});
+
 describe("consent dismissal", () => {
   it("prefers non-essential cookie rejection and covers Cookiebot", () => {
     expect(CONSENT_DISMISS_SCRIPT).toContain(
@@ -105,6 +133,7 @@ describe("parseJevAnswers", () => {
     ).toEqual([
       {
         key: "clarity",
+        type: "score",
         score: 0.75,
         confidence: 0.9,
         legend: { "0": "unclear", "1": "clear" },
@@ -136,6 +165,7 @@ describe("parseJevAnswers", () => {
     ).toEqual([
       {
         key: "clarity",
+        type: "score",
         score: 0.6,
         confidence: 0.7,
         legend: { "0": "unclear", "1": "clear" },
@@ -146,6 +176,68 @@ describe("parseJevAnswers", () => {
 
   it("rejects missing answers", () => {
     expect(() => parseJevAnswers({ answers: {} }, questions)).toThrow("clarity");
+  });
+
+  it("maps score, choice, and noul answers from the same response", () => {
+    const typedQuestions: PersistedQuestion[] = [
+      questions[0]!,
+      {
+        key: "motion",
+        type: "choice" as const,
+        instructions: "How can a customer buy?",
+        criteria: { self_serve: "Buy directly", unknown: "Not established" },
+        minimum: null,
+        maximum: null,
+        position: 1,
+      },
+      {
+        key: "has_free_plan",
+        type: "noul" as const,
+        instructions: "Is there a free plan?",
+        criteria: { true: "Free plan", false: "No free plan" },
+        minimum: null,
+        maximum: null,
+        position: 2,
+      },
+    ];
+
+    expect(
+      parseJevAnswers(
+        {
+          answers: {
+            clarity: {
+              score: 1,
+              confidence: 0.9,
+              probabilities: { "0": 0, "1": 1 },
+            },
+            motion: {
+              choice: "self_serve",
+              confidence: 0.88,
+              probabilities: { self_serve: 0.88, unknown: 0.12 },
+            },
+            has_free_plan: { noul: 0.93 },
+          },
+        },
+        typedQuestions,
+      ),
+    ).toEqual([
+      {
+        key: "clarity",
+        type: "score",
+        score: 1,
+        confidence: 0.9,
+        legend: { "0": "unclear", "1": "clear" },
+        probabilities: { "0": 0, "1": 1 },
+      },
+      {
+        key: "motion",
+        type: "choice",
+        choice: "self_serve",
+        confidence: 0.88,
+        probabilities: { self_serve: 0.88, unknown: 0.12 },
+      },
+      { key: "has_free_plan", type: "noul", noul: 0.93 },
+    ]);
   });
 });
 

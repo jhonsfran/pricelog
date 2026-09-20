@@ -1,5 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
-import { and, desc, eq, lt } from "drizzle-orm";
+import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
+import { and, desc, eq } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -13,7 +15,7 @@ import {
   scanRun,
   schedulerState,
 } from "./do-schema";
-import { PRICING_QUALITY_V1 } from "./rubric";
+import { PRICING_INTELLIGENCE_V2 } from "./rubric";
 import type {
   ArtifactKind,
   ArtifactManifest,
@@ -25,7 +27,7 @@ import type {
   RunTrigger,
   ScanWorkflowParams,
 } from "./types";
-import { artifactReference, nextAlarmAt } from "./page-store-logic";
+import { artifactReference, nextAlarmAt, resolveRunCompletion } from "./page-store-logic";
 
 export interface PageStoreEnv {
   SCAN_WORKFLOW: Workflow<ScanWorkflowParams>;
@@ -40,7 +42,7 @@ export type InitializePageInput = {
 
 export type RunPage = {
   items: PageRunDto[];
-  nextCursor: number | null;
+  nextCursor: DescendingTimestampCursor | null;
 };
 
 type StoreDb = DrizzleSqliteDODatabase;
@@ -85,26 +87,40 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       throw new Error("PageStore is already initialized for a different page");
     }
 
-    return this.startRun("initial", input.requestedByUserId);
+    const [existingRun] = await this.db
+      .select()
+      .from(scanRun)
+      .orderBy(desc(scanRun.createdAt), desc(scanRun.id))
+      .limit(1);
+    return existingRun ? toRunDto(existingRun) : this.startRun("initial", input.requestedByUserId);
   }
 
   triggerManual(requestedByUserId: string): Promise<PageRunDto> {
     return this.startRun("manual", requestedByUserId);
   }
 
-  async listRuns(limit = 50, cursor?: number): Promise<RunPage> {
+  async listRuns(limit = 50, cursor?: DescendingTimestampCursor): Promise<RunPage> {
     const safeLimit = Math.max(1, Math.min(limit, 100));
     const rows = await this.db
       .select()
       .from(scanRun)
-      .where(cursor === undefined ? undefined : lt(scanRun.createdAt, cursor))
+      .where(
+        cursor === undefined
+          ? undefined
+          : descendingCursorCondition(scanRun.createdAt, scanRun.id, cursor),
+      )
       .orderBy(desc(scanRun.createdAt), desc(scanRun.id))
       .limit(safeLimit + 1);
     const hasMore = rows.length > safeLimit;
     const items = rows.slice(0, safeLimit).map(toRunDto);
     return {
       items,
-      nextCursor: hasMore ? (items.at(-1)?.createdAt ?? null) : null,
+      nextCursor: hasMore
+        ? (() => {
+            const last = items.at(-1);
+            return last ? { createdAt: last.createdAt, id: last.id } : null;
+          })()
+        : null,
     };
   }
 
@@ -157,7 +173,12 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       .from(question)
       .where(eq(question.questionSetId, set.id))
       .orderBy(question.position);
-    return { id: set.id, model: set.model, version: set.version, questions };
+    return {
+      id: set.id,
+      model: set.model,
+      version: set.version,
+      questions: questions.map(toPersistedQuestion),
+    };
   }
 
   async persistAnswers(runId: string, rubricId: string, values: JevAnswer[]): Promise<void> {
@@ -169,24 +190,19 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     if (!version) throw new Error(`No page version for run ${runId}`);
 
     for (const value of values) {
+      const stored = toStoredAnswer(value);
       await this.db
         .insert(answer)
         .values({
           versionId: version.id,
           questionSetId: rubricId,
           questionKey: value.key,
-          score: value.score,
-          confidence: value.confidence,
-          legend: value.legend,
-          probabilities: value.probabilities,
+          ...stored,
         })
         .onConflictDoUpdate({
           target: [answer.versionId, answer.questionSetId, answer.questionKey],
           set: {
-            score: value.score,
-            confidence: value.confidence,
-            legend: value.legend,
-            probabilities: value.probabilities,
+            ...stored,
           },
         });
     }
@@ -210,28 +226,36 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   private async seedRubric(): Promise<void> {
+    await this.db.update(questionSet).set({ active: false });
     await this.db
       .insert(questionSet)
       .values({
-        id: PRICING_QUALITY_V1.id,
-        model: PRICING_QUALITY_V1.model,
-        version: PRICING_QUALITY_V1.version,
+        id: PRICING_INTELLIGENCE_V2.id,
+        model: PRICING_INTELLIGENCE_V2.model,
+        version: PRICING_INTELLIGENCE_V2.version,
         active: true,
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: questionSet.id,
+        set: {
+          model: PRICING_INTELLIGENCE_V2.model,
+          version: PRICING_INTELLIGENCE_V2.version,
+          active: true,
+        },
+      });
 
     let position = 0;
-    for (const [key, value] of Object.entries(PRICING_QUALITY_V1.questions)) {
+    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_V2.questions)) {
       await this.db
         .insert(question)
         .values({
-          questionSetId: PRICING_QUALITY_V1.id,
+          questionSetId: PRICING_INTELLIGENCE_V2.id,
           key,
           type: value.type,
           instructions: value.instructions,
-          criteria: [...value.criteria],
-          minimum: 0,
-          maximum: 4,
+          criteria: value.type === "score" ? [...value.criteria] : { ...value.criteria },
+          minimum: value.type === "score" ? 0 : null,
+          maximum: value.type === "score" ? value.criteria.length - 1 : null,
           position: position++,
         })
         .onConflictDoNothing();
@@ -324,8 +348,27 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     errorCode: string | null = null,
     errorMessage: string | null = null,
   ): Promise<number> {
-    const nextScanAt = nextAlarmAt(status === "succeeded" ? "success" : "failure", completedAt);
+    let effectiveCompletedAt = completedAt;
+    let shouldSetAlarm = false;
     this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run) throw new Error(`Unknown scan run ${runId}`);
+      const action = resolveRunCompletion(run.status, status);
+      if (action === "reuse") {
+        effectiveCompletedAt = run.completedAt ?? completedAt;
+        const nextScanAt = nextAlarmAt(
+          status === "succeeded" ? "success" : "failure",
+          effectiveCompletedAt,
+        );
+        const state = tx.select().from(schedulerState).where(eq(schedulerState.id, 1)).get();
+        shouldSetAlarm = state?.activeRunId === null && state.nextScanAt === nextScanAt;
+        return;
+      }
+
+      const nextScanAt = nextAlarmAt(
+        status === "succeeded" ? "success" : "failure",
+        effectiveCompletedAt,
+      );
       tx.update(scanRun)
         .set({
           status,
@@ -340,10 +383,87 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         .set({ activeRunId: null, nextScanAt, updatedAt: completedAt })
         .where(and(eq(schedulerState.id, 1), eq(schedulerState.activeRunId, runId)))
         .run();
+      shouldSetAlarm = true;
     });
-    await this.ctx.storage.setAlarm(nextScanAt);
+    const nextScanAt = nextAlarmAt(
+      status === "succeeded" ? "success" : "failure",
+      effectiveCompletedAt,
+    );
+    if (shouldSetAlarm) await this.ctx.storage.setAlarm(nextScanAt);
     return nextScanAt;
   }
+}
+
+type StoredAnswer = Omit<
+  typeof answer.$inferInsert,
+  "versionId" | "questionSetId" | "questionKey" | "createdAt"
+>;
+
+function toStoredAnswer(value: JevAnswer): StoredAnswer {
+  if (value.type === "score") {
+    return {
+      type: value.type,
+      score: value.score,
+      choice: null,
+      noul: null,
+      confidence: value.confidence,
+      legend: value.legend,
+      probabilities: value.probabilities,
+    };
+  }
+  if (value.type === "choice") {
+    return {
+      type: value.type,
+      score: null,
+      choice: value.choice,
+      noul: null,
+      confidence: value.confidence,
+      legend: null,
+      probabilities: value.probabilities,
+    };
+  }
+  return {
+    type: value.type,
+    score: null,
+    choice: null,
+    noul: value.noul,
+    confidence: null,
+    legend: null,
+    probabilities: null,
+  };
+}
+
+function toPersistedQuestion(
+  row: typeof question.$inferSelect,
+): PersistedRubric["questions"][number] {
+  if (row.type === "score") {
+    if (!Array.isArray(row.criteria) || row.minimum === null || row.maximum === null) {
+      throw new Error(`Invalid persisted score question ${row.key}`);
+    }
+    return {
+      ...row,
+      type: row.type,
+      criteria: row.criteria,
+      minimum: row.minimum,
+      maximum: row.maximum,
+    };
+  }
+  if (Array.isArray(row.criteria) || row.minimum !== null || row.maximum !== null) {
+    throw new Error(`Invalid persisted ${row.type} question ${row.key}`);
+  }
+  if (row.type === "choice") {
+    return { ...row, type: row.type, criteria: row.criteria, minimum: null, maximum: null };
+  }
+  if (typeof row.criteria.true !== "string" || typeof row.criteria.false !== "string") {
+    throw new Error(`Invalid persisted noul question ${row.key}`);
+  }
+  return {
+    ...row,
+    type: row.type,
+    criteria: { true: row.criteria.true, false: row.criteria.false },
+    minimum: null,
+    maximum: null,
+  };
 }
 
 function toRunDto(row: typeof scanRun.$inferSelect | typeof scanRun.$inferInsert): PageRunDto {

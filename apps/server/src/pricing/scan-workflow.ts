@@ -3,7 +3,8 @@ import { page, pageOwnerState, pagePublicSummary } from "@my-better-t-app/db/sch
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 import { eq, sql } from "drizzle-orm";
 
-import { budgetMarkdown, calculateOverallScore, normalizeJevScore } from "./score";
+import { buildPublicEvaluation } from "./evaluation";
+import { budgetMarkdown } from "./score";
 import type { PageStore } from "./page-store";
 import type { ArtifactManifest, PersistedQuestion, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
@@ -11,9 +12,11 @@ import {
   artifactKeys,
   assertUsableCapture,
   CONSENT_DISMISS_SCRIPT,
+  extractPageDescription,
   jevGatewayOptions,
   parseJevAnswers,
 } from "./scan-workflow-logic";
+import { resolveDnsAddresses } from "./url";
 
 type SnapshotResult = {
   success: true;
@@ -69,7 +72,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           });
       });
 
-      const manifest = await step.do("capture and archive", RETRY, async () => {
+      const capture = await step.do("capture and archive", RETRY, async () => {
         const response = await this.env.BROWSER.quickAction("snapshot", {
           url: params.canonicalUrl,
           formats: ["content", "markdown", "screenshot"],
@@ -94,7 +97,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         });
 
         const finalUrl = snapshot.meta.finalUrl ?? params.canonicalUrl;
-        const normalized = await normalizePricingUrl(finalUrl, resolveHost);
+        const normalized = await normalizePricingUrl(finalUrl, resolveDnsAddresses);
         if (normalized.normalizedDomain !== params.normalizedDomain) {
           throw new Error("Browser redirect left the claimed domain");
         }
@@ -118,29 +121,32 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           }),
         ]);
         return {
-          capturedAt: Date.now(),
-          httpStatus,
-          finalUrl: normalized.canonicalUrl,
-          title: snapshot.meta.title || null,
-          ...keys,
-          htmlSha256,
-          screenshotSha256,
-          contentSha256,
-          htmlBytes: new TextEncoder().encode(html).byteLength,
-          screenshotBytes: screenshotBytes.byteLength,
-          contentBytes: new TextEncoder().encode(markdown).byteLength,
-        } satisfies ArtifactManifest;
+          description: extractPageDescription(html),
+          manifest: {
+            capturedAt: Date.now(),
+            httpStatus,
+            finalUrl: normalized.canonicalUrl,
+            title: snapshot.meta.title || null,
+            ...keys,
+            htmlSha256,
+            screenshotSha256,
+            contentSha256,
+            htmlBytes: new TextEncoder().encode(html).byteLength,
+            screenshotBytes: screenshotBytes.byteLength,
+            contentBytes: new TextEncoder().encode(markdown).byteLength,
+          } satisfies ArtifactManifest,
+        };
       });
 
       await step.do("persist version", RETRY, async () => {
         await store.setStage(params.runId, "persist");
-        await store.persistVersion(params.runId, manifest);
+        await store.persistVersion(params.runId, capture.manifest);
       });
 
       const evaluation = await step.do("evaluate pricing", RETRY, async () => {
         await store.setStage(params.runId, "evaluate");
         const rubric = await store.getActiveRubric();
-        const artifact = await this.env.ARTIFACTS.get(manifest.contentKey);
+        const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
         if (!artifact) throw new Error("Archived Markdown is missing");
         const markdown = budgetMarkdown(await artifact.text());
         const questions = Object.fromEntries(
@@ -156,22 +162,17 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         );
         const answers = parseJevAnswers(response, rubric.questions);
         await store.persistAnswers(params.runId, rubric.id, answers);
-        const scores = answers.map((item) => ({
-          key: item.key,
-          score: normalizeJevScore(item.score),
-          confidence: item.confidence,
-        }));
+        const publicEvaluation = buildPublicEvaluation(answers);
         return {
           rubricId: rubric.id,
           model: rubric.model,
-          scores,
-          overallScore: calculateOverallScore(scores.map((item) => item.score)),
+          ...publicEvaluation,
         };
       });
 
       await step.do("publish projection", RETRY, async () => {
         await store.setStage(params.runId, "publish");
-        const scannedAt = new Date(manifest.capturedAt);
+        const scannedAt = new Date(capture.manifest.capturedAt);
         await db
           .insert(pagePublicSummary)
           .values({
@@ -181,6 +182,9 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             model: evaluation.model,
             overallScore: evaluation.overallScore,
             scores: evaluation.scores,
+            choices: evaluation.choices,
+            signals: evaluation.signals,
+            tags: evaluation.tags,
             browserEngine: "chromium",
             scannedAt,
           })
@@ -192,6 +196,9 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
               model: evaluation.model,
               overallScore: evaluation.overallScore,
               scores: evaluation.scores,
+              choices: evaluation.choices,
+              signals: evaluation.signals,
+              tags: evaluation.tags,
               browserEngine: "chromium",
               scannedAt,
               updatedAt: new Date(),
@@ -200,12 +207,18 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           });
         await db
           .update(page)
-          .set({ state: "active", displayName: manifest.title ?? params.normalizedDomain })
+          .set({
+            state: "active",
+            displayName: capture.manifest.title ?? params.normalizedDomain,
+            description: capture.description,
+          })
           .where(eq(page.id, params.pageId));
       });
 
-      await step.do("complete scan", async () => {
-        const nextScanAt = await store.completeSuccess(params.runId);
+      const nextScanAt = await step.do("complete scan", async () => {
+        return store.completeSuccess(params.runId);
+      });
+      await step.do("publish successful owner state", RETRY, async () => {
         await db
           .insert(pageOwnerState)
           .values({
@@ -228,6 +241,8 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
       });
     } catch (error) {
       await step.do("record terminal failure", async () => {
+        const run = await store.getRun(params.runId);
+        if (run?.status === "succeeded") return;
         const message = error instanceof Error ? error.message : "Scan failed";
         const nextScanAt = await store.completeFailure(params.runId, "scan_failed", message);
         await db
@@ -253,16 +268,6 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
       throw error;
     }
   }
-}
-
-async function resolveHost(hostname: string): Promise<string[]> {
-  const response = await fetch(
-    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
-    { headers: { accept: "application/dns-json" } },
-  );
-  if (!response.ok) throw new Error("DNS resolution failed");
-  const body = (await response.json()) as { Answer?: { data: string; type: number }[] };
-  return (body.Answer ?? []).filter((answer) => answer.type === 1).map((answer) => answer.data);
 }
 
 function decodeBase64(value: string): Uint8Array {

@@ -1,6 +1,7 @@
 import ipaddr from "ipaddr.js";
 
 export type HostResolver = (hostname: string) => Promise<string[]>;
+type Fetcher = typeof fetch;
 
 export class InvalidPricingUrlError extends Error {
   constructor(
@@ -19,6 +20,26 @@ export class InvalidPricingUrlError extends Error {
 }
 
 const LOCAL_SUFFIXES = [".localhost", ".local", ".internal", ".home", ".lan"];
+
+export async function resolveDnsAddresses(
+  hostname: string,
+  fetcher: Fetcher = fetch,
+): Promise<string[]> {
+  const responses = await Promise.all(
+    ["A", "AAAA"].map(async (type) => {
+      const response = await fetcher(
+        `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=${type}`,
+        { headers: { accept: "application/dns-json" } },
+      );
+      if (!response.ok) throw new Error("DNS resolution failed");
+      const body = (await response.json()) as { Answer?: { data: string; type: number }[] };
+      return (body.Answer ?? [])
+        .filter((answer) => answer.type === 1 || answer.type === 28)
+        .map((answer) => answer.data);
+    }),
+  );
+  return responses.flat();
+}
 
 function stripIpv6Brackets(hostname: string) {
   return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;

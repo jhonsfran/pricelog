@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { InvalidPricingUrlError, normalizePricingUrl } from "./url";
+import { InvalidPricingUrlError, normalizePricingUrl, resolveDnsAddresses } from "./url";
 
 const publicDns = async () => ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"];
 
@@ -37,5 +37,24 @@ describe("normalizePricingUrl", () => {
     await expect(
       normalizePricingUrl("https://example.com/pricing", async () => ["93.184.216.34", "10.0.0.8"]),
     ).rejects.toMatchObject({ code: "non_public_address" });
+  });
+});
+
+describe("resolveDnsAddresses", () => {
+  it("returns both public IPv4 and IPv6 answers", async () => {
+    const fetcher: typeof fetch = async (input) => {
+      const type = new URL(String(input)).searchParams.get("type");
+      return Response.json({
+        Answer:
+          type === "A"
+            ? [{ data: "93.184.216.34", type: 1 }]
+            : [{ data: "2606:2800:220:1:248:1893:25c8:1946", type: 28 }],
+      });
+    };
+
+    await expect(resolveDnsAddresses("example.com", fetcher)).resolves.toEqual([
+      "93.184.216.34",
+      "2606:2800:220:1:248:1893:25c8:1946",
+    ]);
   });
 });

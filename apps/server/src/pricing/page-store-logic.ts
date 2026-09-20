@@ -1,10 +1,19 @@
-import type { ArtifactKind, ArtifactManifest, ArtifactReference } from "./types";
+import type { ArtifactKind, ArtifactManifest, ArtifactReference, RunStatus } from "./types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
 export function nextAlarmAt(outcome: "success" | "failure", completedAt: number): number {
   return completedAt + (outcome === "success" ? WEEK_MS : DAY_MS);
+}
+
+export function resolveRunCompletion(
+  current: RunStatus,
+  requested: "succeeded" | "failed",
+): "apply" | "reuse" {
+  if (current === "queued" || current === "running") return "apply";
+  if (current === requested) return "reuse";
+  throw new Error(`Cannot change completed run from ${current} to ${requested}`);
 }
 
 export function artifactReference(

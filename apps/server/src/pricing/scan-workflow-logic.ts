@@ -4,10 +4,13 @@ type JevResponse = {
   answers: Record<
     string,
     {
-      score: number;
-      confidence: number;
+      type?: "score" | "choice" | "noul";
+      score?: number;
+      choice?: string;
+      noul?: number;
+      confidence?: number;
       legend?: Record<string, string>;
-      probabilities: Record<string, number>;
+      probabilities?: Record<string, number>;
     }
   >;
 };
@@ -119,6 +122,68 @@ export function artifactKeys(normalizedDomain: string, runId: string) {
   };
 }
 
+export function extractPageDescription(html: string): string | null {
+  const descriptions = new Map<string, string>();
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    const attributes = parseHtmlAttributes(match[0]);
+    const key = (attributes.name ?? attributes.property)?.toLowerCase();
+    const content = attributes.content;
+    if (!key || !content || descriptions.has(key)) continue;
+    descriptions.set(key, normalizeMetadataText(content));
+  }
+
+  return (
+    descriptions.get("description") ||
+    descriptions.get("og:description") ||
+    descriptions.get("twitter:description") ||
+    null
+  );
+}
+
+function parseHtmlAttributes(tag: string): Record<string, string> {
+  const attributes: Record<string, string> = {};
+  const pattern = /([^\s"'=<>`]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g;
+  for (const match of tag.matchAll(pattern)) {
+    const name = match[1]?.toLowerCase();
+    const value = match[2] ?? match[3] ?? match[4];
+    if (name && value !== undefined) attributes[name] = value;
+  }
+  return attributes;
+}
+
+function normalizeMetadataText(value: string): string {
+  return decodeHtmlEntities(value).replace(/\s+/g, " ").trim();
+}
+
+function decodeHtmlEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    quot: '"',
+  };
+  return value.replace(/&(#(?:x[\da-f]+|\d+)|[a-z]+);/gi, (entity, code: string) => {
+    const numeric =
+      code.startsWith("#x") || code.startsWith("#X")
+        ? Number.parseInt(code.slice(2), 16)
+        : code.startsWith("#")
+          ? Number.parseInt(code.slice(1), 10)
+          : null;
+    if (
+      numeric !== null &&
+      Number.isInteger(numeric) &&
+      numeric >= 0 &&
+      numeric <= 0x10ffff &&
+      !(numeric >= 0xd800 && numeric <= 0xdfff)
+    ) {
+      return String.fromCodePoint(numeric);
+    }
+    if (numeric !== null) return entity;
+    return named[code.toLowerCase()] ?? entity;
+  });
+}
+
 export function parseJevAnswers(response: unknown, questions: PersistedQuestion[]): JevAnswer[] {
   const payload = unwrapJevResponse(response);
   if (!payload) {
@@ -127,23 +192,60 @@ export function parseJevAnswers(response: unknown, questions: PersistedQuestion[
   const answers = payload.answers;
   return questions.map((question) => {
     const value = answers[question.key];
-    if (
-      !value ||
-      !Number.isFinite(value.score) ||
-      !Number.isFinite(value.confidence) ||
-      !value.probabilities
-    ) {
-      throw new Error(`Jev returned an invalid answer for ${question.key}`);
+    if (!value) throw new Error(`Jev returned an invalid answer for ${question.key}`);
+    if (question.type === "score") {
+      if (
+        !Number.isFinite(value.score) ||
+        !isUnitInterval(value.confidence) ||
+        !isProbabilityRecord(value.probabilities)
+      ) {
+        throw new Error(`Jev returned an invalid score answer for ${question.key}`);
+      }
+      return {
+        key: question.key,
+        type: question.type,
+        score: value.score!,
+        confidence: value.confidence!,
+        legend:
+          value.legend ??
+          Object.fromEntries(question.criteria.map((label, index) => [index, label])),
+        probabilities: value.probabilities!,
+      };
     }
-    return {
-      key: question.key,
-      score: value.score,
-      confidence: value.confidence,
-      legend:
-        value.legend ?? Object.fromEntries(question.criteria.map((label, index) => [index, label])),
-      probabilities: value.probabilities,
-    };
+    if (question.type === "choice") {
+      if (
+        typeof value.choice !== "string" ||
+        !(value.choice in question.criteria) ||
+        !isUnitInterval(value.confidence) ||
+        !isProbabilityRecord(value.probabilities)
+      ) {
+        throw new Error(`Jev returned an invalid choice answer for ${question.key}`);
+      }
+      return {
+        key: question.key,
+        type: question.type,
+        choice: value.choice,
+        confidence: value.confidence!,
+        probabilities: value.probabilities!,
+      };
+    }
+    if (!isUnitInterval(value.noul)) {
+      throw new Error(`Jev returned an invalid noul answer for ${question.key}`);
+    }
+    return { key: question.key, type: question.type, noul: value.noul! };
   });
+}
+
+function isUnitInterval(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isProbabilityRecord(value: unknown): value is Record<string, number> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Object.values(value).every((probability) => isUnitInterval(probability))
+  );
 }
 
 function unwrapJevResponse(response: unknown): JevResponse | undefined {
