@@ -57,3 +57,5 @@ coverage
 .superpowers/
 tmp
 temp
+
+.openlogs

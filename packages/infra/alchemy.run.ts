@@ -28,6 +28,7 @@ export const server = Cloudflare.Worker("server", {
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
+    LOG_FORMAT: process.env.ALCHEMY_DEV === "true" ? "pretty" : "json",
   },
   dev: {
     port: 3000,

@@ -1,4 +1,5 @@
 import { appRouter } from "@my-better-t-app/api/routers/index";
+import { parseAllowedOrigins } from "@my-better-t-app/auth";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -6,21 +7,33 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { initLogger } from "evlog";
 import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
-import { evlog, type EvlogVariables } from "evlog/hono";
+import { evlog, type EvlogVariables, useLogger } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 import { serveArtifact } from "./artifacts";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
+import { resolveLogEnvironment } from "./logging";
 import { createAuth } from "./services";
 
 export { PageStore } from "./pricing/page-store";
 export { ScanWorkflow } from "./pricing/scan-workflow";
 
-initLogger({
-  env: { service: "pricelog" },
+const environment = resolveLogEnvironment({
+  LOG_FORMAT: ENV.LOG_FORMAT,
+  ALCHEMY_DEV: process.env.ALCHEMY_DEV,
+  NODE_ENV: process.env.NODE_ENV,
 });
+
+initLogger({
+  env: { service: "pricelog", environment },
+  pretty: environment !== "production",
+});
+
+function logHandlerError(error: unknown) {
+  useLogger().error(error instanceof Error ? error : new Error(String(error)));
+}
 
 const identifyUser = createAuthMiddleware((await createAuth()) as BetterAuthInstance, {
   exclude: ["/api/auth/**"],
@@ -56,7 +69,7 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
   ],
   interceptors: [
     onError((error) => {
-      console.error(error);
+      logHandlerError(error);
     }),
   ],
 });
@@ -64,7 +77,7 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
 export const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error(error);
+      logHandlerError(error);
     }),
   ],
 });
