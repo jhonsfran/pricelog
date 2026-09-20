@@ -7,7 +7,12 @@ import { budgetMarkdown, calculateOverallScore, normalizeJevScore } from "./scor
 import type { PageStore } from "./page-store";
 import type { ArtifactManifest, PersistedQuestion, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
-import { artifactKeys, parseJevAnswers } from "./scan-workflow-logic";
+import {
+  artifactKeys,
+  isJevProviderCredentialError,
+  parseJevAnswers,
+  scorePricingHeuristically,
+} from "./scan-workflow-logic";
 
 type SnapshotResult = {
   success: true;
@@ -126,17 +131,26 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const rubric = await store.getActiveRubric();
         const artifact = await this.env.ARTIFACTS.get(manifest.contentKey);
         if (!artifact) throw new Error("Archived Markdown is missing");
+        const markdown = budgetMarkdown(await artifact.text());
         const questions = Object.fromEntries(
           rubric.questions.map((item: PersistedQuestion) => [
             item.key,
             { type: item.type, instructions: item.instructions, criteria: item.criteria },
           ]),
         );
-        const response = await (this.env.AI as unknown as JevBinding).run("typesafe/jev", {
-          state: budgetMarkdown(await artifact.text()),
-          questions,
-        });
-        const answers = parseJevAnswers(response, rubric.questions);
+        let model = rubric.model;
+        let answers;
+        try {
+          const response = await (this.env.AI as unknown as JevBinding).run("typesafe/jev", {
+            state: markdown,
+            questions,
+          });
+          answers = parseJevAnswers(response, rubric.questions);
+        } catch (error) {
+          if (!isJevProviderCredentialError(error)) throw error;
+          model = "heuristic-v1";
+          answers = scorePricingHeuristically(markdown, rubric.questions);
+        }
         await store.persistAnswers(params.runId, rubric.id, answers);
         const scores = answers.map((item) => ({
           key: item.key,
@@ -145,7 +159,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         }));
         return {
           rubricId: rubric.id,
-          model: rubric.model,
+          model,
           scores,
           overallScore: calculateOverallScore(scores.map((item) => item.score)),
         };
