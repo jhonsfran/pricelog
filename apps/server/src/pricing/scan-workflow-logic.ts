@@ -4,12 +4,10 @@ type JevResponse = {
   answers: Record<
     string,
     {
-      type?: "score" | "choice" | "noul";
-      score?: number;
+      type?: "choice" | "noul";
       choice?: string;
       noul?: number;
       confidence?: number;
-      legend?: Record<string, string>;
       probabilities?: Record<string, number>;
     }
   >;
@@ -98,6 +96,9 @@ export const CONSENT_DISMISS_SCRIPT = String.raw`
 `;
 
 export function assertUsableCapture(input: CaptureValidationInput): number {
+  if (!input.markdown.trim()) {
+    throw new Error("Pricing source is blank");
+  }
   if (typeof input.httpStatus !== "number" || !Number.isFinite(input.httpStatus)) {
     throw new Error("Target response status is missing");
   }
@@ -193,29 +194,10 @@ export function parseJevAnswers(response: unknown, questions: PersistedQuestion[
   return questions.map((question) => {
     const value = answers[question.key];
     if (!value) throw new Error(`Jev returned an invalid answer for ${question.key}`);
-    if (question.type === "score") {
-      if (
-        !Number.isFinite(value.score) ||
-        !isUnitInterval(value.confidence) ||
-        !isProbabilityRecord(value.probabilities)
-      ) {
-        throw new Error(`Jev returned an invalid score answer for ${question.key}`);
-      }
-      return {
-        key: question.key,
-        type: question.type,
-        score: value.score!,
-        confidence: value.confidence!,
-        legend:
-          value.legend ??
-          Object.fromEntries(question.criteria.map((label, index) => [index, label])),
-        probabilities: value.probabilities!,
-      };
-    }
     if (question.type === "choice") {
       if (
         typeof value.choice !== "string" ||
-        !(value.choice in question.criteria) ||
+        !Object.hasOwn(question.criteria, value.choice) ||
         !isUnitInterval(value.confidence) ||
         !isProbabilityRecord(value.probabilities)
       ) {

@@ -1,23 +1,12 @@
 import {
   isPricingChoiceKey,
-  isPricingScoreKey,
   isPricingSignalKey,
   PRICING_CHOICE_CATALOG,
   PRICING_CHOICE_GROUPS,
-  PRICING_SCORE_CATALOG,
   PRICING_SIGNAL_CATALOG,
 } from "@my-better-t-app/db/pricing-intelligence";
 
 export * from "@my-better-t-app/db/pricing-intelligence";
-
-export function getPricingScoreLabel(key: string): string {
-  return isPricingScoreKey(key) ? PRICING_SCORE_CATALOG[key].label : formatPricingKey(key);
-}
-
-/** The exact question Jev answered, for the score tooltip and the methodology page. */
-export function getPricingScoreMetadata(key: string) {
-  return isPricingScoreKey(key) ? PRICING_SCORE_CATALOG[key] : null;
-}
 
 export function getPricingChoiceLabel(key: string): string {
   return isPricingChoiceKey(key) ? PRICING_CHOICE_CATALOG[key].label : formatPricingKey(key);
@@ -71,4 +60,20 @@ export function groupPricingChoices<T extends { key: string }>(
 function formatPricingKey(value: string): string {
   const formatted = value.replaceAll("_", " ").replaceAll("-", " ").trim();
   return formatted ? formatted[0]!.toUpperCase() + formatted.slice(1) : "Unknown";
+}
+
+/** Reconstruct the comparison denominator without treating missing answers as policy facts. */
+export function pricingPolicyCoverage(
+  pageCount: number,
+  share?: { answered: number; options: Record<string, number> },
+) {
+  const classified = share?.answered ?? 0;
+  const notApplicable = share?.options.not_applicable ?? 0;
+  return {
+    classified,
+    applicable: Math.max(0, classified - notApplicable),
+    uncertain: Math.max(0, pageCount - classified),
+    notApplicable,
+    notDisclosed: share?.options.not_disclosed ?? 0,
+  };
 }

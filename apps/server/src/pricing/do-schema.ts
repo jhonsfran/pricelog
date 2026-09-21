@@ -1,3 +1,5 @@
+import type { Comparison } from "@my-better-t-app/api/pricing-history";
+import type { PublicEvaluation } from "./evaluation";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -96,13 +98,9 @@ export const question = sqliteTable(
       .notNull()
       .references(() => questionSet.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
-    type: text("type", { enum: ["score", "choice", "noul"] }).notNull(),
+    type: text("type", { enum: ["choice", "noul"] }).notNull(),
     instructions: text("instructions").notNull(),
-    criteria: text("criteria_json", { mode: "json" })
-      .$type<string[] | Record<string, string>>()
-      .notNull(),
-    minimum: integer("minimum"),
-    maximum: integer("maximum"),
+    criteria: text("criteria_json", { mode: "json" }).$type<Record<string, string>>().notNull(),
     position: integer("position").notNull(),
   },
   (table) => [primaryKey({ columns: [table.questionSetId, table.key] })],
@@ -116,14 +114,10 @@ export const answer = sqliteTable(
       .references(() => pageVersion.id, { onDelete: "cascade" }),
     questionSetId: text("question_set_id").notNull(),
     questionKey: text("question_key").notNull(),
-    type: text("type", { enum: ["score", "choice", "noul"] })
-      .default("score")
-      .notNull(),
-    score: real("score"),
+    type: text("type", { enum: ["choice", "noul"] }).notNull(),
     choice: text("choice"),
     noul: real("noul"),
     confidence: real("confidence"),
-    legend: text("legend_json", { mode: "json" }).$type<Record<string, string>>(),
     probabilities: text("probabilities_json", { mode: "json" }).$type<Record<string, number>>(),
     createdAt: integer("created_at").default(now).notNull(),
   },
@@ -131,11 +125,7 @@ export const answer = sqliteTable(
     primaryKey({ columns: [table.versionId, table.questionSetId, table.questionKey] }),
     check(
       "answer_value_check",
-      sql`(${table.type} = 'score' and ${table.score} is not null and ${table.choice} is null and ${table.noul} is null) or (${table.type} = 'choice' and ${table.score} is null and ${table.choice} is not null and ${table.noul} is null) or (${table.type} = 'noul' and ${table.score} is null and ${table.choice} is null and ${table.noul} is not null)`,
-    ),
-    check(
-      "answer_score_check",
-      sql`${table.score} is null or (${table.score} >= 0 and ${table.score} <= 4)`,
+      sql`(${table.type} = 'choice' and ${table.choice} is not null and ${table.noul} is null) or (${table.type} = 'noul' and ${table.choice} is null and ${table.noul} is not null)`,
     ),
     check(
       "answer_confidence_check",
@@ -146,4 +136,33 @@ export const answer = sqliteTable(
       sql`${table.noul} is null or (${table.noul} >= 0 and ${table.noul} <= 1)`,
     ),
   ],
+);
+
+/** Evaluation and exact model version belong to their immutable captured version. */
+export const versionEvaluation = sqliteTable("version_evaluation", {
+  runId: text("run_id")
+    .primaryKey()
+    .references(() => pageVersion.runId, { onDelete: "cascade" }),
+  rubricId: text("rubric_id").notNull(),
+  model: text("model").notNull(),
+  evaluation: text("evaluation_json", { mode: "json" }).$type<PublicEvaluation>().notNull(),
+});
+
+export const versionComparison = sqliteTable(
+  "version_comparison",
+  {
+    id: text("id").primaryKey(),
+    beforeRunId: text("before_run_id")
+      .notNull()
+      .references(() => versionEvaluation.runId),
+    afterRunId: text("after_run_id")
+      .notNull()
+      .references(() => versionEvaluation.runId),
+    verifierVersion: text("verifier_version").notNull(),
+    model: text("model"),
+    status: text("status", { enum: ["reviewed", "uncertain"] }).notNull(),
+    changes: text("changes_json", { mode: "json" }).$type<Comparison["changes"]>().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).default(now).notNull(),
+  },
+  (table) => [index("version_comparison_after_idx").on(table.afterRunId)],
 );

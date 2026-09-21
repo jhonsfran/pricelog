@@ -21,6 +21,17 @@ describe("artifactKeys", () => {
 });
 
 describe("capture validation", () => {
+  it.each(["", " \n\t "])("rejects unusable blank source text", (markdown) => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: 200,
+        title: "Pricing",
+        html: "<main></main>",
+        markdown,
+      }),
+    ).toThrow("Pricing source is blank");
+  });
+
   it("rejects a capture without a target status", () => {
     expect(() =>
       assertUsableCapture({
@@ -104,140 +115,61 @@ describe("consent dismissal", () => {
 });
 
 describe("parseJevAnswers", () => {
-  const questions = [
+  const questions: PersistedQuestion[] = [
     {
-      key: "clarity",
-      type: "score" as const,
-      instructions: "How clear is it?",
-      criteria: ["unclear", "clear"],
-      minimum: 0,
-      maximum: 1,
+      key: "motion",
+      type: "choice",
+      instructions: "How can a customer buy?",
+      criteria: { self_serve: "Buy directly", unknown: "Not established" },
+      minimum: null,
+      maximum: null,
       position: 0,
     },
+    {
+      key: "free",
+      type: "noul",
+      instructions: "Is a free plan stated?",
+      criteria: { true: "Stated", false: "Not established" },
+      minimum: null,
+      maximum: null,
+      position: 1,
+    },
   ];
-
-  it("validates and maps score answers", () => {
-    expect(
-      parseJevAnswers(
-        {
-          answers: {
-            clarity: {
-              score: 0.75,
-              confidence: 0.9,
-              probabilities: { "0": 0.25, "1": 0.75 },
-            },
-          },
-        },
-        questions,
-      ),
-    ).toEqual([
-      {
-        key: "clarity",
-        type: "score",
-        score: 0.75,
-        confidence: 0.9,
-        legend: { "0": "unclear", "1": "clear" },
-        probabilities: { "0": 0.25, "1": 0.75 },
-      },
+  const answers = {
+    motion: {
+      choice: "self_serve",
+      confidence: 0.9,
+      probabilities: { self_serve: 0.9, unknown: 0.1 },
+    },
+    free: { noul: 0.8 },
+  };
+  it.each([false, true])("maps Choice and Noul from wrapped=%s responses", (wrapped) => {
+    const response = wrapped
+      ? { state: "Completed", result: { model: "jev-1.13.0", answers } }
+      : { answers };
+    expect(parseJevAnswers(response, questions)).toEqual([
+      { key: "motion", type: "choice", ...answers.motion },
+      { key: "free", type: "noul", noul: 0.8 },
     ]);
   });
-
-  it("unwraps the completed AI Gateway response", () => {
-    expect(
-      parseJevAnswers(
-        {
-          state: "Completed",
-          result: {
-            model: "jev-1.13.0",
-            answers: {
-              clarity: {
-                type: "score",
-                score: 0.6,
-                confidence: 0.7,
-                probabilities: { "0": 0.4, "1": 0.6 },
-              },
-            },
-          },
-          gatewayMetadata: { keySource: "BYOK" },
-        },
-        questions,
-      ),
-    ).toEqual([
-      {
-        key: "clarity",
-        type: "score",
-        score: 0.6,
-        confidence: 0.7,
-        legend: { "0": "unclear", "1": "clear" },
-        probabilities: { "0": 0.4, "1": 0.6 },
-      },
-    ]);
+  it("rejects a missing answer", () => {
+    expect(() => parseJevAnswers({ answers: { motion: answers.motion } }, questions)).toThrow(
+      "free",
+    );
   });
-
-  it("rejects missing answers", () => {
-    expect(() => parseJevAnswers({ answers: {} }, questions)).toThrow("clarity");
+  it("rejects invented and prototype choices", () => {
+    for (const choice of ["invented", "toString"])
+      expect(() =>
+        parseJevAnswers(
+          { answers: { ...answers, motion: { ...answers.motion, choice } } },
+          questions,
+        ),
+      ).toThrow("invalid choice");
   });
-
-  it("maps score, choice, and noul answers from the same response", () => {
-    const typedQuestions: PersistedQuestion[] = [
-      questions[0]!,
-      {
-        key: "motion",
-        type: "choice" as const,
-        instructions: "How can a customer buy?",
-        criteria: { self_serve: "Buy directly", unknown: "Not established" },
-        minimum: null,
-        maximum: null,
-        position: 1,
-      },
-      {
-        key: "has_free_plan",
-        type: "noul" as const,
-        instructions: "Is there a free plan?",
-        criteria: { true: "Free plan", false: "No free plan" },
-        minimum: null,
-        maximum: null,
-        position: 2,
-      },
-    ];
-
-    expect(
-      parseJevAnswers(
-        {
-          answers: {
-            clarity: {
-              score: 1,
-              confidence: 0.9,
-              probabilities: { "0": 0, "1": 1 },
-            },
-            motion: {
-              choice: "self_serve",
-              confidence: 0.88,
-              probabilities: { self_serve: 0.88, unknown: 0.12 },
-            },
-            has_free_plan: { noul: 0.93 },
-          },
-        },
-        typedQuestions,
-      ),
-    ).toEqual([
-      {
-        key: "clarity",
-        type: "score",
-        score: 1,
-        confidence: 0.9,
-        legend: { "0": "unclear", "1": "clear" },
-        probabilities: { "0": 0, "1": 1 },
-      },
-      {
-        key: "motion",
-        type: "choice",
-        choice: "self_serve",
-        confidence: 0.88,
-        probabilities: { self_serve: 0.88, unknown: 0.12 },
-      },
-      { key: "has_free_plan", type: "noul", noul: 0.93 },
-    ]);
+  it.each([NaN, Infinity, -0.1, 1.1])("rejects invalid Noul probabilities %s", (noul) => {
+    expect(() => parseJevAnswers({ answers: { ...answers, free: { noul } } }, questions)).toThrow(
+      "invalid noul",
+    );
   });
 });
 

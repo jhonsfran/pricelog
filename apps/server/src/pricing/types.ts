@@ -47,13 +47,6 @@ type PersistedQuestionBase = {
   position: number;
 };
 
-export type PersistedScoreQuestion = PersistedQuestionBase & {
-  type: "score";
-  criteria: string[];
-  minimum: number;
-  maximum: number;
-};
-
 export type PersistedChoiceQuestion = PersistedQuestionBase & {
   type: "choice";
   criteria: Record<string, string>;
@@ -68,25 +61,13 @@ export type PersistedNoulQuestion = PersistedQuestionBase & {
   maximum: null;
 };
 
-export type PersistedQuestion =
-  | PersistedScoreQuestion
-  | PersistedChoiceQuestion
-  | PersistedNoulQuestion;
+export type PersistedQuestion = PersistedChoiceQuestion | PersistedNoulQuestion;
 
 export type PersistedRubric = {
   id: string;
   model: string;
   version: number;
   questions: PersistedQuestion[];
-};
-
-export type JevScoreAnswer = {
-  key: string;
-  type: "score";
-  score: number;
-  confidence: number;
-  legend: Record<string, string>;
-  probabilities: Record<string, number>;
 };
 
 export type JevChoiceAnswer = {
@@ -103,7 +84,7 @@ export type JevNoulAnswer = {
   noul: number;
 };
 
-export type JevAnswer = JevScoreAnswer | JevChoiceAnswer | JevNoulAnswer;
+export type JevAnswer = JevChoiceAnswer | JevNoulAnswer;
 
 export type ArtifactReference = {
   key: string;

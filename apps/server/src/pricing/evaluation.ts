@@ -1,45 +1,34 @@
 import {
   CHOICE_CONFIDENCE_THRESHOLD,
   isPricingChoiceKey,
-  isPricingScoreKey,
   isPricingSignalKey,
   PRICING_SIGNAL_CATALOG,
+  PRICING_CHOICE_CATALOG,
   TAG_PROBABILITY_THRESHOLD,
   type PricingChoiceKey,
-  type PricingScoreKey,
   type PricingSignalKey,
 } from "@my-better-t-app/db/pricing-intelligence";
-import type { PageChoice, PageScore, PageSignal } from "@my-better-t-app/db/schema/pages";
+import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
 
-import { calculateOverallScore, normalizeJevScore } from "./score";
 import type { JevAnswer } from "./types";
 
 export type PublicEvaluation = {
-  overallScore: number;
-  scores: PageScore[];
   choices: PageChoice[];
   signals: PageSignal[];
   tags: string[];
 };
 
 export function buildPublicEvaluation(answers: JevAnswer[]): PublicEvaluation {
-  const scores = answers
-    .filter(
-      (answer): answer is Extract<JevAnswer, { type: "score" }> & { key: PricingScoreKey } =>
-        answer.type === "score" && isPricingScoreKey(answer.key),
-    )
-    .map((answer) => ({
-      key: answer.key,
-      score: normalizeJevScore(answer.score),
-      confidence: answer.confidence,
-    }));
   const choices = answers
     .filter(
       (answer): answer is Extract<JevAnswer, { type: "choice" }> & { key: PricingChoiceKey } =>
         answer.type === "choice" && isPricingChoiceKey(answer.key),
     )
     .filter(
-      (answer) => answer.confidence >= CHOICE_CONFIDENCE_THRESHOLD && answer.choice !== "unknown",
+      (answer) =>
+        answer.confidence >= CHOICE_CONFIDENCE_THRESHOLD &&
+        answer.choice !== "unknown" &&
+        Object.hasOwn(PRICING_CHOICE_CATALOG[answer.key].options, answer.choice),
     )
     .map((answer) => ({
       key: answer.key,
@@ -62,8 +51,6 @@ export function buildPublicEvaluation(answers: JevAnswer[]): PublicEvaluation {
     .map((signal) => PRICING_SIGNAL_CATALOG[signal.key].tag);
 
   return {
-    overallScore: calculateOverallScore(scores.map((score) => score.score)),
-    scores,
     choices,
     signals,
     tags,

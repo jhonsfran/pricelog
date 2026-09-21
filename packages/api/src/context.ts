@@ -1,6 +1,8 @@
 import type { Session } from "@my-better-t-app/auth";
 import type { Database } from "@my-better-t-app/db";
 
+import type { Comparison, WeeklyPageHistory } from "./pricing-history";
+
 import type { DescendingTimestampCursor } from "./pagination";
 
 export type PageMonitorRun = {
@@ -18,6 +20,13 @@ export type PageMonitorRun = {
 };
 
 export type PageMonitorService = {
+  getWeeklyHistory(domain: string, pageId: string, now: number): Promise<WeeklyPageHistory>;
+  persistComparison(domain: string, pageId: string, comparison: Comparison): Promise<void>;
+  getPublicSource(
+    domain: string,
+    pageId: string,
+    runId: string,
+  ): Promise<{ key: string; contentType: string; filename: string } | null>;
   normalizeUrl(input: string): Promise<{ canonicalUrl: string; normalizedDomain: string }>;
   initializeAndStart(input: {
     pageId: string;

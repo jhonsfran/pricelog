@@ -8,16 +8,13 @@ import type { JevAnswer } from "./types";
 import { buildPublicEvaluation } from "./evaluation";
 
 describe("public pricing evaluation", () => {
-  it("normalizes scores and accepts confident controlled choices", () => {
+  it("accepts confident controlled choices", () => {
     const result = buildPublicEvaluation([
-      scoreAnswer("cost_predictability", 3.2, 0.84),
       choiceAnswer("buying_motion", "self_serve", 0.82),
       choiceAnswer("primary_market", "unknown", 0.99),
       choiceAnswer("primary_customer_segment", "enterprise", 0.7),
     ]);
 
-    expect(result.overallScore).toBe(80);
-    expect(result.scores).toEqual([{ key: "cost_predictability", score: 80, confidence: 0.84 }]);
     expect(result.choices).toEqual([
       {
         key: "buying_motion",
@@ -39,6 +36,26 @@ describe("public pricing evaluation", () => {
     ]);
   });
 
+  it("retains explicit nondisclosure and raw probabilities but omits ambiguity", () => {
+    const accepted = choiceAnswer("failed_run_policy", "not_disclosed", 0.91);
+    const result = buildPublicEvaluation([
+      accepted,
+      choiceAnswer("customer_spend_cap", "unknown", 0.99),
+      choiceAnswer("purchased_credit_expiry", "expires", 0.5),
+      choiceAnswer("credit_conversion", "invented", 0.99),
+      { key: "charges_credit_wallet", type: "noul", noul: 0.1 },
+    ]);
+    expect(result.choices).toEqual([
+      expect.objectContaining({
+        key: "failed_run_policy",
+        choice: "not_disclosed",
+        probabilities: accepted.type === "choice" ? accepted.probabilities : {},
+      }),
+    ]);
+    expect(result.signals).toEqual([{ key: "charges_credit_wallet", probability: 0.1 }]);
+    expect(result.tags).toEqual([]);
+  });
+
   it("publishes only catalog signals and tags positive high-probability signals", () => {
     const result = buildPublicEvaluation([
       { key: "is_ai_native", type: "noul", noul: 0.91 },
@@ -53,17 +70,6 @@ describe("public pricing evaluation", () => {
     expect(TAG_PROBABILITY_THRESHOLD).toBe(0.8);
   });
 });
-
-function scoreAnswer(key: string, score: number, confidence: number): JevAnswer {
-  return {
-    key,
-    type: "score",
-    score,
-    confidence,
-    legend: {},
-    probabilities: { "3": 1 },
-  };
-}
 
 function choiceAnswer(key: string, choice: string, confidence: number): JevAnswer {
   return {

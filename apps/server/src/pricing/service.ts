@@ -5,6 +5,18 @@ import { ENV } from "../env.server";
 import { normalizePricingUrl, resolveDnsAddresses } from "./url";
 
 type StoreClient = {
+  getWeeklyHistory: (
+    pageId: string,
+    now: number,
+  ) => ReturnType<PageMonitorService["getWeeklyHistory"]>;
+  persistComparison: (
+    pageId: string,
+    comparison: Parameters<PageMonitorService["persistComparison"]>[2],
+  ) => Promise<void>;
+  getPublicSource: (
+    pageId: string,
+    runId: string,
+  ) => ReturnType<PageMonitorService["getPublicSource"]>;
   initializeAndStart: PageMonitorService["initializeAndStart"];
   listRuns: (
     limit?: number,
@@ -23,6 +35,15 @@ function getStore(domain: string): StoreClient {
 }
 
 export const pageMonitorService: PageMonitorService = {
+  getWeeklyHistory(domain, pageId, now) {
+    return getStore(domain).getWeeklyHistory(pageId, now);
+  },
+  persistComparison(domain, pageId, comparison) {
+    return getStore(domain).persistComparison(pageId, comparison);
+  },
+  getPublicSource(domain, pageId, runId) {
+    return getStore(domain).getPublicSource(pageId, runId);
+  },
   normalizeUrl(input) {
     return normalizePricingUrl(input, resolveDnsAddresses);
   },

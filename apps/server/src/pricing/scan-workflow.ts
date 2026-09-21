@@ -1,12 +1,11 @@
 import { createDb } from "@my-better-t-app/db";
-import { page, pageOwnerState, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
-import { eq, sql } from "drizzle-orm";
 
+import { publishOwnerProjection } from "./publication";
 import { buildPublicEvaluation } from "./evaluation";
-import { budgetMarkdown } from "./score";
+import { evaluatePricing } from "./evaluation-request";
 import type { PageStore } from "./page-store";
-import type { ArtifactManifest, PersistedQuestion, ScanWorkflowParams } from "./types";
+import type { ArtifactManifest, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
 import {
   artifactKeys,
@@ -14,7 +13,6 @@ import {
   CONSENT_DISMISS_SCRIPT,
   extractPageDescription,
   jevGatewayOptions,
-  parseJevAnswers,
 } from "./scan-workflow-logic";
 import { resolveDnsAddresses } from "./url";
 
@@ -53,23 +51,14 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
     try {
       await step.do("mark running", async () => {
         await store.markRunning(params.runId, "capture");
-        await db
-          .insert(pageOwnerState)
-          .values({
-            pageId: params.pageId,
-            activeRunId: params.runId,
-            lastRunId: params.runId,
-            lastRunStatus: "running",
-          })
-          .onConflictDoUpdate({
-            target: pageOwnerState.pageId,
-            set: {
-              activeRunId: params.runId,
-              lastRunId: params.runId,
-              lastRunStatus: "running",
-              updatedAt: new Date(),
-            },
-          });
+        const run = await store.getRun(params.runId);
+        if (!run) throw new Error("Scan run is missing");
+        await publishOwnerProjection(db, {
+          pageId: params.pageId,
+          runId: params.runId,
+          runCreatedAt: run.createdAt,
+          status: "running",
+        });
       });
 
       const capture = await step.do("capture and archive", RETRY, async () => {
@@ -148,96 +137,43 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const rubric = await store.getActiveRubric();
         const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
         if (!artifact) throw new Error("Archived Markdown is missing");
-        const markdown = budgetMarkdown(await artifact.text());
-        const questions = Object.fromEntries(
-          rubric.questions.map((item: PersistedQuestion) => [
-            item.key,
-            { type: item.type, instructions: item.instructions, criteria: item.criteria },
-          ]),
+        const markdown = await artifact.text();
+        const { model, answers } = await evaluatePricing(markdown, rubric.questions, (input) =>
+          (this.env.AI as unknown as JevBinding).run("typesafe/jev", input, jevGatewayOptions()),
         );
-        const response = await (this.env.AI as unknown as JevBinding).run(
-          "typesafe/jev",
-          { state: markdown, questions },
-          jevGatewayOptions(),
-        );
-        const answers = parseJevAnswers(response, rubric.questions);
         await store.persistAnswers(params.runId, rubric.id, answers);
         const publicEvaluation = buildPublicEvaluation(answers);
+        await store.persistEvaluation(params.runId, {
+          rubricId: rubric.id,
+          model,
+          ...publicEvaluation,
+        });
         return {
           rubricId: rubric.id,
-          model: rubric.model,
+          model,
           ...publicEvaluation,
         };
       });
 
-      await step.do("publish projection", RETRY, async () => {
-        await store.setStage(params.runId, "publish");
-        const scannedAt = new Date(capture.manifest.capturedAt);
-        await db
-          .insert(pagePublicSummary)
-          .values({
-            pageId: params.pageId,
-            runId: params.runId,
-            rubricId: evaluation.rubricId,
-            model: evaluation.model,
-            overallScore: evaluation.overallScore,
-            scores: evaluation.scores,
-            choices: evaluation.choices,
-            signals: evaluation.signals,
-            tags: evaluation.tags,
-            browserEngine: "chromium",
-            scannedAt,
-          })
-          .onConflictDoUpdate({
-            target: pagePublicSummary.pageId,
-            set: {
-              runId: params.runId,
-              rubricId: evaluation.rubricId,
-              model: evaluation.model,
-              overallScore: evaluation.overallScore,
-              scores: evaluation.scores,
-              choices: evaluation.choices,
-              signals: evaluation.signals,
-              tags: evaluation.tags,
-              browserEngine: "chromium",
-              scannedAt,
-              updatedAt: new Date(),
-            },
-            setWhere: sql`${pagePublicSummary.scannedAt} < excluded.scanned_at`,
-          });
-        await db
-          .update(page)
-          .set({
-            state: "active",
-            displayName: capture.manifest.title ?? params.normalizedDomain,
-            description: capture.description,
-          })
-          .where(eq(page.id, params.pageId));
+      await step.do("prepare publication", RETRY, async () => {
+        await store.preparePublication(params.runId, {
+          pageId: params.pageId,
+          runId: params.runId,
+          normalizedDomain: params.normalizedDomain,
+          capturedAt: capture.manifest.capturedAt,
+          displayName: capture.manifest.title ?? params.normalizedDomain,
+          description: capture.description,
+          ...evaluation,
+        });
       });
 
-      const nextScanAt = await step.do("complete scan", async () => {
-        return store.completeSuccess(params.runId);
+      // The DO freezes the version and retains publication until D1 acknowledges it.
+      await step.do("complete scan", RETRY, async () => {
+        await store.completeSuccess(params.runId);
       });
-      await step.do("publish successful owner state", RETRY, async () => {
-        await db
-          .insert(pageOwnerState)
-          .values({
-            pageId: params.pageId,
-            activeRunId: null,
-            lastRunId: params.runId,
-            lastRunStatus: "succeeded",
-            nextScanAt: new Date(nextScanAt),
-          })
-          .onConflictDoUpdate({
-            target: pageOwnerState.pageId,
-            set: {
-              activeRunId: null,
-              lastRunId: params.runId,
-              lastRunStatus: "succeeded",
-              nextScanAt: new Date(nextScanAt),
-              updatedAt: new Date(),
-            },
-          });
+
+      await step.do("publish projection", RETRY, async () => {
+        await store.publishPending();
       });
     } catch (error) {
       await step.do("record terminal failure", async () => {
@@ -245,25 +181,14 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         if (run?.status === "succeeded") return;
         const message = error instanceof Error ? error.message : "Scan failed";
         const nextScanAt = await store.completeFailure(params.runId, "scan_failed", message);
-        await db
-          .insert(pageOwnerState)
-          .values({
-            pageId: params.pageId,
-            activeRunId: null,
-            lastRunId: params.runId,
-            lastRunStatus: "failed",
-            nextScanAt: new Date(nextScanAt),
-          })
-          .onConflictDoUpdate({
-            target: pageOwnerState.pageId,
-            set: {
-              activeRunId: null,
-              lastRunId: params.runId,
-              lastRunStatus: "failed",
-              nextScanAt: new Date(nextScanAt),
-              updatedAt: new Date(),
-            },
-          });
+        if (!run) throw new Error("Scan run is missing");
+        await publishOwnerProjection(db, {
+          pageId: params.pageId,
+          runId: params.runId,
+          runCreatedAt: run.createdAt,
+          status: "failed",
+          nextScanAt,
+        });
       });
       throw error;
     }

@@ -1,0 +1,1 @@
+ALTER TABLE `page_owner_state` ADD `last_run_created_at` integer DEFAULT 0 NOT NULL;

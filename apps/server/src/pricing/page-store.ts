@@ -1,13 +1,25 @@
+import { createDb } from "@my-better-t-app/db";
+import { publishPageProjection, type PagePublication } from "./publication";
+import {
+  COMPARISON_VERSION,
+  completedWeeks,
+  type Comparison,
+  type StoredObservation,
+  type WeeklyPageHistory,
+} from "@my-better-t-app/api/pricing-history";
+import type { PublicEvaluation } from "./evaluation";
 import { DurableObject } from "cloudflare:workers";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
 import migrations from "./drizzle/migrations.js";
 import {
   answer,
+  versionEvaluation,
+  versionComparison,
   pageConfig,
   pageVersion,
   question,
@@ -15,7 +27,7 @@ import {
   scanRun,
   schedulerState,
 } from "./do-schema";
-import { PRICING_INTELLIGENCE_V3 } from "./rubric";
+import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
 import type {
   ArtifactKind,
   ArtifactManifest,
@@ -31,6 +43,7 @@ import { artifactReference, nextAlarmAt, resolveRunCompletion } from "./page-sto
 
 export interface PageStoreEnv {
   SCAN_WORKFLOW: Workflow<ScanWorkflowParams>;
+  DB: D1Database;
 }
 
 export type InitializePageInput = {
@@ -46,6 +59,9 @@ export type RunPage = {
 };
 
 type StoreDb = DrizzleSqliteDODatabase;
+type PendingPublication = Omit<PagePublication, "nextScanAt" | "runCreatedAt">;
+const PUBLICATION_PREFIX = "publication:";
+const PUBLICATION_RETRY_MS = 60_000;
 
 export class PageStore extends DurableObject<PageStoreEnv> {
   private readonly db: StoreDb;
@@ -146,19 +162,27 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async setStage(runId: string, stage: RunStage): Promise<void> {
-    await this.db.update(scanRun).set({ stage }).where(eq(scanRun.id, runId));
+    await this.db
+      .update(scanRun)
+      .set({ stage })
+      .where(and(eq(scanRun.id, runId), inArray(scanRun.status, ["queued", "running"])));
   }
 
   async persistVersion(runId: string, manifest: ArtifactManifest): Promise<string> {
-    const versionId = runId;
-    await this.db
-      .insert(pageVersion)
-      .values({ id: versionId, runId, browserEngine: "chromium", ...manifest })
-      .onConflictDoUpdate({
-        target: pageVersion.runId,
-        set: { browserEngine: "chromium", ...manifest },
-      });
-    return versionId;
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed")
+        throw new Error(`Cannot persist version for run ${runId}`);
+      if (run.status === "succeeded") return;
+      tx.insert(pageVersion)
+        .values({ id: runId, runId, browserEngine: "chromium", ...manifest })
+        .onConflictDoUpdate({
+          target: pageVersion.runId,
+          set: { browserEngine: "chromium", ...manifest },
+        })
+        .run();
+    });
+    return runId;
   }
 
   async getActiveRubric(): Promise<PersistedRubric> {
@@ -182,30 +206,213 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async persistAnswers(runId: string, rubricId: string, values: JevAnswer[]): Promise<void> {
-    const [version] = await this.db
-      .select({ id: pageVersion.id })
-      .from(pageVersion)
-      .where(eq(pageVersion.runId, runId))
-      .limit(1);
-    if (!version) throw new Error(`No page version for run ${runId}`);
-
-    for (const value of values) {
-      const stored = toStoredAnswer(value);
-      await this.db
-        .insert(answer)
-        .values({
-          versionId: version.id,
-          questionSetId: rubricId,
-          questionKey: value.key,
-          ...stored,
-        })
-        .onConflictDoUpdate({
-          target: [answer.versionId, answer.questionSetId, answer.questionKey],
-          set: {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed")
+        throw new Error(`Cannot persist answers for run ${runId}`);
+      if (run.status === "succeeded") return;
+      const version = tx
+        .select({ id: pageVersion.id })
+        .from(pageVersion)
+        .where(eq(pageVersion.runId, runId))
+        .get();
+      if (!version) throw new Error(`No page version for run ${runId}`);
+      for (const value of values) {
+        const stored = toStoredAnswer(value);
+        tx.insert(answer)
+          .values({
+            versionId: version.id,
+            questionSetId: rubricId,
+            questionKey: value.key,
             ...stored,
-          },
+          })
+          .onConflictDoUpdate({
+            target: [answer.versionId, answer.questionSetId, answer.questionKey],
+            set: stored,
+          })
+          .run();
+      }
+    });
+  }
+
+  async persistEvaluation(
+    runId: string,
+    input: PublicEvaluation & { rubricId: string; model: string },
+  ): Promise<void> {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed") throw new Error(`Cannot evaluate run ${runId}`);
+      if (run.status === "succeeded") return;
+      const { rubricId, model, ...evaluation } = input;
+      tx.insert(versionEvaluation)
+        .values({ runId, rubricId, model, evaluation })
+        .onConflictDoUpdate({
+          target: versionEvaluation.runId,
+          set: { rubricId, model, evaluation },
+        })
+        .run();
+    });
+  }
+
+  async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
+    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+    if (config?.pageId !== pageId) return null;
+    const row = this.db
+      .select({ version: pageVersion })
+      .from(pageVersion)
+      .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
+      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
+      .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
+      .get();
+    return row ? artifactReference(row.version, "content") : null;
+  }
+
+  async getWeeklyHistory(pageId: string, now: number): Promise<WeeklyPageHistory> {
+    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+    if (config?.pageId !== pageId) throw new Error("PageStore does not own this page");
+    const { previousPeriodStart, periodStart, periodEnd } = completedWeeks(new Date(now));
+    const observations: StoredObservation[] = [];
+    // Each period needs only its latest successful capture. Query both independently;
+    // a page with many manual scans must not hide the preceding week's version.
+    for (const [start, end] of [
+      [previousPeriodStart, periodStart],
+      [periodStart, periodEnd],
+    ] as const) {
+      const row = this.db
+        .select({ version: pageVersion, evaluated: versionEvaluation })
+        .from(pageVersion)
+        .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
+        .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
+        .where(
+          and(
+            eq(scanRun.status, "succeeded"),
+            gte(pageVersion.capturedAt, start.getTime()),
+            lt(pageVersion.capturedAt, end.getTime()),
+          ),
+        )
+        .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
+        .limit(1)
+        .get();
+      if (row)
+        observations.push({
+          pageId,
+          runId: row.version.runId,
+          rubricId: row.evaluated.rubricId,
+          model: row.evaluated.model,
+          capturedAt: new Date(row.version.capturedAt),
+          contentKey: row.version.contentKey,
+          contentSha256: row.version.contentSha256,
+          choices: row.evaluated.evaluation.choices,
+          signals: row.evaluated.evaluation.signals,
         });
     }
+    const before = observations[0];
+    const after = observations[1];
+    const comparisons =
+      before && after
+        ? this.db
+            .select()
+            .from(versionComparison)
+            .where(
+              and(
+                eq(versionComparison.beforeRunId, before.runId),
+                eq(versionComparison.afterRunId, after.runId),
+                eq(versionComparison.verifierVersion, COMPARISON_VERSION),
+              ),
+            )
+            .all()
+        : [];
+    return { observations, comparisons };
+  }
+
+  async persistComparison(pageId: string, comparison: Comparison): Promise<void> {
+    this.db.transaction((tx) => {
+      const config = tx.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+      if (config?.pageId !== pageId) throw new Error("PageStore does not own this page");
+      for (const runId of [comparison.beforeRunId, comparison.afterRunId]) {
+        const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+        if (run?.status !== "succeeded") throw new Error(`Run ${runId} is not published`);
+      }
+      tx.insert(versionComparison)
+        .values({
+          ...comparison,
+          id: `${comparison.verifierVersion}:${comparison.beforeRunId}:${comparison.afterRunId}`,
+        })
+        .onConflictDoNothing()
+        .run();
+    });
+  }
+
+  async preparePublication(runId: string, input: PendingPublication): Promise<void> {
+    this.db.transaction((tx) => {
+      const config = tx.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+      if (
+        config?.pageId !== input.pageId ||
+        config.normalizedDomain !== input.normalizedDomain ||
+        input.runId !== runId
+      )
+        throw new Error("Publication does not belong to this page and run");
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed") throw new Error(`Cannot publish run ${runId}`);
+      if (run.status === "succeeded") return;
+      const version = tx.select().from(pageVersion).where(eq(pageVersion.runId, runId)).get();
+      const evaluated = tx
+        .select()
+        .from(versionEvaluation)
+        .where(eq(versionEvaluation.runId, runId))
+        .get();
+      if (
+        !version ||
+        !evaluated ||
+        version.capturedAt !== input.capturedAt ||
+        evaluated.rubricId !== input.rubricId ||
+        evaluated.model !== input.model
+      )
+        throw new Error("Publication does not match the stored evaluation");
+      const key = `${PUBLICATION_PREFIX}${runId}`;
+      if (!this.ctx.storage.kv.get(key))
+        this.ctx.storage.kv.put(key, {
+          ...input,
+          ...evaluated.evaluation,
+        });
+    });
+    // Arm delivery before success releases the active run. A stopped workflow
+    // cannot leave a successful version without an independent retry.
+    await this.scheduleNextAlarm();
+  }
+
+  async publishPending(): Promise<void> {
+    const pending = Array.from(
+      this.ctx.storage.kv.list<PendingPublication>({ prefix: PUBLICATION_PREFIX }),
+    );
+    try {
+      for (const [key, payload] of pending) {
+        const run = this.db.select().from(scanRun).where(eq(scanRun.id, payload.runId)).get();
+        if (run?.status !== "succeeded") continue;
+        if (run.completedAt === null)
+          throw new Error(`Successful run ${run.id} has no completion time`);
+        await publishPageProjection(createDb({ DB: this.env.DB }), {
+          ...payload,
+          nextScanAt: nextAlarmAt("success", run.completedAt),
+          runCreatedAt: run.createdAt,
+        });
+        this.ctx.storage.kv.delete(key);
+      }
+    } finally {
+      await this.scheduleNextAlarm();
+    }
+  }
+
+  private async scheduleNextAlarm(): Promise<void> {
+    const hasPending = !this.ctx.storage.kv
+      .list({ prefix: PUBLICATION_PREFIX, limit: 1 })
+      [Symbol.iterator]()
+      .next().done;
+    const state = this.db.select().from(schedulerState).where(eq(schedulerState.id, 1)).get();
+    if (hasPending) await this.ctx.storage.setAlarm(Date.now() + PUBLICATION_RETRY_MS);
+    else if (state?.nextScanAt !== null && state?.nextScanAt !== undefined)
+      await this.ctx.storage.setAlarm(state.nextScanAt);
+    else await this.ctx.storage.deleteAlarm();
   }
 
   async completeSuccess(runId: string, completedAt = Date.now()): Promise<number> {
@@ -222,7 +429,16 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async alarm(): Promise<void> {
-    await this.startRun("scheduled", null);
+    await this.publishPending();
+    const state = this.db.select().from(schedulerState).where(eq(schedulerState.id, 1)).get();
+    if (
+      state?.nextScanAt !== null &&
+      state?.nextScanAt !== undefined &&
+      state.nextScanAt <= Date.now()
+    ) {
+      await this.startRun("scheduled", null);
+      await this.scheduleNextAlarm();
+    }
   }
 
   private async seedRubric(): Promise<void> {
@@ -230,28 +446,26 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     await this.db
       .insert(questionSet)
       .values({
-        id: PRICING_INTELLIGENCE_V3.id,
-        model: PRICING_INTELLIGENCE_V3.model,
-        version: PRICING_INTELLIGENCE_V3.version,
+        id: PRICING_INTELLIGENCE_RUBRIC.id,
+        model: PRICING_INTELLIGENCE_RUBRIC.model,
+        version: PRICING_INTELLIGENCE_RUBRIC.version,
         active: true,
       })
       .onConflictDoUpdate({
         target: questionSet.id,
         set: {
-          model: PRICING_INTELLIGENCE_V3.model,
-          version: PRICING_INTELLIGENCE_V3.version,
+          model: PRICING_INTELLIGENCE_RUBRIC.model,
+          version: PRICING_INTELLIGENCE_RUBRIC.version,
           active: true,
         },
       });
 
     let position = 0;
-    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_V3.questions)) {
+    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_RUBRIC.questions)) {
       const row = {
         type: value.type,
         instructions: value.instructions,
-        criteria: value.type === "score" ? [...value.criteria] : { ...value.criteria },
-        minimum: value.type === "score" ? 0 : null,
-        maximum: value.type === "score" ? value.criteria.length - 1 : null,
+        criteria: { ...value.criteria },
         position: position++,
       };
       // Upsert rather than ignore: the shared catalog is the source of truth for
@@ -259,7 +473,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       // old question while the site publishes the new one as its methodology.
       await this.db
         .insert(question)
-        .values({ questionSetId: PRICING_INTELLIGENCE_V3.id, key, ...row })
+        .values({ questionSetId: PRICING_INTELLIGENCE_RUBRIC.id, key, ...row })
         .onConflictDoUpdate({ target: [question.questionSetId, question.key], set: row });
     }
   }
@@ -293,9 +507,16 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         competingRunId = state.activeRunId;
         return;
       }
+      const latest = tx
+        .select({ createdAt: scanRun.createdAt })
+        .from(scanRun)
+        .orderBy(desc(scanRun.createdAt))
+        .limit(1)
+        .get();
+      row.createdAt = Math.max(now, (latest?.createdAt ?? 0) + 1);
       tx.insert(scanRun).values(row).run();
       tx.update(schedulerState)
-        .set({ activeRunId: runId, nextScanAt: null, updatedAt: now })
+        .set({ activeRunId: runId, nextScanAt: null, updatedAt: row.createdAt })
         .where(eq(schedulerState.id, 1))
         .run();
     });
@@ -351,22 +572,19 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     errorMessage: string | null = null,
   ): Promise<number> {
     let effectiveCompletedAt = completedAt;
-    let shouldSetAlarm = false;
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
       if (!run) throw new Error(`Unknown scan run ${runId}`);
       const action = resolveRunCompletion(run.status, status);
       if (action === "reuse") {
         effectiveCompletedAt = run.completedAt ?? completedAt;
-        const nextScanAt = nextAlarmAt(
-          status === "succeeded" ? "success" : "failure",
-          effectiveCompletedAt,
-        );
-        const state = tx.select().from(schedulerState).where(eq(schedulerState.id, 1)).get();
-        shouldSetAlarm = state?.activeRunId === null && state.nextScanAt === nextScanAt;
         return;
       }
 
+      const publicationKey = `${PUBLICATION_PREFIX}${runId}`;
+      if (status === "succeeded" && !this.ctx.storage.kv.get(publicationKey))
+        throw new Error(`No prepared publication for run ${runId}`);
+      if (status === "failed") this.ctx.storage.kv.delete(publicationKey);
       const nextScanAt = nextAlarmAt(
         status === "succeeded" ? "success" : "failure",
         effectiveCompletedAt,
@@ -385,13 +603,12 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         .set({ activeRunId: null, nextScanAt, updatedAt: completedAt })
         .where(and(eq(schedulerState.id, 1), eq(schedulerState.activeRunId, runId)))
         .run();
-      shouldSetAlarm = true;
     });
     const nextScanAt = nextAlarmAt(
       status === "succeeded" ? "success" : "failure",
       effectiveCompletedAt,
     );
-    if (shouldSetAlarm) await this.ctx.storage.setAlarm(nextScanAt);
+    await this.scheduleNextAlarm();
     return nextScanAt;
   }
 }
@@ -402,35 +619,20 @@ type StoredAnswer = Omit<
 >;
 
 function toStoredAnswer(value: JevAnswer): StoredAnswer {
-  if (value.type === "score") {
-    return {
-      type: value.type,
-      score: value.score,
-      choice: null,
-      noul: null,
-      confidence: value.confidence,
-      legend: value.legend,
-      probabilities: value.probabilities,
-    };
-  }
   if (value.type === "choice") {
     return {
       type: value.type,
-      score: null,
       choice: value.choice,
       noul: null,
       confidence: value.confidence,
-      legend: null,
       probabilities: value.probabilities,
     };
   }
   return {
     type: value.type,
-    score: null,
     choice: null,
     noul: value.noul,
     confidence: null,
-    legend: null,
     probabilities: null,
   };
 }
@@ -438,21 +640,6 @@ function toStoredAnswer(value: JevAnswer): StoredAnswer {
 function toPersistedQuestion(
   row: typeof question.$inferSelect,
 ): PersistedRubric["questions"][number] {
-  if (row.type === "score") {
-    if (!Array.isArray(row.criteria) || row.minimum === null || row.maximum === null) {
-      throw new Error(`Invalid persisted score question ${row.key}`);
-    }
-    return {
-      ...row,
-      type: row.type,
-      criteria: row.criteria,
-      minimum: row.minimum,
-      maximum: row.maximum,
-    };
-  }
-  if (Array.isArray(row.criteria) || row.minimum !== null || row.maximum !== null) {
-    throw new Error(`Invalid persisted ${row.type} question ${row.key}`);
-  }
   if (row.type === "choice") {
     return { ...row, type: row.type, criteria: row.criteria, minimum: null, maximum: null };
   }

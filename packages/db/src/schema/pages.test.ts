@@ -12,7 +12,7 @@ describe("pricing page schema", () => {
 
   it("keeps public and owner projections separate", () => {
     expect(Object.keys(pagePublicSummary)).toEqual(
-      expect.arrayContaining(["overallScore", "scores", "choices", "signals", "tags", "scannedAt"]),
+      expect.arrayContaining(["choices", "signals", "tags", "scannedAt"]),
     );
     expect(Object.keys(pageOwnerState)).toEqual(
       expect.arrayContaining(["activeRunId", "lastRunId", "lastRunStatus", "nextScanAt"]),

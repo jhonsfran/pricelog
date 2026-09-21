@@ -1,7 +1,8 @@
-export const PRICING_INTELLIGENCE_RUBRIC_ID = "pricing-intelligence-v3";
-export const PRICING_INTELLIGENCE_RUBRIC_VERSION = 3;
+export const PRICING_INTELLIGENCE_RUBRIC_ID = "pricing-intelligence-v5";
+export const PRICING_INTELLIGENCE_RUBRIC_VERSION = 5;
 export const CHOICE_CONFIDENCE_THRESHOLD = 0.75;
 export const TAG_PROBABILITY_THRESHOLD = 0.8;
+export const NOT_ESTABLISHED_PROBABILITY_THRESHOLD = 0.2;
 
 /**
  * This catalog is the single source of truth for every question Pricelog asks.
@@ -10,84 +11,16 @@ export const TAG_PROBABILITY_THRESHOLD = 0.8;
  * evaluation cannot drift apart.
  */
 
-export const PRICING_SCORE_CATALOG = {
-  cost_predictability: {
-    label: "Cost predictability",
-    question: "How well can a buyer predict their actual recurring cost?",
-    criteria: [
-      "The buyer cannot estimate any cost.",
-      "Only a starting price or contact-sales path is available.",
-      "Standard prices exist, but important cost variables or conditions are missing.",
-      "Most buyers can estimate a normal monthly or annual cost.",
-      "The buyer can estimate the normal cost, material overages, and important conditions.",
-    ],
-  },
-  packaging_segmentation: {
-    label: "Packaging segmentation",
-    question: "How well do the plans map different customer needs to a clear upgrade path?",
-    criteria: [
-      "Plans have no clear differences or upgrade path.",
-      "Differences are mainly labels or arbitrary feature removal.",
-      "Some meaningful features or limits separate the plans.",
-      "Each plan maps to a clear customer need or operating scale.",
-      "The plans create a coherent path from entry through expansion.",
-    ],
-  },
-  offer_differentiation: {
-    label: "Offer differentiation",
-    question: "How clearly does the page explain why a buyer should select each offer?",
-    criteria: [
-      "The offers cannot be distinguished.",
-      "The page lists plans but gives little basis for selection.",
-      "Some plan differences are clear, but intended fit remains ambiguous.",
-      "Major differences and intended customer fit are clear.",
-      "Each offer has a distinct value proposition, buyer fit, and trade-off.",
-    ],
-  },
-  purchase_actionability: {
-    label: "Purchase actionability",
-    question: "How clear is the next step to buy, try, or contact sales?",
-    criteria: [
-      "The page gives no purchase path.",
-      "A generic contact path exists, but the next step is unclear.",
-      "A call to action exists, but its prerequisites or expected outcome are unclear.",
-      "Most offers have a clear next action and enough context to proceed.",
-      "Every purchase path states the action and relevant trial, contract, or sales expectations.",
-    ],
-  },
-  value_metric_alignment: {
-    label: "Value metric alignment",
-    question: "How closely does the billing unit track the value the customer receives?",
-    criteria: [
-      "The bill is unrelated to any value the customer receives.",
-      "The unit correlates weakly and can penalize normal successful use.",
-      "The unit correlates for some customers but breaks at common edges.",
-      "The unit tracks received value for most customers most of the time.",
-      "Cost rises only when the customer demonstrably receives more value.",
-    ],
-  },
-  expansion_readiness: {
-    label: "Expansion readiness",
-    question: "How well can an existing account grow in spend without a new sales cycle?",
-    criteria: [
-      "No published mechanism increases spend on an existing account.",
-      "Growth requires renegotiation or a new contract.",
-      "A growth path exists, but its cost is not published.",
-      "At least one published mechanism raises spend as the customer grows.",
-      "Published seat, usage, or tier paths let spend follow adoption continuously.",
-    ],
-  },
-} as const;
-
 /** Ordered presentation groups for the commercial profile. */
 export const PRICING_CHOICE_GROUPS = [
   { key: "model", label: "Commercial model" },
   { key: "access", label: "Access and disclosure" },
   { key: "ai_cost", label: "AI cost" },
+  { key: "practices", label: "Pricing policies" },
   { key: "audience", label: "Audience" },
 ] as const;
 
-export const PRICING_CHOICE_CATALOG = {
+const PROFILE_CHOICE_CATALOG = {
   primary_pricing_model: {
     label: "Pricing model",
     group: "model",
@@ -157,32 +90,6 @@ export const PRICING_CHOICE_CATALOG = {
       unknown: "The page does not establish how much pricing is disclosed.",
     },
   },
-  plan_count: {
-    label: "Plan count",
-    group: "access",
-    question: "How many distinct plans does the page present?",
-    options: {
-      one: "A single plan or a single price is presented.",
-      two_or_three: "Two or three distinct plans are presented.",
-      four_or_five: "Four or five distinct plans are presented.",
-      six_or_more: "Six or more distinct plans are presented.",
-      unknown: "The page does not present a countable set of plans.",
-    },
-  },
-  annual_commitment_discount: {
-    label: "Annual discount",
-    group: "access",
-    question: "What discount does an annual commitment receive compared with monthly billing?",
-    options: {
-      no_annual_option: "The page offers no annual billing option.",
-      no_discount: "Annual billing is offered at no stated discount.",
-      under_15_percent: "The stated annual discount is below fifteen percent.",
-      fifteen_to_twenty_five_percent:
-        "The stated annual discount is fifteen to twenty-five percent.",
-      over_twenty_five_percent: "The stated annual discount is above twenty-five percent.",
-      unknown: "The page does not establish an annual discount.",
-    },
-  },
   ai_cost_passthrough: {
     label: "AI cost model",
     group: "ai_cost",
@@ -238,7 +145,7 @@ export const PRICING_CHOICE_CATALOG = {
  * `priority` orders the tags shown on a directory row: 0 is AI capability and
  * AI cost intelligence, 1 is market, 2 is general commercial structure.
  */
-export const PRICING_SIGNAL_CATALOG = {
+const PROFILE_SIGNAL_CATALOG = {
   has_free_plan: {
     label: "Free plan",
     tag: "free-plan",
@@ -352,16 +259,6 @@ export const PRICING_SIGNAL_CATALOG = {
     whenTrue: "Agents are packaged as workers or replacements for named business roles.",
     whenFalse: "The page does not package agents as a workforce or named business role.",
   },
-  has_spend_cap: {
-    label: "Customer spend cap",
-    tag: "spend-cap",
-    priority: 0,
-    showInProfile: true,
-    question: "Can the customer set a hard limit on what they will be charged?",
-    whenTrue:
-      "The page states a spending cap, budget, or hard usage ceiling the customer controls.",
-    whenFalse: "The page does not establish a customer-controlled spending limit.",
-  },
   has_usage_visibility: {
     label: "Usage visible before invoice",
     tag: "usage-visibility",
@@ -370,15 +267,6 @@ export const PRICING_SIGNAL_CATALOG = {
     question: "Can the customer see consumption before the invoice arrives?",
     whenTrue: "The page states in-product usage tracking, a dashboard, or consumption alerts.",
     whenFalse: "The page does not establish visibility into consumption before billing.",
-  },
-  credits_expire: {
-    label: "Credits expire",
-    tag: "credits-expire",
-    priority: 0,
-    showInProfile: true,
-    question: "Do purchased or included credits expire when they are not used?",
-    whenTrue: "The page states that credits expire or do not roll over.",
-    whenFalse: "The page does not establish credit expiry.",
   },
   market_developer_tools: {
     label: "Developer tools",
@@ -491,15 +379,241 @@ export const PRICING_SIGNAL_CATALOG = {
   },
 } as const;
 
-export type PricingScoreKey = keyof typeof PRICING_SCORE_CATALOG;
+/** Scope shared by the prompt and the published methodology. */
+export const PRICING_PAGE_SCOPE =
+  "Evaluate only the captured pricing page across its public offers. Exclude navigation, testimonials, competitor references, hypothetical examples, and uncaptured linked documents. Explicit pricing FAQ terms are eligible. Use stated terms, not outside knowledge or assumptions. Charging methods are independent and can overlap. Missing disclosure does not establish that a product feature is absent. If terms differ across offers, select varies_by_offer. Select not_applicable only when the page explicitly establishes that the policy cannot apply. Select not_disclosed when the page does not state the policy; reserve unknown for ambiguous or conflicting evidence that cannot be resolved.";
+
+/** The application overview includes only these accepted primary categories. */
+export const AI_APPLICATION_CATEGORY_OPTIONS = {
+  coding_assistants:
+    "AI tools whose primary task is writing, editing, reviewing, or maintaining code in a developer's code workflow. Exclude products primarily sold to create complete applications from natural-language prompts.",
+  app_builders:
+    "AI tools whose primary task is creating complete applications or websites from natural-language prompts. Choose this over coding_assistants when application creation is the primary task.",
+  customer_support_agents:
+    "AI agents whose primary task is answering or resolving customer support requests. Choose this over voice_agents or workflow_agent_builders when customer support is the primary task, even if voice or agent-building features are included.",
+  voice_agents:
+    "AI platforms whose primary task is building or running spoken conversations and phone agents across use cases. Exclude products primarily sold to resolve customer support requests.",
+  video_generation:
+    "AI tools whose primary task is generating or editing video, including avatar videos. Exclude general-purpose model inference APIs.",
+  workflow_agent_builders:
+    "Tools whose primary task is building, deploying, or running customer-defined AI workflows or agents across use cases. Choose a more specific task category when it describes the primary product purpose.",
+  sales_prospecting:
+    "AI tools whose primary task is finding, researching, qualifying, or contacting sales prospects. Exclude general-purpose workflow builders with only an incidental sales use case.",
+  meeting_assistants:
+    "AI tools whose primary task is recording, transcribing, summarizing, or extracting actions from meetings.",
+} as const;
+
+export const PRODUCT_CATEGORY_OPTIONS = {
+  ...AI_APPLICATION_CATEGORY_OPTIONS,
+  model_apis: "Direct API access to foundation models for general-purpose inference.",
+  other: "A stated product purpose outside the eight application categories and model APIs.",
+  not_disclosed: "The pricing page does not state the product purpose.",
+  unknown: "The stated purpose is ambiguous or spans categories without a clear primary purpose.",
+} as const;
+
+const POLICY_FALLBACKS = {
+  varies_by_offer: "The page explicitly states different policies for different public offers.",
+  not_disclosed: "The captured pricing page does not state this policy.",
+  not_applicable:
+    "The page explicitly establishes that the relevant charging component is not used, so this policy cannot apply.",
+  unknown:
+    "The page contains relevant but ambiguous or conflicting evidence that cannot be resolved.",
+} as const;
+
+export const PRACTICE_CHOICE_CATALOG = {
+  credit_conversion: {
+    label: "Credit conversion",
+    group: "practices",
+    question: "Does the page state how credits convert into named actions or other work units?",
+    options: {
+      all_described_uses:
+        "A credit-to-work conversion is stated for every described credit use, such as one credit per standard run.",
+      some_described_uses:
+        "A conversion is stated for some described uses but is missing for others. This is incomplete coverage, not a difference between offers.",
+      variable_without_conversion:
+        "The page explicitly says consumption varies but gives no credit-to-work conversion for any described use.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  model_credit_variation: {
+    label: "Credit use by model",
+    group: "practices",
+    question: "Does credit consumption change with the selected AI model?",
+    options: {
+      varies_by_model:
+        "The page states that different models consume different credit amounts for comparable work.",
+      same_across_models:
+        "The page explicitly states that comparable work consumes the same credits across models.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  allowance_exhaustion: {
+    label: "When allowance runs out",
+    group: "practices",
+    question:
+      "What happens by default when the included paid usage or credit allowance is exhausted? Ignore trial allowances.",
+    options: {
+      stops:
+        "Work stops until the allowance resets; the page offers no continuation through payment.",
+      automatic_overage: "Work continues and extra consumption is charged automatically.",
+      automatic_refill:
+        "The page states that more credits are purchased automatically to continue work.",
+      other_stated_behavior:
+        "The page states another default behavior, such as a required manual top-up or plan upgrade.",
+      throttled_or_reduced: "Work continues with a stated speed, capability, or model reduction.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  customer_spend_cap: {
+    label: "Customer spend cap",
+    group: "practices",
+    question: "Can the customer set a hard limit on charges?",
+    options: {
+      hard_cap:
+        "The customer can set a maximum customer charge that stops further paid usage. Alerts and provider-cost budgets alone do not qualify.",
+      alerts_only:
+        "The page offers budget alerts and explicitly states that they do not stop charges.",
+      no_customer_cap:
+        "The page explicitly states that a customer cannot impose a hard spending limit.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  failed_run_policy: {
+    label: "Failed runs",
+    group: "practices",
+    question: "How does the page say failed AI runs or actions are charged?",
+    options: {
+      charged:
+        "The page explicitly states that failed runs consume paid usage or credits without a refund.",
+      not_charged:
+        "The page explicitly states that failed runs do not consume paid usage or credits.",
+      refunded: "Failed runs are initially charged and then refunded or recredited.",
+      depends_on_failure:
+        "The charge depends on a stated failure type or condition within the same offer.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  purchased_credit_expiry: {
+    label: "Purchased credit expiry",
+    group: "practices",
+    question:
+      "Do separately purchased credits expire? Exclude credits included in a recurring plan.",
+    options: {
+      expires:
+        "The page states that separately purchased credits expire after a period or on a date.",
+      does_not_expire: "The page explicitly states that separately purchased credits never expire.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+  included_credit_rollover: {
+    label: "Included credit rollover",
+    group: "practices",
+    question: "Do unused credits included in a recurring plan carry into the next billing period?",
+    options: {
+      rolls_over: "Unused included credits carry into later periods without a stated limit.",
+      limited_rollover:
+        "Unused included credits carry over subject to a stated time, balance, or other limit.",
+      no_rollover: "Unused included credits reset or expire at the end of the billing period.",
+      ...POLICY_FALLBACKS,
+    },
+  },
+} as const;
+export const PRACTICE_CHOICE_KEYS = Object.keys(
+  PRACTICE_CHOICE_CATALOG,
+) as (keyof typeof PRACTICE_CHOICE_CATALOG)[];
+
+const CHARGING_SIGNAL_CATALOG = {
+  charges_fixed_subscription: {
+    label: "Fixed subscription",
+    tag: "fixed-subscription",
+    priority: 0,
+    showInProfile: true,
+    question: "Does at least one paid public offer require a fixed recurring fee for access?",
+    whenTrue:
+      "A paid offer states a recurring access fee, including a base fee alongside usage charges.",
+    whenFalse:
+      "The page does not establish a fixed recurring access fee. A usage bill sent monthly alone does not qualify.",
+  },
+  charges_per_seat: {
+    label: "Per-seat charges",
+    tag: "per-seat",
+    priority: 0,
+    showInProfile: true,
+    question:
+      "Does at least one paid public offer calculate a charge using the number of customer seats?",
+    whenTrue:
+      "A paid offer states charges per user or seat, whether recurring or alongside other charges.",
+    whenFalse:
+      "The page does not establish seat-based charges. A seat limit alone does not qualify.",
+  },
+  charges_credit_wallet: {
+    label: "Credit wallet",
+    tag: "credit-wallet",
+    priority: 0,
+    showInProfile: true,
+    question: "Does AI activity consume a credit balance in at least one public offer?",
+    whenTrue: "AI work consumes an included or purchased credit balance.",
+    whenFalse: "The page does not establish a credit balance consumed by AI work.",
+  },
+  charges_direct_usage: {
+    label: "Direct usage charges",
+    tag: "direct-usage",
+    priority: 0,
+    showInProfile: true,
+    question:
+      "Does at least one public offer charge directly for measured AI consumption outside a credit balance?",
+    whenTrue:
+      "Measured tokens, actions, runs, or other AI units are billed directly in money outside a credit balance.",
+    whenFalse:
+      "The page does not establish direct usage billing. Usage converted only to credits does not qualify.",
+  },
+  charges_outcome: {
+    label: "Outcome charges",
+    tag: "outcome-billing",
+    priority: 0,
+    showInProfile: true,
+    question: "Does at least one public offer charge for a stated business outcome?",
+    whenTrue:
+      "The page states charges for a defined successful result, such as a resolved support request.",
+    whenFalse:
+      "The page does not establish successful-result billing. Attempted run or action counts alone do not qualify.",
+  },
+  charges_ai_addon: {
+    label: "Separate AI add-on",
+    tag: "ai-addon",
+    priority: 0,
+    showInProfile: true,
+    question:
+      "Does access to AI functionality require a separately purchased add-on in at least one public offer?",
+    whenTrue: "AI functionality is sold as an additional purchase beyond a base product offer.",
+    whenFalse:
+      "The page does not establish a separately purchased AI add-on. A higher plan including AI alone does not qualify.",
+  },
+} as const;
+export const CHARGING_SIGNAL_KEYS = Object.keys(
+  CHARGING_SIGNAL_CATALOG,
+) as (keyof typeof CHARGING_SIGNAL_CATALOG)[];
+
+export const PRICING_CHOICE_CATALOG = {
+  ...PROFILE_CHOICE_CATALOG,
+  product_category: {
+    label: "Product category",
+    group: "audience",
+    question:
+      "Select one category for the primary end-user task stated on this captured pricing page. Specific task categories take precedence over general-purpose agent builders. Do not infer purpose from the company name or outside knowledge. If no primary task is clear, select unknown; if purpose is unstated, select not_disclosed.",
+    options: PRODUCT_CATEGORY_OPTIONS,
+  },
+  ...PRACTICE_CHOICE_CATALOG,
+} as const;
+export const PRICING_SIGNAL_CATALOG = {
+  ...PROFILE_SIGNAL_CATALOG,
+  ...CHARGING_SIGNAL_CATALOG,
+} as const;
+
 export type PricingChoiceKey = keyof typeof PRICING_CHOICE_CATALOG;
 export type PricingSignalKey = keyof typeof PRICING_SIGNAL_CATALOG;
 export type PricingChoiceGroupKey = (typeof PRICING_CHOICE_GROUPS)[number]["key"];
-export type PricingIntelligenceQuestionKey = PricingScoreKey | PricingChoiceKey | PricingSignalKey;
-
-export function isPricingScoreKey(value: string): value is PricingScoreKey {
-  return Object.hasOwn(PRICING_SCORE_CATALOG, value);
-}
+export type PricingIntelligenceQuestionKey = PricingChoiceKey | PricingSignalKey;
 
 export function isPricingChoiceKey(value: string): value is PricingChoiceKey {
   return Object.hasOwn(PRICING_CHOICE_CATALOG, value);

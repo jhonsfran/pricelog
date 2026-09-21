@@ -93,7 +93,6 @@ export const pagesRouter = {
         lastRunId: pageOwnerState.lastRunId,
         lastRunStatus: pageOwnerState.lastRunStatus,
         nextScanAt: pageOwnerState.nextScanAt,
-        overallScore: pagePublicSummary.overallScore,
       })
       .from(page)
       .leftJoin(pageOwnerState, eq(pageOwnerState.pageId, page.id))

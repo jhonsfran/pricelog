@@ -1,27 +1,12 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  real,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
 import {
   PRICING_INTELLIGENCE_RUBRIC_ID,
   type PricingChoiceKey,
-  type PricingScoreKey,
   type PricingSignalKey,
 } from "../pricing-intelligence";
-
-export type PageScore = {
-  key: PricingScoreKey;
-  score: number;
-  confidence: number;
-};
 
 export type PageChoice = {
   key: PricingChoiceKey;
@@ -74,8 +59,6 @@ export const pagePublicSummary = sqliteTable(
     runId: text("run_id").notNull().unique(),
     rubricId: text("rubric_id").notNull(),
     model: text("model").notNull(),
-    overallScore: real("overall_score").notNull(),
-    scores: text("scores_json", { mode: "json" }).$type<PageScore[]>().notNull(),
     choices: text("choices_json", { mode: "json" })
       .$type<PageChoice[]>()
       .default(sql`'[]'`)
@@ -95,14 +78,7 @@ export const pagePublicSummary = sqliteTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [
-    index("page_public_summary_score_idx").on(table.overallScore, table.pageId),
-    index("page_public_summary_scanned_at_idx").on(table.scannedAt, table.pageId),
-    check(
-      "page_public_summary_score_check",
-      sql`${table.overallScore} >= 0 and ${table.overallScore} <= 100`,
-    ),
-  ],
+  (table) => [index("page_public_summary_scanned_at_idx").on(table.scannedAt, table.pageId)],
 );
 
 export const pageOwnerState = sqliteTable("page_owner_state", {
@@ -111,6 +87,7 @@ export const pageOwnerState = sqliteTable("page_owner_state", {
     .references(() => page.id, { onDelete: "cascade" }),
   activeRunId: text("active_run_id"),
   lastRunId: text("last_run_id"),
+  lastRunCreatedAt: integer("last_run_created_at").default(0).notNull(),
   lastRunStatus: text("last_run_status", {
     enum: ["queued", "running", "succeeded", "failed"],
   }),
@@ -121,21 +98,16 @@ export const pageOwnerState = sqliteTable("page_owner_state", {
     .notNull(),
 });
 
-/** One dimension's shape across a cohort. `histogram` is 20 buckets over 0-100. */
-export type BenchmarkScoreDistribution = {
-  count: number;
-  min: number;
-  max: number;
-  p25: number;
-  median: number;
-  p75: number;
-  histogram: number[];
-};
-
 /** `answered` is the honest denominator: pages with a confident answer, not cohort size. */
 export type BenchmarkChoiceShare = {
   answered: number;
   options: Record<string, number>;
+};
+
+export type BenchmarkSignalShare = {
+  stated: number;
+  notEstablished: number;
+  uncertain: number;
 };
 
 /**
@@ -150,14 +122,15 @@ export const benchmarkSnapshot = sqliteTable(
     cohort: text("cohort").notNull(),
     computedAt: integer("computed_at", { mode: "timestamp_ms" }).notNull(),
     pageCount: integer("page_count").notNull(),
-    scoreDistributions: text("score_distributions_json", { mode: "json" })
-      .$type<Record<string, BenchmarkScoreDistribution>>()
-      .notNull(),
     choiceShares: text("choice_shares_json", { mode: "json" })
       .$type<Record<string, BenchmarkChoiceShare>>()
       .notNull(),
     signalCounts: text("signal_counts_json", { mode: "json" })
       .$type<Record<string, number>>()
+      .notNull(),
+    signalShares: text("signal_shares_json", { mode: "json" })
+      .$type<Record<string, BenchmarkSignalShare>>()
+      .default(sql`'{}'`)
       .notNull(),
   },
   (table) => [

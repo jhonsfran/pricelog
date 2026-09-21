@@ -40,3 +40,32 @@ export async function serveArtifact(context: Context): Promise<Response> {
   if (object.httpEtag) headers.set("ETag", object.httpEtag);
   return new Response(object.body, { headers });
 }
+
+/** Only archived text for published pages is public. HTML and owner artifacts remain private. */
+export async function servePublicSource(context: Context): Promise<Response> {
+  const pageId = context.req.param("pageId");
+  const runId = context.req.param("runId");
+  if (!pageId || !runId) return context.notFound();
+  const [published] = await getDb()
+    .select({ normalizedDomain: page.normalizedDomain })
+    .from(page)
+    .where(and(eq(page.state, "active"), eq(page.id, pageId)))
+    .limit(1);
+  if (!published) return context.notFound();
+  const source = await pageMonitorService.getPublicSource(
+    published.normalizedDomain,
+    pageId,
+    runId,
+  );
+  if (!source) return context.notFound();
+  const object = await ENV.ARTIFACTS.get(source.key);
+  if (!object) return context.notFound();
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "Cache-Control": "public, max-age=300",
+    },
+  });
+}

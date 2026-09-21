@@ -1,7 +1,7 @@
 import type { Database } from "@my-better-t-app/db";
 import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/db/pricing-intelligence";
 import { benchmarkSnapshot, page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
-import { and, asc, desc, eq, gt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, sql } from "drizzle-orm";
 
 import { buildBenchmarkSnapshots, type BenchmarkPage, type BenchmarkSnapshot } from "./benchmark";
 
@@ -16,7 +16,7 @@ type BenchmarkCorpusRow = BenchmarkPage & { id: string };
 export type BenchmarkReading = {
   snapshots: BenchmarkSnapshot[];
   computedAt: Date | null;
-  /** True when this was computed on the request because no snapshot exists yet. */
+  /** True when computed on request because stored aggregates are absent or stale. */
   live: boolean;
 };
 
@@ -37,8 +37,6 @@ async function readCorpusPage(
   return db
     .select({
       id: page.id,
-      overallScore: pagePublicSummary.overallScore,
-      scores: pagePublicSummary.scores,
       choices: pagePublicSummary.choices,
       signals: pagePublicSummary.signals,
     })
@@ -119,22 +117,37 @@ export async function loadBenchmarks(
           eq(benchmarkSnapshot.computedAt, latest.computedAt),
         ),
       );
-    return {
-      snapshots: rows
-        .map((row) => ({
-          cohort: row.cohort,
-          pageCount: row.pageCount,
-          scoreDistributions: row.scoreDistributions,
-          choiceShares: row.choiceShares,
-          signalCounts: row.signalCounts,
-        }))
-        .sort((left, right) => right.pageCount - left.pageCount),
-      computedAt: latest.computedAt,
-      live: false,
-    };
+    const [current] = await db
+      .select({
+        pageCount: count(),
+        updatedAt: sql<number | null>`max(max(${pagePublicSummary.updatedAt}, ${page.updatedAt}))`,
+      })
+      .from(page)
+      .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+      .where(benchmarkCorpusCondition(rubricId));
+    const storedCount = rows.find((row) => row.cohort === "all")?.pageCount ?? 0;
+    // New scans, category moves, and inactive/deleted pages invalidate current aggregates.
+    if (
+      current &&
+      current.pageCount === storedCount &&
+      (current.updatedAt ?? 0) <= latest.computedAt.getTime()
+    )
+      return {
+        snapshots: rows
+          .map((row) => ({
+            cohort: row.cohort,
+            pageCount: row.pageCount,
+            choiceShares: row.choiceShares,
+            signalCounts: row.signalCounts,
+            signalShares: row.signalShares,
+          }))
+          .sort((left, right) => right.pageCount - left.pageCount),
+        computedAt: latest.computedAt,
+        live: false,
+      };
   }
 
-  const corpus = await readLiveBenchmarkCorpus(db, rubricId);
+  const corpus = await readCompleteBenchmarkCorpus(db, rubricId);
   return { snapshots: computeBenchmarks(corpus), computedAt: null, live: true };
 }
 
@@ -156,9 +169,9 @@ export async function storeBenchmarks(
         cohort: snapshot.cohort,
         computedAt,
         pageCount: snapshot.pageCount,
-        scoreDistributions: snapshot.scoreDistributions,
         choiceShares: snapshot.choiceShares,
         signalCounts: snapshot.signalCounts,
+        signalShares: snapshot.signalShares,
       })),
     )
     .onConflictDoNothing({

@@ -2,16 +2,9 @@ import {
   PRICING_CHOICE_CATALOG,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
-  PRICING_SCORE_CATALOG,
   PRICING_SIGNAL_CATALOG,
-  type PricingIntelligenceQuestionKey,
+  PRICING_PAGE_SCOPE,
 } from "@my-better-t-app/db/pricing-intelligence";
-
-type ScoreQuestion = {
-  type: "score";
-  instructions: string;
-  criteria: readonly string[];
-};
 
 type ChoiceQuestion = {
   type: "choice";
@@ -24,8 +17,6 @@ type NoulQuestion = {
   instructions: string;
   criteria: { true: string; false: string };
 };
-
-type RubricQuestion = ScoreQuestion | ChoiceQuestion | NoulQuestion;
 
 /** Maps a catalog to questions while keeping each literal key in the result type. */
 function mapCatalog<Key extends string, Entry, Question>(
@@ -44,31 +35,25 @@ function mapCatalog<Key extends string, Entry, Question>(
  * so the text Jev evaluates is byte-identical to the methodology Pricelog
  * publishes. Adding a question to the catalog adds it to the prompt.
  */
-const scoreQuestions = mapCatalog(PRICING_SCORE_CATALOG, (entry): ScoreQuestion => ({
-  type: "score",
-  instructions: entry.question,
-  criteria: entry.criteria,
-}));
-
 const choiceQuestions = mapCatalog(PRICING_CHOICE_CATALOG, (entry): ChoiceQuestion => ({
   type: "choice",
-  instructions: entry.question,
+  instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: entry.options,
 }));
 
 const noulQuestions = mapCatalog(PRICING_SIGNAL_CATALOG, (entry): NoulQuestion => ({
   type: "noul",
-  instructions: entry.question,
+  instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: { true: entry.whenTrue, false: entry.whenFalse },
 }));
 
-export const PRICING_INTELLIGENCE_V3 = {
+export const PRICING_INTELLIGENCE_RUBRIC = {
   id: PRICING_INTELLIGENCE_RUBRIC_ID,
   version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
   model: "typesafe/jev",
+  scope: PRICING_PAGE_SCOPE,
   questions: {
-    ...scoreQuestions,
     ...choiceQuestions,
     ...noulQuestions,
-  } satisfies Record<PricingIntelligenceQuestionKey, RubricQuestion>,
+  },
 } as const;
