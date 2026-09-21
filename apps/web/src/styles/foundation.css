@@ -153,7 +153,7 @@ a {
 .site-header nav a {
   position: relative;
   padding: 4px 0;
-  color: var(--muted);
+  color: var(--muted-foreground);
   text-decoration: none;
   transition: color var(--dur-hover) var(--ease-hover);
 }
@@ -244,7 +244,7 @@ a {
   align-items: center;
   gap: 13px;
   padding: 15px 0;
-  color: var(--muted);
+  color: var(--muted-foreground);
   height: auto;
   border: 0;
   border-bottom: 1px solid var(--line-strong);
@@ -290,7 +290,7 @@ a {
   height: 24px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   transition:
     opacity var(--dur-hover) var(--ease-hover),
@@ -413,7 +413,7 @@ a {
 }
 .page-identity small {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -478,7 +478,7 @@ a {
 }
 
 .scan-date {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
 }
 .row-arrow {
@@ -493,7 +493,7 @@ a {
 }
 .directory-message {
   padding: 64px 0;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 12px;
   border-bottom: 1px solid var(--line);
 }

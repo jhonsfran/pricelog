@@ -1,236 +1,281 @@
-import { AI_NATIVE_COHORT, OVERALL_SCORE_KEY } from "@my-better-t-app/api/benchmark";
+import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
+import {
+  CHARGING_SIGNAL_KEYS,
+  PRACTICE_CHOICE_KEYS,
+  AI_APPLICATION_CATEGORY_OPTIONS,
+  getPricingChoiceMetadata,
+  getPricingSignalMetadata,
+  pricingPolicyCoverage,
+  TAG_PROBABILITY_THRESHOLD,
+} from "@my-better-t-app/api/pricing-intelligence";
 import { Spinner } from "@my-better-t-app/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@my-better-t-app/ui/components/toggle-group";
-import {
-  getPricingChoiceMetadata,
-  getPricingScoreMetadata,
-  getPricingSignalMetadata,
-  PRICING_CHOICE_CATALOG,
-  PRICING_SCORE_CATALOG,
-} from "@my-better-t-app/api/pricing-intelligence";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { DistributionChart, ShareBars } from "@/components/distribution-chart";
+import { ShareBars } from "@/components/distribution-chart";
 import { formatToken } from "@/components/intelligence-profile";
+import { WeeklyChangesReport } from "@/components/weekly-changes-report";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/benchmarks")({ component: BenchmarksPage });
-
-/** Questions no other pricing dataset asks. */
-const AI_COST_SIGNALS = ["has_spend_cap", "has_usage_visibility", "credits_expire"] as const;
-
-/** Below this share of AI-native pages, the AI cost model is not the cohort's story. */
-const AI_LEAD_THRESHOLD = 0.4;
+const categories = Object.keys(AI_APPLICATION_CATEGORY_OPTIONS);
 
 function BenchmarksPage() {
-  const [cohort, setCohort] = useState("all");
+  const [cohort, setCohort] = useState(AI_APPLICATIONS_COHORT);
   const benchmarks = useQuery(orpc.directory.benchmarks.queryOptions({ input: { cohort } }));
   const data = benchmarks.data;
-  const selected = data?.selected ?? null;
-
-  // Show AI cost data first only when it represents the selected cohort.
-  const aiNativeCount = selected?.signalCounts.is_ai_native ?? 0;
-  const aiShare = selected && selected.pageCount > 0 ? aiNativeCount / selected.pageCount : 0;
-  const aiLeads = cohort === AI_NATIVE_COHORT || aiShare >= AI_LEAD_THRESHOLD;
-
-  const aiCostSection = selected ? (
-    <section className="benchmark-section">
-      <div className="section-kicker">
-        <span>AI COST MODEL</span>
-        <span>{aiLeads ? "WHAT NOBODY ELSE MEASURES" : "MINORITY OF THIS COHORT"}</span>
-      </div>
-      {/* The denominator is the whole cohort, so say how much of it is AI at all.
-          Without this line a low percentage reads as a finding about AI pricing
-          when it is mostly a statement about the cohort's composition. */}
-      <p className="benchmark-meta">
-        {aiNativeCount} of {selected.pageCount} pages in this cohort are AI-native
-        {aiLeads ? "." : ". Percentages below are shares of the whole cohort."}
-      </p>
-      <div className="finding-grid">
-        {AI_COST_SIGNALS.map((key) => {
-          const metadata = getPricingSignalMetadata(key);
-          const count = selected.signalCounts[key] ?? 0;
-          return (
-            <div className="finding-card" key={key}>
-              <strong>{Math.round((count / selected.pageCount) * 100)}%</strong>
-              <span>{metadata?.label ?? formatToken(key)}</span>
-              <small>
-                {count} of {selected.pageCount} pages state this
-              </small>
-            </div>
-          );
-        })}
-      </div>
-      <ShareBars
-        title="How AI compute is charged"
-        question={getPricingChoiceMetadata("ai_cost_passthrough")?.question}
-        answered={selected.choiceShares.ai_cost_passthrough?.answered ?? 0}
-        items={optionItems("ai_cost_passthrough", selected.choiceShares)}
-      />
-    </section>
-  ) : null;
+  const selected = data?.selected;
+  const examples = data?.examples ?? [];
+  const minimum = data?.minimumCohortSize ?? COHORT_MINIMUM;
+  const options = [
+    { cohort: AI_APPLICATIONS_COHORT, label: "AI applications" },
+    ...categories.map((key) => ({ cohort: `category:${key}`, label: formatToken(key) })),
+    { cohort: "category:model_apis", label: "Model APIs" },
+  ];
 
   return (
     <main className="directory-shell benchmark-shell">
       <section className="benchmark-hero">
         <div>
-          <p className="eyebrow">THE PRICING INDEX</p>
-          <h1>HOW SOFTWARE PRICES</h1>
+          <p className="eyebrow">THE AI PRICING INDEX</p>
+          <h1>HOW AI PRODUCTS CHARGE</h1>
         </div>
         <p className="hero-copy">
-          Every indexed pricing page, scored against the same question set and aggregated. A number
-          on its own means nothing, so nothing here appears without the cohort it was measured
-          across.
+          Compare published charging methods and policies before you launch or change paid AI usage.
+          Each observation describes one captured pricing page.
         </p>
       </section>
-
+      <ToggleGroup
+        className="cohort-picker"
+        aria-label="Product category"
+        variant="outline"
+        spacing={0}
+        value={[cohort]}
+        onValueChange={(value) => setCohort(value[0] ?? cohort)}
+      >
+        {options.map((option) => (
+          <ToggleGroupItem key={option.cohort} value={option.cohort}>
+            {option.label}
+            <small>
+              {data?.available.find((item) => item.cohort === option.cohort)?.pageCount ?? 0}
+            </small>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      <p className="benchmark-meta">
+        {cohort === AI_APPLICATIONS_COHORT
+          ? "AI applications covers eight task categories. Model APIs are separate. "
+          : "Category membership describes the stated product purpose. "}
+        <Link to="/methodology">Questions and methodology</Link>
+      </p>
       {benchmarks.isLoading ? (
         <div className="directory-message" role="status">
-          <Spinner className="mx-auto mb-3" />
-          Reading the index…
+          <Spinner />
+          Reading pricing practices…
         </div>
       ) : benchmarks.isError ? (
-        <p className="directory-message">The index is not available.</p>
-      ) : !data || data.available.length === 0 ? (
-        <NotEnoughData
-          minimum={data?.minimumCohortSize ?? 10}
-          compatible={data?.indexedPages ?? 0}
-          total={data?.totalIndexedPages ?? 0}
-        />
+        <p className="directory-message">Pricing practices are not available.</p>
+      ) : !selected ? (
+        <p className="directory-message">
+          No current observations in this category. Add a pricing page to start collecting it.
+        </p>
       ) : (
         <>
-          <ToggleGroup
-            className="cohort-picker"
-            aria-label="Cohort"
-            variant="outline"
-            spacing={0}
-            value={[cohort]}
-            onValueChange={(value) => setCohort(value[0] ?? cohort)}
-          >
-            {data.available.map((option) => (
-              <ToggleGroupItem
-                key={option.cohort}
-                value={option.cohort}
-                aria-label={`${option.label}, ${option.pageCount} pages`}
-              >
-                {option.label}
-                <small>{option.pageCount}</small>
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-
-          {!selected ? (
-            <NotEnoughData
-              minimum={data.minimumCohortSize}
-              compatible={data.indexedPages}
-              total={data.totalIndexedPages}
-            />
-          ) : (
-            <>
-              <p className="benchmark-meta">
-                {selected.pageCount} pages in {selected.label}.{" "}
-                {data.computedAt
-                  ? `Computed ${formatDate(data.computedAt)}.`
-                  : "Computed on this request; no scheduled snapshot exists yet."}{" "}
-                <Link to="/methodology">Methodology</Link>
-              </p>
-
-              {aiLeads ? aiCostSection : null}
-
-              <section className="benchmark-section">
-                <div className="section-kicker">
-                  <span>QUALITY DISTRIBUTIONS</span>
-                  <span>{selected.pageCount} PAGES</span>
-                </div>
-                <div className="dist-grid">
-                  {[OVERALL_SCORE_KEY, ...Object.keys(PRICING_SCORE_CATALOG)].flatMap((key) => {
-                    const distribution = selected.scoreDistributions[key];
-                    if (!distribution) return [];
-                    return [
-                      <DistributionChart
-                        key={key}
-                        distribution={distribution}
-                        label={
-                          key === OVERALL_SCORE_KEY
-                            ? "Overall"
-                            : (getPricingScoreMetadata(key)?.label ?? formatToken(key))
-                        }
-                        question={getPricingScoreMetadata(key)?.question}
-                      />,
-                    ];
-                  })}
-                </div>
-              </section>
-
-              <section className="benchmark-section">
-                <div className="section-kicker">
-                  <span>COMMERCIAL STRUCTURE</span>
-                </div>
-                <div className="share-grid">
-                  {Object.keys(PRICING_CHOICE_CATALOG)
-                    .filter((key) => key !== "ai_cost_passthrough")
-                    .map((key) => (
-                      <ShareBars
-                        key={key}
-                        title={getPricingChoiceMetadata(key)?.label ?? formatToken(key)}
-                        question={getPricingChoiceMetadata(key)?.question}
-                        answered={selected.choiceShares[key]?.answered ?? 0}
-                        items={optionItems(key, selected.choiceShares)}
+          <p className="benchmark-meta">
+            {selected.pageCount} pricing pages.{" "}
+            {data?.computedAt
+              ? `Computed ${formatDate(data.computedAt)}.`
+              : "Computed from the latest successful captures."}{" "}
+            {data?.totalIndexedPages !== data?.indexedPages
+              ? `${data?.indexedPages} of ${data?.totalIndexedPages} indexed pages use the current rubric.`
+              : ""}
+          </p>
+          {selected.pageCount < minimum ? (
+            <p className="benchmark-meta">
+              This category has fewer than {minimum} pages. Counts and observed pages remain
+              visible; percentages are withheld.
+            </p>
+          ) : null}
+          <section className="benchmark-section">
+            <div className="section-kicker">
+              <span>CHARGING STRUCTURE</span>
+              <span>COMPONENTS CAN OVERLAP</span>
+            </div>
+            <p className="benchmark-meta">
+              A low disclosure probability means the page does not establish a charge. It does not
+              prove that the product lacks it.
+            </p>
+            <div className="finding-grid">
+              {CHARGING_SIGNAL_KEYS.map((key) => {
+                const metadata = getPricingSignalMetadata(key)!;
+                const share = selected.signalShares[key] ?? {
+                  stated: 0,
+                  notEstablished: 0,
+                  uncertain: selected.pageCount,
+                };
+                const classified = share.stated + share.notEstablished;
+                return (
+                  <article className="finding-card" key={key}>
+                    <strong>
+                      {classified >= minimum && selected.pageCount >= minimum
+                        ? `${Math.round((share.stated / classified) * 100)}%`
+                        : share.stated}
+                    </strong>
+                    <span>{metadata.label}</span>
+                    <small>
+                      {share.stated} stated · {share.notEstablished} not established ·{" "}
+                      {share.uncertain} uncertain
+                    </small>
+                    <p className="dist-question">{metadata.question}</p>
+                    <small>
+                      {classified} classified of {selected.pageCount} pages.{" "}
+                      {classified < minimum
+                        ? `Percentages need ${minimum} classified pages.`
+                        : "Percentage uses classified pages."}
+                    </small>
+                    <details>
+                      <summary>Definitions and source examples</summary>
+                      <p>Stated: {metadata.whenTrue}</p>
+                      <p>Not established: {metadata.whenFalse}</p>
+                      <SourceExamples
+                        examples={examples.filter((page) =>
+                          page.signals.some(
+                            (signal) =>
+                              signal.key === key && signal.probability >= TAG_PROBABILITY_THRESHOLD,
+                          ),
+                        )}
                       />
-                    ))}
-                </div>
-              </section>
-
-              {aiLeads ? null : aiCostSection}
-            </>
-          )}
+                    </details>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          <section className="benchmark-section">
+            <div className="section-kicker">
+              <span>COMMERCIAL TERMS</span>
+            </div>
+            <p className="benchmark-meta">
+              Not disclosed remains in the comparison. Not applicable is excluded. Uncertain answers
+              remain separate.
+            </p>
+            <div className="share-grid">
+              {PRACTICE_CHOICE_KEYS.map((key) => {
+                const metadata = getPricingChoiceMetadata(key)!;
+                const share = selected.choiceShares[key];
+                const coverage = pricingPolicyCoverage(selected.pageCount, share);
+                const items = Object.entries(share?.options ?? {})
+                  .filter(([option]) => option !== "not_applicable")
+                  .map(([option, count]) => ({ key: option, label: formatToken(option), count }));
+                return (
+                  <div key={key}>
+                    <ShareBars
+                      title={metadata.label}
+                      question={metadata.question}
+                      answered={coverage.applicable}
+                      minimum={minimum}
+                      items={items}
+                    />
+                    <p className="benchmark-meta">
+                      {selected.pageCount} pages · {coverage.classified} classified ·{" "}
+                      {coverage.uncertain} uncertain · {coverage.notApplicable} not applicable ·{" "}
+                      {coverage.notDisclosed} not disclosed
+                    </p>
+                    <details className="metric-definitions">
+                      <summary>Answer definitions and source examples</summary>
+                      <dl>
+                        {Object.entries(metadata.options).map(([option, description]) => (
+                          <div key={option}>
+                            <dt>{formatToken(option)}</dt>
+                            <dd>{description}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <SourceExamples
+                        examples={examples.filter((page) =>
+                          page.choices.some((choice) => choice.key === key),
+                        )}
+                        questionKey={key}
+                      />
+                    </details>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          <section className="benchmark-section">
+            <div className="section-kicker">
+              <span>OBSERVED PAGES</span>
+            </div>
+            <p className="benchmark-meta">Up to 12 captured source examples from this category.</p>
+            <SourceExamples examples={examples} />
+          </section>
         </>
       )}
+      <WeeklyChangesReport cohort={cohort} minimum={minimum} />
+      <section className="methodology-note">
+        <h2>Price statistics are deferred</h2>
+        <p>
+          Exact prices need a validated collection method. This release compares published charging
+          rules and policies without estimating numeric prices.
+        </p>
+        <p>
+          Pricelog is by{" "}
+          <a href="https://unprice.dev" target="_blank" rel="noreferrer">
+            Unprice
+          </a>
+          . For implementation, see{" "}
+          <a href="https://docs.unprice.dev" target="_blank" rel="noreferrer">
+            Unprice documentation
+          </a>{" "}
+          for usage billing and customer budgets.
+        </p>
+      </section>
     </main>
   );
 }
 
-function optionItems(
-  key: string,
-  shares: Record<string, { answered: number; options: Record<string, number> }>,
-) {
-  const options = shares[key]?.options ?? {};
-  return Object.entries(options).map(([option, count]) => ({
-    key: option,
-    label: formatToken(option),
-    count,
-  }));
-}
-
-/**
- * A distribution over three pages is noise presented as authority. Saying so is
- * more useful than drawing it.
- */
-function NotEnoughData({
-  minimum,
-  compatible,
-  total,
+type ExamplePage = {
+  id: string;
+  slug: string;
+  displayName: string | null;
+  normalizedDomain: string;
+  scannedAt: Date | string;
+  choices: { key: string; choice: string }[];
+  signals: { key: string; probability: number }[];
+};
+function SourceExamples({
+  examples,
+  questionKey,
 }: {
-  minimum: number;
-  compatible: number;
-  total: number;
+  examples: ExamplePage[];
+  questionKey?: string;
 }) {
+  if (!examples.length)
+    return <p className="benchmark-meta">No source examples for this observation yet.</p>;
   return (
-    <div className="directory-message">
-      <p>
-        No cohort has reached {minimum} pages yet, so there is nothing here that would survive
-        scrutiny. The current rubric has {compatible} compatible{" "}
-        {compatible === 1 ? "page" : "pages"}
-        {total === compatible ? "." : ` from ${total} indexed pages.`}
-      </p>
-      <p>
-        <Link to="/">Browse the directory</Link>
-      </p>
-    </div>
+    <ul className="source-examples">
+      {examples.map((page) => (
+        <li key={page.id}>
+          <Link to="/pages/$slug" params={{ slug: page.slug }}>
+            {page.displayName ?? page.normalizedDomain}
+          </Link>
+          {questionKey ? (
+            <span>
+              {formatToken(
+                page.choices.find((choice) => choice.key === questionKey)?.choice ?? "uncertain",
+              )}
+            </span>
+          ) : null}
+          <small>Captured {formatDate(page.scannedAt)}</small>
+        </li>
+      ))}
+    </ul>
   );
 }
-
 function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(value),
+  );
 }

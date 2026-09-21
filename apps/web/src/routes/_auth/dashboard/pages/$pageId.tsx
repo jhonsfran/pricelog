@@ -7,9 +7,7 @@ import { ArrowLeft, Download, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { RunStatus } from "@/components/run-status";
-import { ScoreGrid } from "@/components/score-grid";
 import { ENV } from "@/env.public";
-import { scoreBand } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/pages/$pageId")({
@@ -85,19 +83,8 @@ function OwnerPageDetail() {
       ) : null}
       {data.summary ? (
         <>
-          <section
-            className="profile-card owner-score-card"
-            data-band={scoreBand(data.summary.overallScore)}
-          >
-            <div className="section-kicker">
-              <span>LATEST QUALITY SCORE</span>
-              <strong className="score-number">
-                {Math.round(data.summary.overallScore)} / 100
-              </strong>
-            </div>
-            <ScoreGrid scores={data.summary.scores} />
-          </section>
           <IntelligenceProfile
+            rubricId={data.summary.rubricId}
             choices={data.summary.choices}
             signals={data.summary.signals}
             tags={data.summary.tags}

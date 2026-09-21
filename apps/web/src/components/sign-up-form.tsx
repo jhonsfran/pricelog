@@ -60,7 +60,8 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
       <p className="eyebrow">OWNER CONSOLE</p>
       <h1>Create account</h1>
       <p className="auth-intro">
-        Claim a pricing page and Pricelog captures, archives, and scores it every week.
+        Claim a pricing page and Pricelog captures its published pricing terms and checks for
+        changes every week.
       </p>
 
       <form

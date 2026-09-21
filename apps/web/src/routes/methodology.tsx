@@ -3,9 +3,10 @@ import {
   CHOICE_CONFIDENCE_THRESHOLD,
   PRICING_CHOICE_CATALOG,
   PRICING_CHOICE_GROUPS,
-  PRICING_SCORE_CATALOG,
   PRICING_SIGNAL_CATALOG,
+  PRICING_PAGE_SCOPE,
   TAG_PROBABILITY_THRESHOLD,
+  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
@@ -28,7 +29,7 @@ function MethodologyPage() {
 
       <section className="profile-heading">
         <div>
-          <p className="eyebrow">HOW PRICELOG SCORES</p>
+          <p className="eyebrow">HOW PRICELOG MEASURES</p>
           <h1>Methodology</h1>
         </div>
       </section>
@@ -50,14 +51,30 @@ function MethodologyPage() {
             A classification is published only at {CHOICE_CONFIDENCE_THRESHOLD} confidence or above.
           </li>
           <li>A tag is published only at {TAG_PROBABILITY_THRESHOLD} probability or above.</li>
-          <li>Uncertainty is stored as unknown. It is never converted into a negative fact.</li>
           <li>
-            A cohort below {COHORT_MINIMUM} pages is not published, because a distribution over a
-            handful of pages is noise presented as authority.
+            A charging disclosure is not established at probability{" "}
+            {NOT_ESTABLISHED_PROBABILITY_THRESHOLD} or below. Values between these boundaries remain
+            uncertain.
           </li>
           <li>
-            Scores are scaled to 0-100 from a five-level scale. The overall score is the mean of
-            every dimension.
+            Not disclosed is an accepted statement about this source. Unknown means the
+            classification remains ambiguous.
+          </li>
+          <li>
+            Charging components can overlap. A page can state subscription, seat, and credit charges
+            together.
+          </li>
+          <li>
+            Policy comparisons exclude not applicable answers. Every metric shows classified,
+            uncertain, and excluded counts.
+          </li>
+          <li>
+            Groups and metric denominators below {COHORT_MINIMUM} show counts only. This display
+            rule does not establish statistical significance or representative sampling.
+          </li>
+          <li>
+            Raw probabilities remain stored. Publication thresholds are rules, not measured accuracy
+            claims. Model accuracy has not yet been established on a held-out human-labeled dataset.
           </li>
         </ul>
         <p className="methodology-correction">
@@ -66,25 +83,36 @@ function MethodologyPage() {
         </p>
       </section>
 
-      <section className="methodology-section">
-        <div className="section-kicker">
-          <span>QUALITY SCORES</span>
-          <span>{Object.keys(PRICING_SCORE_CATALOG).length} DIMENSIONS</span>
-        </div>
-        {Object.entries(PRICING_SCORE_CATALOG).map(([key, entry]) => (
-          <article className="methodology-question" key={key}>
-            <h3>{entry.label}</h3>
-            <p className="methodology-prompt">{entry.question}</p>
-            <ol className="methodology-criteria">
-              {entry.criteria.map((criterion, index) => (
-                <li key={criterion}>
-                  <span>{index}</span>
-                  {criterion}
-                </li>
-              ))}
-            </ol>
-          </article>
-        ))}
+      <section className="methodology-note">
+        <h2>Source scope</h2>
+        <p>{PRICING_PAGE_SCOPE}</p>
+        <h2>Weekly comparisons</h2>
+        <p>
+          We compare the latest successful captures from adjacent completed UTC weeks. Both captures
+          must use compatible rubric and model versions. A different model answer alone is not a
+          commercial change. Changed source content and accepted evidence checks must support each
+          published item. Comparisons that exceed the evaluator request limit remain uncertain.
+        </p>
+        <p>
+          Each item includes literal evidence and links to both archived captures. A newly explicit
+          term is a disclosure change. The commercial change rate counts distinct pages with a
+          verified commercial change divided by eligible paired pages. New and missing pages appear
+          separately.
+        </p>
+        <h2>Prices and interpretation</h2>
+        <p>
+          This release uses Jev Choice and Noul classifications. It does not extract numeric prices
+          or generate explanations. Exact price statistics need a validated collection method and
+          are deferred. Published terms cannot establish willingness to pay, margins, conversion
+          performance, or pricing quality.
+        </p>
+        <p>
+          Pricelog is by{" "}
+          <a href="https://unprice.dev" target="_blank" rel="noreferrer">
+            Unprice
+          </a>
+          . A missing disclosure is not a recommendation to buy a billing product.
+        </p>
       </section>
 
       <section className="methodology-section">
@@ -131,7 +159,11 @@ function MethodologyPage() {
             {Object.entries(PRICING_SIGNAL_CATALOG).map(([key, entry]) => (
               <tr key={key}>
                 <th scope="row">{entry.label}</th>
-                <td>{entry.question}</td>
+                <td>
+                  {entry.question}
+                  <p>Stated: {entry.whenTrue}</p>
+                  <p>Not established: {entry.whenFalse}</p>
+                </td>
               </tr>
             ))}
           </tbody>

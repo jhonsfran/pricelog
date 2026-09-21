@@ -12,7 +12,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
 import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
-import { fillRatio, scoreBand, staggerDelay } from "@/lib/score";
+import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({ component: DirectoryPage });
@@ -66,10 +66,16 @@ function DirectoryPage() {
           <h1>PRICELOG</h1>
         </div>
         <p className="hero-copy">
-          Commercial pricing intelligence for pricing teams and founders. Each page is captured,
-          classified, and scored against the same question set every week.
+          See how AI products charge, compare their published policies, and track verified weekly
+          changes. Built for founders and product teams preparing paid AI usage.
         </p>
       </section>
+      <p className="benchmark-meta">
+        <Link to="/benchmarks">Compare pricing practices by category</Link> · By{" "}
+        <a href="https://unprice.dev" target="_blank" rel="noreferrer">
+          Unprice
+        </a>
+      </p>
       <section className="directory-section" aria-labelledby="directory-title">
         <div className="section-kicker">
           <span id="directory-title">PRICING DIRECTORY</span>
@@ -99,7 +105,7 @@ function DirectoryPage() {
         <div className="directory-table" aria-live="polite">
           <div className="directory-head">
             <span>PAGE</span>
-            <span>QUALITY</span>
+            <span>CATEGORY</span>
             <span>LAST SCAN</span>
             <span aria-hidden="true" />
           </div>
@@ -120,7 +126,6 @@ function DirectoryPage() {
                 key={item.id}
                 to="/pages/$slug"
                 params={{ slug: item.slug }}
-                data-band={scoreBand(item.overallScore)}
                 style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
               >
                 <span className="page-identity">
@@ -136,21 +141,11 @@ function DirectoryPage() {
                     </span>
                   )}
                 </span>
-                {/* The number alone makes 38 and 84 look identical at a glance.
-                    The meter gives the column a shape you can scan. */}
-                <span className="quality-cell">
-                  <span className="quality-score">{Math.round(item.overallScore)}</span>
-                  <span className="quality-meter" aria-hidden="true">
-                    <span
-                      className="quality-fill"
-                      style={
-                        {
-                          "--fill": fillRatio(item.overallScore),
-                          "--fill-delay": staggerDelay(index),
-                        } as CSSProperties
-                      }
-                    />
-                  </span>
+                <span className="practice-cell">
+                  {formatToken(
+                    item.choices.find((choice) => choice.key === "product_category")?.choice ??
+                      "unclassified",
+                  )}
                 </span>
                 <span className="scan-date">{formatDate(item.scannedAt)}</span>
                 <span className="row-arrow" aria-hidden="true">

@@ -13,7 +13,7 @@ export default function Header() {
           Directory
         </Link>
         <Link to="/benchmarks" activeProps={{ "data-active": true }}>
-          The index
+          Pricing practices
         </Link>
         <Link to="/dashboard" activeProps={{ "data-active": true }}>
           Your pages

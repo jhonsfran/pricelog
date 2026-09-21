@@ -12,7 +12,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { type CSSProperties, useState } from "react";
 import { toast } from "sonner";
 import { RunStatus } from "@/components/run-status";
-import { scoreBand, staggerDelay } from "@/lib/score";
+import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/")({ component: DashboardPage });
@@ -84,7 +84,6 @@ function DashboardPage() {
               className="owner-row row-enter"
               to="/dashboard/pages/$pageId"
               params={{ pageId: item.id }}
-              data-band={scoreBand(item.overallScore)}
               style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
             >
               <span className="page-identity">
@@ -92,9 +91,6 @@ function DashboardPage() {
                 <small>{item.canonicalUrl}</small>
               </span>
               <RunStatus status={item.lastRunStatus} />
-              <span className="owner-score">
-                {item.overallScore === null ? "—" : Math.round(item.overallScore)}
-              </span>
               <span className="next-scan">
                 {item.nextScanAt ? `Next ${formatDate(item.nextScanAt)}` : "Scheduling"}
               </span>

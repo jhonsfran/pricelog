@@ -1,9 +1,13 @@
 import {
   getPricingChoiceLabel,
+  CHARGING_SIGNAL_KEYS,
+  PRACTICE_CHOICE_KEYS,
+  PRICING_INTELLIGENCE_RUBRIC_ID,
   getPricingSignalMetadata,
   groupPricingChoices,
   pricingTagPriority,
   TAG_PROBABILITY_THRESHOLD,
+  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
 
 type DisplayChoice = {
@@ -21,10 +25,12 @@ export function IntelligenceProfile({
   choices,
   signals,
   tags,
+  rubricId,
 }: {
   choices: DisplayChoice[];
   signals: DisplaySignal[];
   tags: string[];
+  rubricId?: string;
 }) {
   const positiveSignals = signals.flatMap((signal) => {
     const metadata = getPricingSignalMetadata(signal.key);
@@ -34,13 +40,54 @@ export function IntelligenceProfile({
   });
   // Ten flat classifications read as a wall. Grouped, a founder can find the
   // two that bear on the decision they are making right now.
-  const groups = groupPricingChoices(choices);
+  const current = rubricId === PRICING_INTELLIGENCE_RUBRIC_ID;
+  const groups = groupPricingChoices(
+    current
+      ? [
+          ...choices,
+          ...PRACTICE_CHOICE_KEYS.filter(
+            (key) => !choices.some((choice) => choice.key === key),
+          ).map((key) => ({ key, choice: "uncertain", confidence: 0 })),
+        ]
+      : choices,
+  );
 
   return (
     <section className="intelligence-card" aria-labelledby="intelligence-title">
       <div className="section-kicker">
         <span id="intelligence-title">COMMERCIAL PROFILE</span>
       </div>
+      {current ? (
+        <div className="choice-group">
+          <h3 className="choice-group-label">Charging structure</h3>
+          <p className="benchmark-meta">
+            Components can overlap. Not established describes the page, not product absence.
+          </p>
+          <div className="intelligence-choices">
+            {CHARGING_SIGNAL_KEYS.map((key) => {
+              const probability = signals.find((signal) => signal.key === key)?.probability;
+              const state =
+                probability === undefined
+                  ? "Uncertain"
+                  : probability >= TAG_PROBABILITY_THRESHOLD
+                    ? "Stated"
+                    : probability <= NOT_ESTABLISHED_PROBABILITY_THRESHOLD
+                      ? "Not established"
+                      : "Uncertain";
+              return (
+                <div key={key}>
+                  <span>{getPricingSignalMetadata(key)?.label}</span>
+                  <strong>{state}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="benchmark-meta">
+          Historical rubric. These answers do not enter current practice comparisons.
+        </p>
+      )}
       {groups.map((group) => (
         <div className="choice-group" key={group.key}>
           <h3 className="choice-group-label">{group.label}</h3>
@@ -49,7 +96,11 @@ export function IntelligenceProfile({
               <div key={item.key}>
                 <span>{getPricingChoiceLabel(item.key)}</span>
                 <strong>{formatToken(item.choice)}</strong>
-                <small>{Math.round(item.confidence * 100)}% confidence</small>
+                {item.choice !== "uncertain" ? (
+                  <small>{Math.round(item.confidence * 100)}% confidence</small>
+                ) : (
+                  <small>No accepted classification</small>
+                )}
               </div>
             ))}
           </div>

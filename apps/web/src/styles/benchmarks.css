@@ -23,7 +23,7 @@
 }
 .benchmark-meta {
   margin: 0 0 8px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   line-height: 1.6;
 }
@@ -48,7 +48,7 @@
   padding: 8px 12px;
   border: 1px solid var(--line);
   background: var(--panel);
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -309,7 +309,7 @@
 .methodology-correction {
   padding-top: 14px;
   border-top: 1px solid var(--line-soft);
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 .methodology-section {
   padding-top: 42px;
@@ -340,7 +340,7 @@
   display: grid;
   grid-template-columns: 22px 1fr;
   gap: 10px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   line-height: 1.55;
 }
@@ -364,7 +364,7 @@
 }
 .methodology-options dd {
   margin: 0;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   line-height: 1.55;
 }
@@ -393,7 +393,7 @@
   color: var(--paper-dim);
 }
 .methodology-table td {
-  color: var(--muted);
+  color: var(--muted-foreground);
   line-height: 1.55;
 }
 

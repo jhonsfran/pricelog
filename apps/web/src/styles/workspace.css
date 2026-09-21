@@ -7,7 +7,7 @@
   display: grid;
   place-content: center;
   gap: 20px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   text-align: center;
 }
 .dashboard-shell {
@@ -22,7 +22,7 @@
   border-bottom: 1px solid var(--line);
 }
 .dashboard-heading p:last-child {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font: 17px/1.5 var(--display);
 }
 .add-page-form {
@@ -31,7 +31,7 @@
 .add-page-form [data-slot="field-label"] {
   display: block;
   margin-bottom: 12px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.14em;
 }
@@ -79,7 +79,7 @@
   font-variant-numeric: tabular-nums;
 }
 .next-scan {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -134,7 +134,7 @@
   }
 }
 .run-status-neutral {
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 .run-status-neutral::before {
   background: var(--faint);
@@ -148,7 +148,7 @@
   padding-top: 42px;
 }
 .detail-heading p:last-child {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
 }
 .scan-button {
@@ -187,7 +187,7 @@
   gap: 10px;
 }
 .run-trigger {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -201,7 +201,7 @@
   font: 500 13px var(--display);
 }
 .run-time small {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
 }
 .artifact-links {
@@ -214,7 +214,7 @@
   gap: 5px;
   padding: 7px 8px;
   border: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   text-decoration: none;
   text-transform: uppercase;
@@ -250,7 +250,7 @@
 }
 .auth-intro {
   margin: 0 0 36px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -263,7 +263,7 @@
   gap: 9px;
 }
 .auth-field label {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -317,7 +317,7 @@
   margin-top: 28px;
   padding-top: 22px;
   border-top: 1px solid var(--line);
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
 }
 .auth-switch button {
@@ -537,5 +537,83 @@
 @media (prefers-reduced-motion: reduce) {
   .score-info:active {
     transform: none;
+  }
+}
+
+/* Pricing practices reuse the existing index typography and borders. */
+.practice-cell {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+.source-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  list-style: none;
+}
+.source-examples li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+}
+.source-examples small {
+  color: var(--muted-foreground);
+}
+.metric-definitions {
+  padding: 0 1.25rem 1.25rem;
+  font-size: 0.85rem;
+}
+.metric-definitions dl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-block: 1rem;
+}
+.metric-definitions dt {
+  font-weight: 600;
+}
+.metric-definitions dd {
+  color: var(--muted-foreground);
+}
+.finding-card details {
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+.finding-card details p {
+  margin-block: 0.5rem;
+}
+.weekly-change {
+  padding-block: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.weekly-evidence {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.weekly-evidence blockquote {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border);
+  color: var(--muted-foreground);
+}
+.owner-row {
+  grid-template-columns: minmax(220px, 1fr) 115px 150px 20px;
+}
+@media (max-width: 640px) {
+  .weekly-evidence {
+    grid-template-columns: 1fr;
+  }
+  .practice-cell {
+    grid-column: auto;
+    font-size: 0.7rem;
+  }
+  .owner-row {
+    grid-template-columns: 1fr auto;
   }
 }

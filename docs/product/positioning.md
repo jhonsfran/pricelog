@@ -1,130 +1,37 @@
-# Positioning: Pricelog
+# Pricelog positioning
 
-This document states where Pricelog competes, what it refuses to be, and how it
-relates to unprice.dev. It sits alongside `target-customer.md`, which defines who
-the product serves.
+Pricelog is a public weekly record of how AI products charge customers. It helps founders and product teams compare published charging rules before they launch or revise paid AI usage.
 
-## The one-line position
+The benchmark measures pricing pages. It records charging components, commercial policies, and evidence-backed changes. It does not rank pricing quality or establish whether a company's pricing succeeds.
 
-**Pricelog is the public record of how AI companies actually price, updated weekly.**
+## What the index measures
 
-Not a directory. Not a grader. A record of change. The closest analogues are the
-State of JS survey, Ramp's spending index, and Carta's cap table data: an index
-that works as a media property, where the dataset is the marketing and the
-software is downstream.
+Charging components are independent. Fixed subscriptions, seat charges, credit wallets, direct usage, outcome charges, and AI add-ons can appear on the same page.
 
-## Positions we reject
+Policy comparisons cover credit conversion, model-dependent credit use, allowance exhaustion, customer spending limits, failed runs, purchased-credit expiry, and included-credit rollover. Each metric names its source question and shows its denominator. Not disclosed is a statement about the captured page. It is not a claim that a product lacks a capability.
 
-| Position                                 | Why not                                                                                                                                                                      |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pricing page gallery or inspiration site | Competes on screenshots. Screenshots are cheap. It wastes an evaluation engine, earns traffic with no willingness to pay, and creates no pull toward unprice.                |
-| Competitive price monitoring             | A real category, but dominated by e-commerce SKU tracking. The B2B version sells top-down to organisations large enough to employ a pricing team. Wrong motion, wrong buyer. |
-| One-shot pricing grader                  | Website-grader mechanics generate a share and never a return visit. It wastes the weekly scan cadence, which is the only thing competitors cannot copy.                      |
+Product categories provide comparison groups. The application categories are coding assistants, AI app builders, customer support agents, voice agents, AI video generation, workflow and agent builders, AI sales and prospecting, and AI meeting assistants. The main overview includes only accepted application categories. Model APIs have a separate comparison group. Other, undisclosed, and uncertain purposes remain in the page record but do not enter the application overview. Market tags support discovery. Each page has one primary category based on its stated main purpose.
 
-## Why this position and not another
+## Weekly record
 
-1. **We already hold the only taxonomy that matters.** The `is_ai_native`,
-   `offers_copilot`, `offers_autonomous_agent`, `offers_agent_platform`, and
-   `offers_agent_workforce` signals are a genuinely novel segmentation. Generic
-   pricing datasets are blind to it.
-2. **The industry is mid-transition and there is no reference data.** Software is
-   moving from per-seat to usage and outcome pricing because of agents. Every
-   founder shipping an AI product is asking how to price one, and the honest
-   answer today is "nobody knows yet." Pricelog can answer it with evidence.
-3. **Time series cannot be copied.** A competitor can scrape the same pages
-   tomorrow. They cannot have last year's. This is the entire moat, and it
-   compounds from the first scan.
+A weekly comparison needs successful captures from adjacent completed UTC weeks and compatible rubric and model versions. Different model answers alone cannot establish a change. Published items need changed source content and accepted evidence checks. Each item includes literal before-and-after text and links to both dated captures.
 
-## Sequencing
+Missing information that becomes explicit is a disclosure change. A commercial change rate counts distinct pages with a verified commercial change among eligible paired pages. New, missing, incompatible, and unresolved observations stay separate. Without paired coverage, the interface says it is collecting history.
 
-1. **Lead with the AI pricing benchmark.** Aggregate distributions across the
-   AI-native segment. This is the artifact people link to.
-2. **Compound with the change log.** "Who changed their pricing this week, and
-   what changed." Near-zero marginal cost once versions exist, inherently
-   newsworthy, and the reason to return.
-3. **Monetise with the owner dashboard.** Benchmark your own page against your
-   category. Only works once the first two have created an audience.
+## Publication rules
 
-The per-page directory is the search base, not the pitch.
+The active shared catalog defines both Jev questions and the public methodology. Choice answers require confidence of at least 0.75. Positive Noul disclosures require probability of at least 0.80. These are publication rules, not measured accuracy claims. Raw probabilities remain stored.
 
-### Backfill is worth buying
+Counts and source examples remain visible in small categories. Percentages require at least ten pages in the category and the relevant metric denominator. This operational rule does not establish representative sampling or statistical significance. Policy comparisons exclude not applicable answers and report uncertainty separately.
 
-The time series is worth far more starting eighteen months ago than starting
-today, and Wayback Machine snapshots are the only way to buy that history for the
-top few hundred pages. This is the highest-leverage one-off task available.
+Historic records retain their original rubric. Current comparisons require new evaluations under pricing-intelligence-v5.
 
-## The aggregate screen
+## Relationship to Unprice
 
-The directory remains the search front door. The `/benchmarks` route is the
-aggregate report. It shows distributions, medians, and cohort shares. The next
-step is to add period-over-period changes after enough scheduled snapshots exist.
-The implementation record is in
-`docs/superpowers/plans/2026-09-20-pricing-benchmark-index.md`.
+Pricelog is by [Unprice](https://unprice.dev). Unprice provides an implementation path for usage charges, credits, and customer budgets. Link to implementation documentation where it helps users act on a pricing decision. Do not turn missing disclosure into a claim that a company needs Unprice.
 
-## What makes the questions valuable
+## Outside this release
 
-Three tests every question must pass before it appears in the interface:
+Exact price statistics and price bands require a validated collection method and remain deferred. Jev Score outputs must never become extracted currency values. No generative model explains changes or assigns motives.
 
-1. **Does the answer change what a founder does on Monday?** If not it is a
-   filter, not an insight. The `market_*` signals are filters. Correct to
-   collect, wrong to display as findings.
-2. **Can the answer be wrong in an interesting way?** `market_hr` surprises
-   nobody. A finding that most agent products publish no customer-controlled
-   spend cap is a result.
-3. **Is the distribution more interesting than the instance?** The best questions
-   are the ones where the aggregate is the product.
-
-And the presentation rule that turns data into value:
-
-> **No number ships without its peer distribution.**
-
-Not "Cost predictability: 62" but "62, 31st percentile among 84 AI developer
-tools, median 74." A score with no comparison class is a number without meaning.
-Every weak score must then name the specific missing artifact: not "packaging is
-unclear" but "no plan states a numeric limit, most of your peers state at least
-one."
-
-## Relationship to unprice.dev
-
-Pricelog is a demonstration artifact for unprice.dev, but the bridge is not a
-logo. It is that Pricelog names a **specific implementation gap** and unprice is
-the mechanism that closes it.
-
-| Pricelog finding                                 | Implementation problem                   | unprice surface    |
-| ------------------------------------------------ | ---------------------------------------- | ------------------ |
-| Usage-based model, no `has_spend_cap`            | Customers cannot cap runaway agent spend | Budget reservation |
-| `credits_expire`                                 | Credit ledger with expiry                | Usage recording    |
-| Six or more plans, no `publishes_numeric_limits` | Entitlement enforcement                  | `can()`            |
-| `value_metric: action_or_run`                    | Metering per agent action                | Usage recording    |
-
-Each row is an engineering problem the founder now knows they have, because the
-report told them. That is a stronger hand-off than a banner.
-
-The strongest single move is to **meter Pricelog's own owner dashboard with
-unprice and publish the source**. Scan quota, plan limits, the whole path. A
-working, non-trivial, public application running on the SDK outargues any landing
-page.
-
-## Methodology and the reputational surface
-
-Publishing numeric quality scores about named companies will eventually draw an
-objection. The defence is method, published in public:
-
-- A methodology page rendered from the same shared catalog the model reads, so
-  the published question and the evaluated question cannot differ.
-- Model confidence shown next to every answer. It is already stored.
-- The capture timestamp and archived snapshot each score was derived from.
-- A stated correction path.
-
-One honest limitation that belongs on that page: Pricelog measures **what a
-pricing page states**, not what a product does. A missing spend cap signal means
-the page does not establish one. It does not mean the feature is absent. Every
-aggregate claim must be phrased as a claim about disclosure.
-
-Get counsel on the framing before scaling this. Do not rely on an internal read.
-
-## Out of scope for this position
-
-- Recommending a price. Pricelog reports the market, it does not set it.
-- Private or contract pricing. Public pages only.
-- Consumer or retail price comparison.
+Public pricing pages cannot establish willingness to pay, actual margins, or conversion performance. Price recommendations, customer-spend simulations, watchlists, and billing integration are outside this release.

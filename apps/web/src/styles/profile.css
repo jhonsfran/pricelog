@@ -9,7 +9,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   text-decoration: none;
   text-transform: uppercase;
@@ -47,7 +47,7 @@
   display: inline-flex;
   gap: 7px;
   align-items: center;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   transition: color var(--dur-hover) var(--ease-hover);
 }
@@ -68,7 +68,7 @@
 }
 .overall-score small {
   margin-top: 14px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.12em;
 }
@@ -100,7 +100,7 @@
   border: 0;
 }
 .profile-facts span {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   letter-spacing: 0.12em;
 }
@@ -169,7 +169,7 @@
 }
 .intelligence-choices span,
 .intelligence-choices small {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;

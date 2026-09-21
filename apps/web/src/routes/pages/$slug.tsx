@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ENV } from "@/env.public";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
-import { ScoreGrid } from "@/components/score-grid";
-import { scoreBand } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({ component: PublicPageProfile });
@@ -29,20 +28,28 @@ function PublicPageProfile() {
             <ExternalLink size={14} />
           </a>
         </div>
-        <div className="overall-score" data-band={scoreBand(item.overallScore)}>
-          <span>{Math.round(item.overallScore)}</span>
-          <small>OVERALL / 100</small>
-        </div>
       </section>
       <section className="profile-grid">
         <div className="profile-card profile-card-main">
           <div className="section-kicker">
-            <span>QUALITY BREAKDOWN</span>
-            {item.peer ? (
-              <Link to="/benchmarks">vs {item.peer.cohortLabel.toLowerCase()}</Link>
-            ) : null}
+            <span>PUBLISHED PRICING PRACTICES</span>
           </div>
-          <ScoreGrid scores={item.scores} peer={item.peer} />
+          <p>
+            This record describes terms found on the captured pricing page. Missing disclosure does
+            not establish that a product lacks a feature.
+          </p>
+          <Link to="/benchmarks">Compare category practices</Link>
+          {item.sourceUrl ? (
+            <p>
+              <a
+                href={`${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${item.sourceUrl}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Read the archived source captured {formatDate(item.scannedAt)}
+              </a>
+            </p>
+          ) : null}
         </div>
         <aside className="profile-card profile-facts">
           <div>
@@ -63,7 +70,12 @@ function PublicPageProfile() {
           </div>
         </aside>
       </section>
-      <IntelligenceProfile choices={item.choices} signals={item.signals} tags={item.tags} />
+      <IntelligenceProfile
+        rubricId={item.rubricId}
+        choices={item.choices}
+        signals={item.signals}
+        tags={item.tags}
+      />
     </main>
   );
 }

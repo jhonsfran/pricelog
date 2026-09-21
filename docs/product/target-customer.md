@@ -1,59 +1,30 @@
-# Target customer: pricing teams and founders
+# Target customer
 
-## Primary customer
+Pricelog serves founders and product teams that are preparing to launch or change paid AI usage. They need evidence of published charging rules and policies in a relevant product category.
 
-Pricelog is for pricing teams and founders who need current, comparable evidence about how software companies price and package their products.
+## Decisions supported
 
-The primary users are:
+- Which charging components do comparable products state?
+- How do credits convert into work, and does model choice affect consumption?
+- What happens when an included allowance runs out?
+- Can customers set a maximum charge that stops paid usage?
+- How do failed runs, purchased-credit expiry, and included-credit rollover work?
+- Which terms changed between comparable weekly captures?
 
-- Founders who define an initial pricing model or revise an existing one.
-- Pricing and monetization teams that research competitors and market patterns.
-- Product marketers who define packaging, plan boundaries, and purchase paths.
-- Product leaders who need evidence for a pricing or packaging decision.
+The index supports these decisions with classified observations, counts, definitions, and source examples. It does not recommend a price or rank named companies by pricing quality.
 
-## Decisions we help them make
+## Source limits
 
-Pricelog must help a user answer these questions:
+Each observation covers one captured public pricing page across its public offers. Different terms across offers remain a varies-by-offer answer. Uncaptured linked documents and private contracts are outside the source. No observation implies that the most popular plan or a customer's actual bill has been measured.
 
-- Which pricing model does a company use?
-- What causes the customer's bill to increase?
-- Which customer segment does the offer target?
-- Is the buying motion self-service, sales-led, or hybrid?
-- How predictable is the final cost?
-- How clearly do plans support customer growth and upgrades?
-- Does the product provide an AI feature, a copilot, an autonomous agent, or an agent platform?
-- Which markets and business functions does the product serve?
-- What material price or packaging changes occurred over time?
+Uncertain answers remain separate from not disclosed and not applicable. Missing disclosure does not establish product absence. Small categories show counts and observed pages before they reach the percentage display minimum.
 
-## Product promise
+## Recurring use
 
-Pricelog converts public pricing pages into structured commercial intelligence. Every published record must come from a successful page capture and a complete Jev evaluation. The directory must not publish a failed capture, a bot challenge, or a partial evaluation.
+Users can return to check verified weekly changes. The report separates commercial changes from newly explicit disclosures. It includes literal evidence and dated source links. A page needs compatible captures in adjacent completed weeks before it can contribute to a comparison.
 
-The first release provides:
+The owner console lets users submit pricing pages and inspect scan history. Each complete successful evaluation updates the public record. A failed scan preserves the last complete record.
 
-- A normalized commercial profile for each pricing page.
-- Comparable quality scores with model confidence.
-- Controlled pricing, customer, buying-motion, AI, and market classifications.
-- Weekly page versions that can support change intelligence later.
+## Outside the target
 
-## Data policy
-
-- Store every typed Jev answer and its probability data.
-- Publish a choice only when confidence is at least `0.75`.
-- Publish a positive tag only when its Noul probability is at least `0.80`.
-- Treat uncertain classifications as unknown. Do not convert uncertainty into a negative fact.
-- Keep the last complete public projection when a later scan fails.
-
-## Non-target users
-
-The first release is not optimized for:
-
-- Consumers comparing retail products.
-- General company or website discovery.
-- Investment research that requires private financial data.
-- Automated price changes or pricing recommendations.
-- Full market classification when the pricing page contains no supporting evidence.
-
-## Product direction
-
-Searchable tags improve discovery, but version-to-version commercial changes provide the strongest recurring value. The static commercial profile is the required base for later price, packaging, limit, and go-to-market change detection.
+Consumer price shopping, retail SKU tracking, private financial research, automated price changes, and willingness-to-pay estimation are outside this release.
