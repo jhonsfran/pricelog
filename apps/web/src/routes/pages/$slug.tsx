@@ -3,6 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { ScoreGrid } from "@/components/score-grid";
+import { scoreBand } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({ component: PublicPageProfile });
@@ -28,7 +29,7 @@ function PublicPageProfile() {
             <ExternalLink size={14} />
           </a>
         </div>
-        <div className="overall-score">
+        <div className="overall-score" data-band={scoreBand(item.overallScore)}>
           <span>{Math.round(item.overallScore)}</span>
           <small>OVERALL / 100</small>
         </div>
@@ -37,8 +38,11 @@ function PublicPageProfile() {
         <div className="profile-card profile-card-main">
           <div className="section-kicker">
             <span>QUALITY BREAKDOWN</span>
+            {item.peer ? (
+              <Link to="/benchmarks">vs {item.peer.cohortLabel.toLowerCase()}</Link>
+            ) : null}
           </div>
-          <ScoreGrid scores={item.scores} />
+          <ScoreGrid scores={item.scores} peer={item.peer} />
         </div>
         <aside className="profile-card profile-facts">
           <div>

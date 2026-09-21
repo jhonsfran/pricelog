@@ -1,4 +1,6 @@
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { Button } from "@my-better-t-app/ui/components/button";
+import { Spinner } from "@my-better-t-app/ui/components/spinner";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Play } from "lucide-react";
@@ -7,6 +9,7 @@ import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { RunStatus } from "@/components/run-status";
 import { ScoreGrid } from "@/components/score-grid";
 import { ENV } from "@/env.public";
+import { scoreBand } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/pages/$pageId")({
@@ -39,7 +42,14 @@ function OwnerPageDetail() {
       onError: (error) => toast.error(error.message),
     }),
   );
-  if (detail.isLoading) return <div className="state-page">Loading owner record…</div>;
+  if (detail.isLoading) {
+    return (
+      <div className="state-page" role="status">
+        <Spinner />
+        Loading owner record…
+      </div>
+    );
+  }
   const pages = detail.data?.pages;
   if (!pages?.length) return <div className="state-page">Page not found.</div>;
   const data = pages[0]!;
@@ -57,14 +67,14 @@ function OwnerPageDetail() {
           <h1>{data.page.displayName ?? data.page.normalizedDomain}</h1>
           <p>{data.page.canonicalUrl}</p>
         </div>
-        <button
+        <Button
           className="scan-button"
           disabled={trigger.isPending}
           onClick={() => trigger.mutate({ pageId })}
         >
-          <Play size={15} />
+          <Play data-icon="inline-start" />
           {active ? "View active scan" : trigger.isPending ? "Starting…" : "Scan now"}
-        </button>
+        </Button>
       </section>
       {active ? (
         <div className="active-run">
@@ -75,10 +85,15 @@ function OwnerPageDetail() {
       ) : null}
       {data.summary ? (
         <>
-          <section className="profile-card owner-score-card">
+          <section
+            className="profile-card owner-score-card"
+            data-band={scoreBand(data.summary.overallScore)}
+          >
             <div className="section-kicker">
               <span>LATEST QUALITY SCORE</span>
-              <strong>{Math.round(data.summary.overallScore)} / 100</strong>
+              <strong className="score-number">
+                {Math.round(data.summary.overallScore)} / 100
+              </strong>
             </div>
             <ScoreGrid scores={data.summary.scores} />
           </section>
@@ -107,10 +122,16 @@ function OwnerPageDetail() {
             {run.status === "succeeded" ? (
               <div className="artifact-links">
                 {(["screenshot", "html", "content"] as const).map((kind) => (
-                  <a key={kind} href={artifactUrl(pageId, run.id, kind)}>
-                    <Download size={13} />
+                  <Button
+                    key={kind}
+                    render={<a href={artifactUrl(pageId, run.id, kind)} />}
+                    nativeButton={false}
+                    variant="link"
+                    size="xs"
+                  >
+                    <Download data-icon="inline-start" />
                     {kind}
-                  </a>
+                  </Button>
                 ))}
               </div>
             ) : (
@@ -119,13 +140,14 @@ function OwnerPageDetail() {
           </article>
         ))}
         {detail.hasNextPage ? (
-          <button
+          <Button
             className="load-more-button"
+            variant="outline"
             disabled={detail.isFetchingNextPage}
             onClick={() => detail.fetchNextPage()}
           >
             {detail.isFetchingNextPage ? "Loading…" : "Load older runs"}
-          </button>
+          </Button>
         ) : null}
       </section>
     </main>

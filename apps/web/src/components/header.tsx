@@ -9,8 +9,11 @@ export default function Header() {
         <b>PRICELOG</b>
       </Link>
       <nav aria-label="Primary navigation">
-        <Link to="/" activeProps={{ "data-active": true }}>
+        <Link to="/" activeProps={{ "data-active": true }} activeOptions={{ exact: true }}>
           Directory
+        </Link>
+        <Link to="/benchmarks" activeProps={{ "data-active": true }}>
+          The index
         </Link>
         <Link to="/dashboard" activeProps={{ "data-active": true }}>
           Your pages

@@ -1,17 +1,50 @@
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { Button } from "@my-better-t-app/ui/components/button";
+import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@my-better-t-app/ui/components/input-group";
+import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
 import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
+import { fillRatio, scoreBand, staggerDelay } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({ component: DirectoryPage });
 
 function DirectoryPage() {
   const [search, setSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim();
+
+  // The `/` hint in the search box has to be real, or it is a lie the
+  // interface tells every keyboard user who tries it.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable;
+      if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        searchInput.current?.focus();
+      }
+      if (event.key === "Escape" && target === searchInput.current) {
+        setSearch("");
+        searchInput.current?.blur();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const directory = useInfiniteQuery(
     orpc.directory.list.infiniteOptions({
       input: (cursor: DescendingTimestampCursor | null) => ({
@@ -42,17 +75,27 @@ function DirectoryPage() {
           <span id="directory-title">PRICING DIRECTORY</span>
           <span>{directory.isLoading ? "—" : `${items.length} PAGES`}</span>
         </div>
-        <label className="search-box">
-          <Search size={17} aria-hidden="true" />
-          <span className="sr-only">Search pricing pages</span>
-          <input
-            type="search"
-            placeholder="Search companies or domains"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <kbd>/</kbd>
-        </label>
+        <Field className="search-field">
+          <FieldLabel className="sr-only" htmlFor="directory-search">
+            Search pricing pages
+          </FieldLabel>
+          <InputGroup className="search-box">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              id="directory-search"
+              ref={searchInput}
+              type="search"
+              placeholder="Search companies or domains"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <InputGroupAddon align="inline-end">
+              <kbd aria-hidden="true">/</kbd>
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
         <div className="directory-table" aria-live="polite">
           <div className="directory-head">
             <span>PAGE</span>
@@ -61,7 +104,7 @@ function DirectoryPage() {
             <span aria-hidden="true" />
           </div>
           {directory.isLoading ? (
-            <DirectoryMessage text="Reading the index…" />
+            <DirectorySkeleton />
           ) : directory.isError ? (
             <DirectoryMessage text="The directory is not available." />
           ) : items.length === 0 ? (
@@ -73,11 +116,12 @@ function DirectoryPage() {
           ) : (
             items.map((item, index) => (
               <Link
-                className="directory-row"
+                className="directory-row row-enter"
                 key={item.id}
                 to="/pages/$slug"
                 params={{ slug: item.slug }}
-                style={{ animationDelay: `${index * 35}ms` }}
+                data-band={scoreBand(item.overallScore)}
+                style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
               >
                 <span className="page-identity">
                   <strong>{item.displayName ?? item.normalizedDomain}</strong>
@@ -92,24 +136,56 @@ function DirectoryPage() {
                     </span>
                   )}
                 </span>
-                <span className="quality-score">{Math.round(item.overallScore)}</span>
+                {/* The number alone makes 38 and 84 look identical at a glance.
+                    The meter gives the column a shape you can scan. */}
+                <span className="quality-cell">
+                  <span className="quality-score">{Math.round(item.overallScore)}</span>
+                  <span className="quality-meter" aria-hidden="true">
+                    <span
+                      className="quality-fill"
+                      style={
+                        {
+                          "--fill": fillRatio(item.overallScore),
+                          "--fill-delay": staggerDelay(index),
+                        } as CSSProperties
+                      }
+                    />
+                  </span>
+                </span>
                 <span className="scan-date">{formatDate(item.scannedAt)}</span>
-                <span className="row-arrow">↗</span>
+                <span className="row-arrow" aria-hidden="true">
+                  ↗
+                </span>
               </Link>
             ))
           )}
         </div>
         {directory.hasNextPage ? (
-          <button
+          <Button
             className="load-more-button"
+            variant="outline"
             disabled={directory.isFetchingNextPage}
             onClick={() => directory.fetchNextPage()}
           >
             {directory.isFetchingNextPage ? "Loading…" : "Load more"}
-          </button>
+          </Button>
         ) : null}
       </section>
     </main>
+  );
+}
+
+/** Holds the row rhythm while the index loads so results never shift the page. */
+function DirectorySkeleton() {
+  return (
+    <div aria-hidden="true">
+      {Array.from({ length: 8 }, (_, index) => (
+        <div className="skeleton-row" key={index}>
+          <Skeleton className="skeleton-bar" style={{ width: `${34 + ((index * 13) % 26)}%` }} />
+          <Skeleton className="skeleton-bar h-2" style={{ width: "18%" }} />
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -1,0 +1,445 @@
+/* ============================================================
+   19. The index: distributions and shares
+   ============================================================ */
+
+.benchmark-shell {
+  padding-bottom: 110px;
+}
+.benchmark-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 8vw;
+  min-height: 300px;
+  padding: 40px 0;
+  border-bottom: 1px solid var(--line);
+}
+.benchmark-hero h1 {
+  margin: 8px 0 0;
+  font-family: var(--display);
+  font-size: clamp(46px, 7vw, 92px);
+  line-height: 0.88;
+  letter-spacing: -0.05em;
+}
+.benchmark-meta {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.benchmark-meta a {
+  color: var(--acid);
+  text-underline-offset: 3px;
+}
+.benchmark-section {
+  padding-top: 46px;
+}
+
+.cohort-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 26px 0 18px;
+}
+.cohort-picker button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color var(--dur-hover) var(--ease-hover),
+    border-color var(--dur-hover) var(--ease-hover),
+    transform var(--dur-press) var(--ease-out);
+}
+.cohort-picker button small {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.cohort-picker button:active {
+  transform: scale(0.97);
+}
+.cohort-picker button[aria-pressed="true"] {
+  border-color: var(--acid);
+  color: var(--acid);
+}
+.cohort-picker button[aria-pressed="true"] small {
+  color: var(--acid);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cohort-picker button:hover {
+    color: var(--paper);
+    border-color: var(--line-strong);
+  }
+}
+
+/* Headline findings */
+.finding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  margin-top: 18px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.finding-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px;
+  background: var(--panel);
+}
+.finding-card strong {
+  color: var(--acid);
+  font: 500 46px/0.9 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+.finding-card span {
+  font: 500 13px var(--display);
+}
+.finding-card small {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+/* Distributions */
+.dist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+.dist-card {
+  margin: 0;
+  padding: 20px 22px 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.dist-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.dist-label {
+  font: 500 14px var(--display);
+}
+.dist-median {
+  color: var(--band, var(--acid));
+  font: 500 22px var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.dist-question {
+  margin: 8px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.dist-chart {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 68px;
+  margin-top: 18px;
+}
+.dist-iqr {
+  position: absolute;
+  inset: 0 auto 0 var(--from);
+  width: calc(var(--to) - var(--from));
+  background: #1a1a1a;
+}
+.dist-median-line {
+  position: absolute;
+  inset: 0 auto 0 var(--at);
+  width: 1px;
+  background: var(--band, var(--acid));
+  opacity: 0.55;
+}
+.dist-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--band, var(--acid));
+  transform: scaleY(var(--fill, 0));
+  transform-origin: bottom;
+  transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
+}
+@starting-style {
+  .dist-bar {
+    transform: scaleY(0);
+  }
+}
+.dist-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: var(--faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shares */
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+.share-card {
+  padding: 20px 22px 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+.benchmark-section > .share-card {
+  margin-top: 18px;
+}
+.share-title {
+  margin: 0;
+  font: 500 14px var(--display);
+}
+.share-list {
+  display: grid;
+  gap: 11px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 120px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.share-name {
+  overflow: hidden;
+  color: var(--paper-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.share-track {
+  display: block;
+  height: 8px;
+  background: #1c1c1c;
+}
+.share-track span {
+  display: block;
+  height: 100%;
+  background: var(--acid);
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left;
+  transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
+}
+@starting-style {
+  .share-track span {
+    transform: scaleX(0);
+  }
+}
+.share-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.share-value small {
+  color: var(--faint);
+  font-size: 9px;
+}
+.share-empty,
+.share-denominator {
+  margin: 14px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+/* Peer marker on a single page's score.
+   The track clips its fill; the marker has to overhang to be visible at 3px,
+   and the fill is already clamped to 0-1 so nothing else can escape. */
+.score-track {
+  overflow: visible;
+}
+.score-peer-marker {
+  position: absolute;
+  inset: -3px auto -3px var(--at);
+  width: 1px;
+  background: var(--paper);
+  opacity: 0.45;
+  transform: none;
+}
+.score-confidence strong {
+  color: var(--band, var(--paper));
+  font-weight: 500;
+}
+
+/* ============================================================
+   20. Methodology
+   ============================================================ */
+
+.methodology-shell {
+  max-width: 820px;
+}
+.methodology-note {
+  padding: 34px 0 10px;
+  color: var(--paper-dim);
+  font-size: 12px;
+  line-height: 1.75;
+}
+.methodology-note h2 {
+  margin: 0 0 14px;
+  font: 500 20px var(--display);
+  color: var(--paper);
+}
+.methodology-note ul {
+  margin: 18px 0;
+  padding-left: 18px;
+}
+.methodology-note li {
+  margin-bottom: 7px;
+}
+.methodology-correction {
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+}
+.methodology-section {
+  padding-top: 42px;
+}
+.methodology-question {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.methodology-question h3 {
+  margin: 0;
+  font: 500 15px var(--display);
+}
+.methodology-prompt {
+  margin: 8px 0 0;
+  color: var(--acid);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.methodology-criteria {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.methodology-criteria li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.methodology-criteria span {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.methodology-options {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+}
+.methodology-options > div {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) 1fr;
+  gap: 12px;
+}
+.methodology-options dt {
+  color: var(--paper-dim);
+  font-size: 11px;
+}
+.methodology-options dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.methodology-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+.methodology-table th,
+.methodology-table td {
+  padding: 12px 14px 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-weight: 400;
+  vertical-align: top;
+}
+.methodology-table thead th {
+  color: var(--faint);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.methodology-table tbody th {
+  width: 190px;
+  color: var(--paper-dim);
+}
+.methodology-table td {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .benchmark-hero {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding: 50px 0;
+  }
+  .share-row {
+    grid-template-columns: minmax(0, 92px) 1fr auto;
+    gap: 9px;
+  }
+  .methodology-options > div,
+  .methodology-table tbody th {
+    grid-template-columns: 1fr;
+    width: auto;
+  }
+  .methodology-table,
+  .methodology-table thead,
+  .methodology-table tbody,
+  .methodology-table tr,
+  .methodology-table th,
+  .methodology-table td {
+    display: block;
+  }
+  .methodology-table thead {
+    display: none;
+  }
+  .methodology-table tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .methodology-table th,
+  .methodology-table td {
+    border: 0;
+    padding: 0 0 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dist-bar,
+  .share-track span {
+    transition: none;
+  }
+  .cohort-picker button:active {
+    transform: none;
+  }
+}

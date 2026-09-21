@@ -1,9 +1,18 @@
+import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@my-better-t-app/ui/components/input-group";
+import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { toast } from "sonner";
 import { RunStatus } from "@/components/run-status";
+import { scoreBand, staggerDelay } from "@/lib/score";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/")({ component: DashboardPage });
@@ -41,21 +50,25 @@ function DashboardPage() {
           if (url.trim()) createPage.mutate({ url: url.trim() });
         }}
       >
-        <label htmlFor="pricing-url">PRICING PAGE URL</label>
-        <div>
-          <input
-            id="pricing-url"
-            type="url"
-            required
-            placeholder="https://example.com/pricing"
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-          />
-          <button type="submit" disabled={createPage.isPending}>
-            <Plus size={16} />
-            {createPage.isPending ? "Adding…" : "Add page"}
-          </button>
-        </div>
+        <Field>
+          <FieldLabel htmlFor="pricing-url">PRICING PAGE URL</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="pricing-url"
+              type="url"
+              required
+              placeholder="https://example.com/pricing"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton type="submit" variant="default" disabled={createPage.isPending}>
+                <Plus data-icon="inline-start" />
+                {createPage.isPending ? "Adding…" : "Add page"}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
       </form>
       <section className="owner-list">
         <div className="section-kicker">
@@ -63,14 +76,16 @@ function DashboardPage() {
           <span>{pages.data?.length ?? 0}</span>
         </div>
         {pages.isLoading ? (
-          <div className="directory-message">Loading your pages…</div>
+          <OwnerSkeleton />
         ) : pages.data?.length ? (
-          pages.data.map((item) => (
+          pages.data.map((item, index) => (
             <Link
               key={item.id}
-              className="owner-row"
+              className="owner-row row-enter"
               to="/dashboard/pages/$pageId"
               params={{ pageId: item.id }}
+              data-band={scoreBand(item.overallScore)}
+              style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
             >
               <span className="page-identity">
                 <strong>{item.displayName ?? item.normalizedDomain}</strong>
@@ -83,7 +98,7 @@ function DashboardPage() {
               <span className="next-scan">
                 {item.nextScanAt ? `Next ${formatDate(item.nextScanAt)}` : "Scheduling"}
               </span>
-              <ArrowRight size={17} />
+              <ArrowRight size={17} className="row-arrow" aria-hidden="true" />
             </Link>
           ))
         ) : (
@@ -93,6 +108,20 @@ function DashboardPage() {
         )}
       </section>
     </main>
+  );
+}
+
+/** Holds the row rhythm while owned pages load, so results never shift the page. */
+function OwnerSkeleton() {
+  return (
+    <div aria-hidden="true">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div className="skeleton-row" key={index}>
+          <Skeleton className="skeleton-bar" style={{ width: `${38 + index * 9}%` }} />
+          <Skeleton className="skeleton-bar h-2" style={{ width: "24%" }} />
+        </div>
+      ))}
+    </div>
   );
 }
 

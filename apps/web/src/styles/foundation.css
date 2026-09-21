@@ -1,0 +1,579 @@
+/* ============================================================
+   1. Tokens
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --ink: #050505;
+  --panel: #0b0b0b;
+  --panel-hover: #111111;
+  --line: #262626;
+  --line-soft: #171717;
+  --line-strong: #3a3a3a;
+
+  /* Text */
+  --paper: #f0f0ec;
+  --paper-dim: #a6a6a1;
+  --muted: #7d7d7a;
+  --faint: #5a5a58;
+
+  /* Brand + score bands */
+  --acid: #c8ff42;
+  --score-high: #c8ff42;
+  --score-mid: #ffc94b;
+  --score-low: #ff6f5e;
+
+  /* Type */
+  --mono: "Berkeley Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --display: "Arial Narrow", "Nimbus Sans Narrow", sans-serif;
+
+  /* Motion — custom curves; the CSS built-ins are too weak */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-hover: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-press: 140ms;
+  --dur-hover: 180ms;
+  --dur-enter: 260ms;
+  --dur-fill: 620ms;
+}
+
+/* Align the shadcn dark palette with the index so Button, Input,
+   DropdownMenu, Skeleton and Toaster inherit the brand for free. */
+.dark {
+  --background: #050505;
+  --foreground: #f0f0ec;
+  --card: #0b0b0b;
+  --card-foreground: #f0f0ec;
+  --popover: #0b0b0b;
+  --popover-foreground: #f0f0ec;
+  --primary: #c8ff42;
+  --primary-foreground: #050505;
+  --secondary: #141414;
+  --secondary-foreground: #f0f0ec;
+  --muted: #141414;
+  --muted-foreground: #7d7d7a;
+  --accent: #171717;
+  --accent-foreground: #f0f0ec;
+  --destructive: #ff6f5e;
+  --border: #262626;
+  --input: #262626;
+  --ring: #c8ff42;
+  --radius: 0.125rem;
+}
+
+/* ============================================================
+   2. Base
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--ink);
+  color: var(--paper);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: radial-gradient(circle at 65% -20%, #1c1c1c 0, transparent 38rem), var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input {
+  font: inherit;
+}
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--acid);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+/* Score bands. Every score surface reads its colour from one place. */
+[data-band="high"] {
+  --band: var(--score-high);
+}
+[data-band="mid"] {
+  --band: var(--score-mid);
+}
+[data-band="low"] {
+  --band: var(--score-low);
+}
+[data-band="none"] {
+  --band: var(--faint);
+}
+
+/* ============================================================
+   3. Header
+   ============================================================ */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 56px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  width: max-content;
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.wordmark:active {
+  transform: scale(0.97);
+}
+.wordmark span {
+  font-size: 15px;
+  color: var(--acid);
+}
+.site-header nav {
+  display: flex;
+  gap: 28px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.site-header nav a {
+  position: relative;
+  padding: 4px 0;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+/* Underline grows from the centre instead of fading in. */
+.site-header nav a::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -2px;
+  height: 1px;
+  background: var(--acid);
+  transform: scaleX(0);
+  transition: transform var(--dur-hover) var(--ease-out);
+}
+.site-header nav a[data-active] {
+  color: var(--paper);
+}
+.site-header nav a[data-active]::after {
+  transform: scaleX(1);
+}
+.site-header > :last-child {
+  justify-self: end;
+}
+
+/* ============================================================
+   4. Shells + shared typography
+   ============================================================ */
+
+.directory-shell,
+.profile-shell,
+.dashboard-shell {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+}
+.eyebrow {
+  color: var(--acid);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+.section-kicker {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 38px;
+  color: var(--paper-dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+/* ============================================================
+   5. Directory hero
+   ============================================================ */
+
+.directory-hero {
+  min-height: 380px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 8vw;
+  border-bottom: 1px solid var(--line);
+}
+.directory-hero h1 {
+  margin: 8px 0 0;
+  font-family: var(--display);
+  font-size: clamp(72px, 11vw, 148px);
+  line-height: 0.76;
+  letter-spacing: -0.07em;
+  transform: scaleY(1.3);
+  transform-origin: left center;
+}
+.hero-copy {
+  max-width: 540px;
+  color: var(--paper-dim);
+  font: 400 clamp(18px, 2vw, 27px)/1.35 var(--display);
+  letter-spacing: -0.015em;
+}
+
+/* ============================================================
+   6. Search
+   ============================================================ */
+
+.directory-section {
+  padding: 70px 0 100px;
+}
+.search-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 0;
+  color: var(--muted);
+  height: auto;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  box-shadow: none;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+/* Focus rule grows from the left rather than a colour swap. */
+.search-box::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  background: var(--paper);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms var(--ease-out);
+}
+.search-box:focus-within {
+  color: var(--paper);
+}
+.search-box:focus-within::after {
+  transform: scaleX(1);
+}
+.search-box:focus-within :focus-visible {
+  outline: none;
+}
+.search-box input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--paper);
+  font-size: 14px;
+}
+.search-box input::placeholder {
+  color: var(--faint);
+}
+.search-box kbd {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  transition:
+    opacity var(--dur-hover) var(--ease-hover),
+    transform var(--dur-hover) var(--ease-out);
+}
+.search-box:focus-within kbd {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+/* ============================================================
+   7. Directory table
+   ============================================================ */
+
+.directory-table {
+  margin-top: 16px;
+}
+.directory-head,
+.directory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 150px 28px;
+  align-items: center;
+  gap: 24px;
+}
+.directory-head {
+  height: 46px;
+  color: var(--faint);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  border-bottom: 1px solid var(--line);
+}
+
+.directory-row,
+.owner-row {
+  position: relative;
+  min-height: 82px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-soft);
+  /* Hover paints a pseudo-element instead of animating padding, so a
+     50-row list never triggers layout on pointer move. */
+  isolation: isolate;
+}
+.directory-row::before,
+.owner-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 -14px;
+  z-index: -1;
+  background: var(--panel-hover);
+  opacity: 0;
+  transition: opacity var(--dur-hover) var(--ease-hover);
+}
+.directory-row::after,
+.owner-row::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -14px;
+  width: 2px;
+  z-index: -1;
+  background: var(--band, var(--acid));
+  transform: scaleY(0);
+  transition: transform 200ms var(--ease-out);
+}
+.directory-row:active::before,
+.owner-row:active::before {
+  opacity: 1;
+  background: #161616;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .directory-row:hover::before,
+  .owner-row:hover::before {
+    opacity: 1;
+  }
+  .directory-row:hover::after,
+  .owner-row:hover::after {
+    transform: scaleY(1);
+  }
+  .directory-row:hover .row-arrow,
+  .owner-row:hover .row-arrow {
+    opacity: 1;
+    transform: none;
+  }
+  .site-header nav a:hover {
+    color: var(--paper);
+  }
+  .site-header nav a:hover::after {
+    transform: scaleX(1);
+  }
+}
+.directory-row:focus-visible::before,
+.owner-row:focus-visible::before {
+  opacity: 1;
+}
+
+/* Rows enter with a capped stagger — see --enter-delay from the view. */
+.row-enter {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: row-in var(--dur-enter) var(--ease-out) var(--enter-delay, 0ms) forwards;
+}
+@keyframes row-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.page-identity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 600 16px/1.1 var(--display);
+  white-space: nowrap;
+}
+.page-identity small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.directory-tags,
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.directory-tags span,
+.page-tag {
+  width: max-content;
+  padding: 3px 6px;
+  border: 1px solid #303030;
+  color: #8e8e8e;
+  font-size: 10px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* Score cell: the number carries its band, and a meter gives the
+   value a shape you can scan down the column without reading. */
+.quality-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: start;
+}
+.quality-score {
+  color: var(--band, var(--paper));
+  font: 500 28px/1 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+.quality-meter,
+.score-track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  background: #232323;
+}
+.quality-meter {
+  width: 72px;
+}
+.quality-fill,
+.score-fill {
+  display: block;
+  height: 100%;
+  background: var(--band, var(--acid));
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left;
+  transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
+}
+/* Bars sweep up from empty on first paint. */
+@starting-style {
+  .quality-fill,
+  .score-fill {
+    transform: scaleX(0);
+  }
+}
+
+.scan-date {
+  color: var(--muted);
+  font-size: 11px;
+}
+.row-arrow {
+  justify-self: end;
+  color: var(--acid);
+  font-size: 18px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--dur-hover) var(--ease-hover),
+    transform var(--dur-hover) var(--ease-out);
+}
+.directory-message {
+  padding: 64px 0;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Skeleton rows hold the layout so results never shift the page. */
+.skeleton-row {
+  min-height: 82px;
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.skeleton-bar {
+  height: 10px;
+  background: linear-gradient(90deg, #131313, #1d1d1d, #131313);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s linear infinite;
+}
+@keyframes skeleton-sweep {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================================
+   8. Buttons
+   ============================================================ */
+
+.load-more-button {
+  display: block;
+  margin: 24px auto 0;
+  padding: 11px 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--paper);
+  font: 600 11px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-hover) var(--ease-hover),
+    color var(--dur-hover) var(--ease-hover),
+    transform var(--dur-press) var(--ease-out);
+}
+.load-more-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.add-page-form button,
+.scan-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 22px;
+  border: 0;
+  background: var(--acid);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    filter var(--dur-hover) var(--ease-hover),
+    transform var(--dur-press) var(--ease-out);
+}
+.add-page-form button:active:not(:disabled),
+.scan-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (hover: hover) and (pointer: fine) {
+  .load-more-button:hover:not(:disabled) {
+    border-color: var(--acid);
+    color: var(--acid);
+  }
+  .add-page-form button:hover:not(:disabled),
+  .scan-button:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+}

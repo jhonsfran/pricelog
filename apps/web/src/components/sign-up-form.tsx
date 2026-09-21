@@ -1,6 +1,5 @@
 import { Button } from "@my-better-t-app/ui/components/button";
-import { Input } from "@my-better-t-app/ui/components/input";
-import { Label } from "@my-better-t-app/ui/components/label";
+import { FieldGroup } from "@my-better-t-app/ui/components/field";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -8,6 +7,7 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
+import { AuthField } from "./auth-field";
 import Loader from "./loader";
 
 export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
@@ -56,105 +56,79 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   }
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
+    <main className="auth-shell">
+      <p className="eyebrow">OWNER CONSOLE</p>
+      <h1>Create account</h1>
+      <p className="auth-intro">
+        Claim a pricing page and Pricelog captures, archives, and scores it every week.
+      </p>
 
       <form
+        className="auth-form"
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
           form.handleSubmit();
         }}
-        className="space-y-4"
       >
-        <div>
+        <FieldGroup>
           <form.Field name="name">
             {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Name</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
+              <AuthField
+                field={field}
+                label="Name"
+                autoComplete="name"
+                placeholder="Ada Lovelace"
+              />
             )}
           </form.Field>
-        </div>
 
-        <div>
           <form.Field name="email">
             {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="email"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
+              <AuthField
+                field={field}
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+              />
             )}
           </form.Field>
-        </div>
 
-        <div>
           <form.Field name="password">
             {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="password"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
-              </div>
+              <AuthField
+                field={field}
+                label="Password"
+                type="password"
+                autoComplete="new-password"
+              />
             )}
           </form.Field>
-        </div>
+        </FieldGroup>
 
         <form.Subscribe
           selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
         >
           {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Sign Up"}
+            <Button
+              className="mt-1.5 w-full"
+              size="lg"
+              type="submit"
+              disabled={!canSubmit || isSubmitting}
+            >
+              {isSubmitting ? "Creating account…" : "Create account"}
             </Button>
           )}
         </form.Subscribe>
       </form>
 
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignIn}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Already have an account? Sign In
+      <p className="auth-switch">
+        Already have an account?{" "}
+        <Button type="button" variant="link" size="xs" onClick={onSwitchToSignIn}>
+          Sign in
         </Button>
-      </div>
-    </div>
+      </p>
+    </main>
   );
 }
