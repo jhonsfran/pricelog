@@ -1,0 +1,238 @@
+{
+  "checkedAt": "2026-09-21",
+  "purpose": "Five research candidates per application category. Candidate labels do not override Jev classifications. Live scans are required for observations.",
+  "products": [
+    {
+      "name": "Cursor",
+      "url": "https://cursor.com/pricing",
+      "candidateCategory": "coding_assistants"
+    },
+    {
+      "name": "Devin",
+      "url": "https://devin.ai/pricing",
+      "candidateCategory": "coding_assistants"
+    },
+    {
+      "name": "CodeRabbit",
+      "url": "https://www.coderabbit.ai/pricing",
+      "candidateCategory": "coding_assistants"
+    },
+    {
+      "name": "Qodo",
+      "url": "https://www.qodo.ai/pricing/",
+      "candidateCategory": "coding_assistants"
+    },
+    {
+      "name": "Tabnine",
+      "url": "https://www.tabnine.com/pricing/",
+      "candidateCategory": "coding_assistants"
+    },
+    {
+      "name": "Lovable",
+      "url": "https://lovable.dev/pricing",
+      "candidateCategory": "app_builders"
+    },
+    {
+      "name": "Bolt",
+      "url": "https://bolt.new/pricing",
+      "candidateCategory": "app_builders"
+    },
+    {
+      "name": "Emergent",
+      "url": "https://emergent.sh/pricing",
+      "candidateCategory": "app_builders"
+    },
+    {
+      "name": "Base44",
+      "url": "https://base44.com/pricing",
+      "candidateCategory": "app_builders"
+    },
+    {
+      "name": "v0",
+      "url": "https://v0.app/pricing",
+      "candidateCategory": "app_builders"
+    },
+    {
+      "name": "Fin",
+      "url": "https://fin.ai/pricing",
+      "candidateCategory": "customer_support_agents"
+    },
+    {
+      "name": "Chatbase",
+      "url": "https://www.chatbase.co/pricing",
+      "candidateCategory": "customer_support_agents"
+    },
+    {
+      "name": "DocsBot",
+      "url": "https://docsbot.ai/pricing",
+      "candidateCategory": "customer_support_agents"
+    },
+    {
+      "name": "SiteGPT",
+      "url": "https://sitegpt.ai/pricing",
+      "candidateCategory": "customer_support_agents"
+    },
+    {
+      "name": "Chatling",
+      "url": "https://chatling.ai/pricing",
+      "candidateCategory": "customer_support_agents"
+    },
+    {
+      "name": "Retell AI",
+      "url": "https://www.retellai.com/pricing",
+      "candidateCategory": "voice_agents"
+    },
+    {
+      "name": "Vapi",
+      "url": "https://vapi.ai/pricing",
+      "candidateCategory": "voice_agents"
+    },
+    {
+      "name": "Bland",
+      "url": "https://www.bland.ai/pricing",
+      "candidateCategory": "voice_agents"
+    },
+    {
+      "name": "Synthflow",
+      "url": "https://synthflow.ai/pricing",
+      "candidateCategory": "voice_agents"
+    },
+    {
+      "name": "Autocalls",
+      "url": "https://autocalls.ai/pricing",
+      "candidateCategory": "voice_agents"
+    },
+    {
+      "name": "Runway",
+      "url": "https://runway.com/pricing",
+      "candidateCategory": "video_generation"
+    },
+    {
+      "name": "HeyGen",
+      "url": "https://www.heygen.com/pricing",
+      "candidateCategory": "video_generation"
+    },
+    {
+      "name": "Luma",
+      "url": "https://lumalabs.ai/pricing",
+      "candidateCategory": "video_generation"
+    },
+    {
+      "name": "InVideo",
+      "url": "https://invideo.io/pricing/",
+      "candidateCategory": "video_generation"
+    },
+    {
+      "name": "Pika",
+      "url": "https://pika.art/pricing",
+      "candidateCategory": "video_generation"
+    },
+    {
+      "name": "Relevance AI",
+      "url": "https://relevanceai.com/pricing",
+      "candidateCategory": "workflow_agent_builders"
+    },
+    {
+      "name": "Gumloop",
+      "url": "https://www.gumloop.com/pricing",
+      "candidateCategory": "workflow_agent_builders"
+    },
+    {
+      "name": "MindStudio",
+      "url": "https://www.mindstudio.ai/pricing",
+      "candidateCategory": "workflow_agent_builders"
+    },
+    {
+      "name": "Dify",
+      "url": "https://dify.ai/pricing",
+      "candidateCategory": "workflow_agent_builders"
+    },
+    {
+      "name": "Dust",
+      "url": "https://dust.tt/home/pricing",
+      "candidateCategory": "workflow_agent_builders"
+    },
+    {
+      "name": "Clay",
+      "url": "https://www.clay.com/pricing",
+      "candidateCategory": "sales_prospecting"
+    },
+    {
+      "name": "Artisan",
+      "url": "https://www.artisan.co/pricing",
+      "candidateCategory": "sales_prospecting"
+    },
+    {
+      "name": "AiSDR",
+      "url": "https://aisdr.com/pricing/",
+      "candidateCategory": "sales_prospecting"
+    },
+    {
+      "name": "Regie.ai",
+      "url": "https://regie.ai/pricing",
+      "candidateCategory": "sales_prospecting"
+    },
+    {
+      "name": "Amplemarket",
+      "url": "https://www.amplemarket.com/pricing",
+      "candidateCategory": "sales_prospecting"
+    },
+    {
+      "name": "Fireflies",
+      "url": "https://fireflies.ai/pricing",
+      "candidateCategory": "meeting_assistants"
+    },
+    {
+      "name": "Otter",
+      "url": "https://otter.ai/pricing",
+      "candidateCategory": "meeting_assistants"
+    },
+    {
+      "name": "Fathom",
+      "url": "https://www.fathom.ai/pricing",
+      "candidateCategory": "meeting_assistants"
+    },
+    {
+      "name": "MeetGeek",
+      "url": "https://meetgeek.ai/pricing",
+      "candidateCategory": "meeting_assistants"
+    },
+    {
+      "name": "Granola",
+      "url": "https://www.granola.ai/pricing",
+      "candidateCategory": "meeting_assistants"
+    }
+  ],
+  "deferredProducts": [
+    {
+      "name": "Replit",
+      "url": "https://replit.com/pricing",
+      "candidateCategory": "app_builders",
+      "reason": "Capture returned HTTP 403"
+    },
+    {
+      "name": "CallFluent",
+      "url": "https://callfluent.com/pricing/",
+      "candidateCategory": "voice_agents",
+      "reason": "Captured source exceeded the 256 KiB transport limit"
+    },
+    {
+      "name": "Synthesia",
+      "url": "https://www.synthesia.io/pricing",
+      "candidateCategory": "video_generation",
+      "reason": "Jev gateway rejected the full-source evaluation with 7003: User Input Error"
+    },
+    {
+      "name": "Salesforge",
+      "url": "https://www.salesforge.ai/pricing",
+      "candidateCategory": "sales_prospecting",
+      "reason": "Jev gateway rejected the full-source evaluation with 7003: User Input Error"
+    },
+    {
+      "name": "Instantly",
+      "url": "https://instantly.ai/pricing",
+      "candidateCategory": "sales_prospecting",
+      "reason": "Jev gateway rejected the full-source evaluation with 7003: User Input Error"
+    }
+  ]
+}

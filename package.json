@@ -39,10 +39,8 @@
     "vitest": "catalog:"
   },
   "lint-staged": {
-    "*": [
-      "oxlint",
-      "oxfmt --write"
-    ]
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": "oxlint",
+    "*": "oxfmt --write"
   },
   "packageManager": "pnpm@12.4.2"
 }
