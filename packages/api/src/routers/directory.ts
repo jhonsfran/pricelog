@@ -1,7 +1,17 @@
 import { page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 
+import {
+  ALL_COHORT,
+  cohortLabel,
+  COHORT_MINIMUM,
+  peerCohortForPage,
+  percentileRank,
+  publishableCohorts,
+  selectCohort,
+} from "../benchmark";
+import { loadBenchmarks } from "../benchmark-store";
 import { publicProcedure } from "../index";
 import { descendingCursorCondition } from "../pagination";
 import { descendingTimestampCursorSchema } from "../pagination-schema";
@@ -91,6 +101,65 @@ export const directoryRouter = {
         .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
         .where(and(eq(page.slug, input.slug), eq(page.state, "active")))
         .limit(1);
-      return result ?? null;
+      if (!result) return null;
+
+      // A score with no comparison class is a number without meaning, so every
+      // score ships with the cohort it was ranked against, named.
+      const { snapshots } = await loadBenchmarks(context.db);
+      const publishable = publishableCohorts(snapshots);
+      const cohort = peerCohortForPage(result, publishable);
+      const snapshot = cohort
+        ? snapshots.find((candidate) => candidate.cohort === cohort)
+        : undefined;
+      if (!snapshot) return { ...result, peer: null };
+
+      return {
+        ...result,
+        peer: {
+          cohort: snapshot.cohort,
+          cohortLabel: cohortLabel(snapshot.cohort),
+          pageCount: snapshot.pageCount,
+          scores: result.scores.flatMap((score) => {
+            const distribution = snapshot.scoreDistributions[score.key];
+            const percentile = distribution ? percentileRank(distribution, score.score) : null;
+            return distribution && percentile !== null
+              ? [{ key: score.key, percentile, median: distribution.median }]
+              : [];
+          }),
+        },
+      };
+    }),
+
+  benchmarks: publicProcedure
+    .input(z.object({ cohort: z.string().min(1).max(64).default(ALL_COHORT) }).optional())
+    .handler(async ({ context, input }) => {
+      const [{ snapshots, computedAt, live }, [directoryCount]] = await Promise.all([
+        loadBenchmarks(context.db),
+        context.db
+          .select({ value: count() })
+          .from(page)
+          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+          .where(eq(page.state, "active")),
+      ]);
+      const publishable = publishableCohorts(snapshots);
+      const available = snapshots
+        .filter((snapshot) => publishable.has(snapshot.cohort))
+        .map((snapshot) => ({
+          cohort: snapshot.cohort,
+          label: cohortLabel(snapshot.cohort),
+          pageCount: snapshot.pageCount,
+        }));
+
+      const selected = selectCohort(snapshots, publishable, input?.cohort ?? ALL_COHORT);
+
+      return {
+        computedAt,
+        live,
+        minimumCohortSize: COHORT_MINIMUM,
+        indexedPages: snapshots.find((s) => s.cohort === ALL_COHORT)?.pageCount ?? 0,
+        totalIndexedPages: directoryCount?.value ?? 0,
+        available,
+        selected: selected ? { ...selected, label: cohortLabel(selected.cohort) } : null,
+      };
     }),
 };

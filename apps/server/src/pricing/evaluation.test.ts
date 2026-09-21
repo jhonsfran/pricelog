@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { TAG_PROBABILITY_THRESHOLD } from "@my-better-t-app/db/pricing-intelligence";
+import {
+  CHOICE_CONFIDENCE_THRESHOLD,
+  TAG_PROBABILITY_THRESHOLD,
+} from "@my-better-t-app/db/pricing-intelligence";
 
 import type { JevAnswer } from "./types";
 import { buildPublicEvaluation } from "./evaluation";
@@ -22,6 +25,17 @@ describe("public pricing evaluation", () => {
         confidence: 0.82,
         probabilities: { self_serve: 0.82, unknown: 0.18 },
       },
+    ]);
+  });
+
+  it("uses the shared confidence boundary for controlled choices", () => {
+    const result = buildPublicEvaluation([
+      choiceAnswer("buying_motion", "sales_led", CHOICE_CONFIDENCE_THRESHOLD - 0.001),
+      choiceAnswer("primary_market", "finance", CHOICE_CONFIDENCE_THRESHOLD),
+    ]);
+
+    expect(result.choices).toEqual([
+      expect.objectContaining({ key: "primary_market", choice: "finance" }),
     ]);
   });
 

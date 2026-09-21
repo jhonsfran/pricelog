@@ -15,7 +15,7 @@ import {
   scanRun,
   schedulerState,
 } from "./do-schema";
-import { PRICING_INTELLIGENCE_V2 } from "./rubric";
+import { PRICING_INTELLIGENCE_V3 } from "./rubric";
 import type {
   ArtifactKind,
   ArtifactManifest,
@@ -230,35 +230,37 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     await this.db
       .insert(questionSet)
       .values({
-        id: PRICING_INTELLIGENCE_V2.id,
-        model: PRICING_INTELLIGENCE_V2.model,
-        version: PRICING_INTELLIGENCE_V2.version,
+        id: PRICING_INTELLIGENCE_V3.id,
+        model: PRICING_INTELLIGENCE_V3.model,
+        version: PRICING_INTELLIGENCE_V3.version,
         active: true,
       })
       .onConflictDoUpdate({
         target: questionSet.id,
         set: {
-          model: PRICING_INTELLIGENCE_V2.model,
-          version: PRICING_INTELLIGENCE_V2.version,
+          model: PRICING_INTELLIGENCE_V3.model,
+          version: PRICING_INTELLIGENCE_V3.version,
           active: true,
         },
       });
 
     let position = 0;
-    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_V2.questions)) {
+    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_V3.questions)) {
+      const row = {
+        type: value.type,
+        instructions: value.instructions,
+        criteria: value.type === "score" ? [...value.criteria] : { ...value.criteria },
+        minimum: value.type === "score" ? 0 : null,
+        maximum: value.type === "score" ? value.criteria.length - 1 : null,
+        position: position++,
+      };
+      // Upsert rather than ignore: the shared catalog is the source of truth for
+      // question text, and a store seeded before an edit must not keep asking the
+      // old question while the site publishes the new one as its methodology.
       await this.db
         .insert(question)
-        .values({
-          questionSetId: PRICING_INTELLIGENCE_V2.id,
-          key,
-          type: value.type,
-          instructions: value.instructions,
-          criteria: value.type === "score" ? [...value.criteria] : { ...value.criteria },
-          minimum: value.type === "score" ? 0 : null,
-          maximum: value.type === "score" ? value.criteria.length - 1 : null,
-          position: position++,
-        })
-        .onConflictDoNothing();
+        .values({ questionSetId: PRICING_INTELLIGENCE_V3.id, key, ...row })
+        .onConflictDoUpdate({ target: [question.questionSetId, question.key], set: row });
     }
   }
 

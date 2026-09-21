@@ -30,8 +30,11 @@ export const server = Cloudflare.Worker("server", {
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
     LOG_FORMAT: process.env.ALCHEMY_DEV === "true" ? "pretty" : "json",
   },
+  // Daily benchmark snapshot. The index screen reads the latest snapshot; this
+  // is also what accumulates the aggregate time series.
+  crons: ["0 3 * * *"],
   dev: {
-    port: 3000,
+    port: 4000,
   },
 });
 
@@ -54,7 +57,7 @@ export default Alchemy.Stack(
         VITE_SERVER_URL: serverWorker.url.as<string>(),
       },
       dev: {
-        port: 3001,
+        port: 4100,
       },
     });
 

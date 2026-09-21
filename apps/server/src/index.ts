@@ -1,3 +1,4 @@
+import { storeBenchmarks } from "@my-better-t-app/api/benchmark-store";
 import { appRouter } from "@my-better-t-app/api/routers/index";
 import { parseAllowedOrigins } from "@my-better-t-app/auth";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
@@ -5,7 +6,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
-import { initLogger } from "evlog";
+import { initLogger, log } from "evlog";
 import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
 import { evlog, type EvlogVariables, useLogger } from "evlog/hono";
 import { Hono } from "hono";
@@ -15,7 +16,7 @@ import { serveArtifact } from "./artifacts";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { resolveLogEnvironment } from "./logging";
-import { createAuth } from "./services";
+import { createAuth, getDb } from "./services";
 
 export { PageStore } from "./pricing/page-store";
 export { ScanWorkflow } from "./pricing/scan-workflow";
@@ -110,4 +111,25 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
-export default app;
+/**
+ * Appends one benchmark snapshot per cohort. Distributions could be computed on
+ * read, but snapshots are what turn the index into a time series, and that
+ * history cannot be backfilled later.
+ */
+async function runBenchmarkSnapshot() {
+  try {
+    const cohorts = await storeBenchmarks(getDb());
+    log.info({ action: "benchmark.snapshot", cohorts });
+  } catch (error) {
+    const cause = error instanceof Error ? error : new Error(String(error));
+    log.error(cause);
+    throw cause;
+  }
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled: (_controller, _env, ctx) => {
+    ctx.waitUntil(runBenchmarkSnapshot());
+  },
+} satisfies ExportedHandler;

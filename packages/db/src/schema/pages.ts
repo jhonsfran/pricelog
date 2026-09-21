@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
 import type { PricingChoiceKey, PricingScoreKey, PricingSignalKey } from "../pricing-intelligence";
@@ -107,3 +115,53 @@ export const pageOwnerState = sqliteTable("page_owner_state", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+/** One dimension's shape across a cohort. `histogram` is 20 buckets over 0-100. */
+export type BenchmarkScoreDistribution = {
+  count: number;
+  min: number;
+  max: number;
+  p25: number;
+  median: number;
+  p75: number;
+  histogram: number[];
+};
+
+/** `answered` is the honest denominator: pages with a confident answer, not cohort size. */
+export type BenchmarkChoiceShare = {
+  answered: number;
+  options: Record<string, number>;
+};
+
+/**
+ * One row per cohort per computation. Snapshots are append-only: they are what
+ * turns the index into a time series, and that history cannot be backfilled.
+ */
+export const benchmarkSnapshot = sqliteTable(
+  "benchmark_snapshot",
+  {
+    id: text("id").primaryKey(),
+    rubricId: text("rubric_id").notNull(),
+    cohort: text("cohort").notNull(),
+    computedAt: integer("computed_at", { mode: "timestamp_ms" }).notNull(),
+    pageCount: integer("page_count").notNull(),
+    scoreDistributions: text("score_distributions_json", { mode: "json" })
+      .$type<Record<string, BenchmarkScoreDistribution>>()
+      .notNull(),
+    choiceShares: text("choice_shares_json", { mode: "json" })
+      .$type<Record<string, BenchmarkChoiceShare>>()
+      .notNull(),
+    signalCounts: text("signal_counts_json", { mode: "json" })
+      .$type<Record<string, number>>()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("benchmark_snapshot_rubric_cohort_computed_at_idx").on(
+      table.rubricId,
+      table.cohort,
+      table.computedAt,
+    ),
+    index("benchmark_snapshot_computed_at_idx").on(table.computedAt),
+    check("benchmark_snapshot_page_count_check", sql`${table.pageCount} >= 0`),
+  ],
+);

@@ -1,4 +1,5 @@
 import {
+  CHOICE_CONFIDENCE_THRESHOLD,
   isPricingChoiceKey,
   isPricingScoreKey,
   isPricingSignalKey,
@@ -12,8 +13,6 @@ import type { PageChoice, PageScore, PageSignal } from "@my-better-t-app/db/sche
 
 import { calculateOverallScore, normalizeJevScore } from "./score";
 import type { JevAnswer } from "./types";
-
-export const CHOICE_CONFIDENCE_THRESHOLD = 0.75;
 
 export type PublicEvaluation = {
   overallScore: number;
