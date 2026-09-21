@@ -392,16 +392,6 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "rubric_id",
-      "entityType": "columns",
-      "table": "benchmark_snapshot"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
       "name": "cohort",
       "entityType": "columns",
       "table": "benchmark_snapshot"
@@ -892,10 +882,6 @@
     {
       "columns": [
         {
-          "value": "rubric_id",
-          "isExpression": false
-        },
-        {
           "value": "cohort",
           "isExpression": false
         },
@@ -907,7 +893,7 @@
       "isUnique": true,
       "where": null,
       "origin": "manual",
-      "name": "benchmark_snapshot_rubric_cohort_computed_at_idx",
+      "name": "benchmark_snapshot_cohort_computed_at_idx",
       "entityType": "indexes",
       "table": "benchmark_snapshot"
     },

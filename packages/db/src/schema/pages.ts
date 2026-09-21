@@ -10,7 +10,12 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
-import type { PricingChoiceKey, PricingScoreKey, PricingSignalKey } from "../pricing-intelligence";
+import {
+  PRICING_INTELLIGENCE_RUBRIC_ID,
+  type PricingChoiceKey,
+  type PricingScoreKey,
+  type PricingSignalKey,
+} from "../pricing-intelligence";
 
 export type PageScore = {
   key: PricingScoreKey;
@@ -141,7 +146,7 @@ export const benchmarkSnapshot = sqliteTable(
   "benchmark_snapshot",
   {
     id: text("id").primaryKey(),
-    rubricId: text("rubric_id").notNull(),
+    rubricId: text("rubric_id").default(PRICING_INTELLIGENCE_RUBRIC_ID).notNull(),
     cohort: text("cohort").notNull(),
     computedAt: integer("computed_at", { mode: "timestamp_ms" }).notNull(),
     pageCount: integer("page_count").notNull(),
