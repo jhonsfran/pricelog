@@ -49,7 +49,9 @@ Test two explicit read policies: `readLiveBenchmarkCorpus` stops at its limit an
 ```ts
 expect(await readLiveBenchmarkCorpus(db, rubricId, 2)).toHaveLength(2);
 expect(await readCompleteBenchmarkCorpus(db, rubricId, 2)).toHaveLength(5);
-expect((await loadBenchmarks(db, rubricId)).snapshots.every((row) => row.rubricId === rubricId)).toBe(true);
+expect(
+  (await loadBenchmarks(db, rubricId)).snapshots.every((row) => row.rubricId === rubricId),
+).toBe(true);
 ```
 
 - [ ] **Step 3: Implement separate corpus readers**
