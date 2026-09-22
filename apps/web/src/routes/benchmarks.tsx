@@ -6,7 +6,6 @@ import {
   getPricingChoiceMetadata,
   getPricingSignalMetadata,
   pricingPolicyCoverage,
-  TAG_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
 import { Spinner } from "@my-better-t-app/ui/components/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@my-better-t-app/ui/components/toggle-group";
@@ -18,6 +17,7 @@ import { LayerTitle } from "@/components/layer-title";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
 import { PracticeChart, type ChartRow } from "@/components/practice-chart";
 import { RelativeTime } from "@/components/relative-time";
+import type { DirectoryFilter } from "@/lib/directory-filter";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/benchmarks")({ component: BenchmarksPage });
@@ -28,8 +28,9 @@ function BenchmarksPage() {
   const benchmarks = useQuery(orpc.directory.benchmarks.queryOptions({ input: { cohort } }));
   const data = benchmarks.data;
   const selected = data?.selected;
-  const examples = data?.examples ?? [];
   const minimum = data?.minimumCohortSize ?? COHORT_MINIMUM;
+  // A bar links out carrying the cohort it was measured over, so the
+  // directory resolves the same population and the two counts agree.
   const options = [
     { cohort: AI_APPLICATIONS_COHORT, label: "AI applications" },
     ...categories.map((key) => ({ cohort: `category:${key}`, label: formatToken(key) })),
@@ -124,9 +125,10 @@ function BenchmarksPage() {
                   display: comparable
                     ? `${Math.round((share.stated / classified) * 100)}%`
                     : `${share.stated}`,
+                  filter: { signal: key, cohort } satisfies DirectoryFilter,
                 };
               })}
-              footnote={`${selected.pageCount} pages in this category. Percentages use classified pages only, and a charge that is not established describes the page rather than the product.`}
+              footnote={`${selected.pageCount} pages in this category. Percentages use classified pages only, and a charge that is not established describes the page rather than the product. Select a bar to list the pages behind it.`}
             >
               {CHARGING_SIGNAL_KEYS.map((key) => {
                 const metadata = getPricingSignalMetadata(key)!;
@@ -141,14 +143,6 @@ function BenchmarksPage() {
                     <p className="chart-question">{metadata.question}</p>
                     <p>Stated: {metadata.whenTrue}</p>
                     <p>Not established: {metadata.whenFalse}</p>
-                    <SourceExamples
-                      examples={examples.filter((page) =>
-                        page.signals.some(
-                          (signal) =>
-                            signal.key === key && signal.probability >= TAG_PROBABILITY_THRESHOLD,
-                        ),
-                      )}
-                    />
                   </div>
                 );
               })}
@@ -181,7 +175,7 @@ function BenchmarksPage() {
                     title={metadata.label}
                     question={metadata.question}
                     rows={rows}
-                    footnote={`${coverage.applicable} applicable of ${selected.pageCount} pages`}
+                    footnote={`${coverage.applicable} applicable of ${selected.pageCount} pages · select an answer to list its pages`}
                   >
                     <p className="chart-question">
                       {coverage.classified} classified · {coverage.uncertain} uncertain ·{" "}
@@ -196,12 +190,6 @@ function BenchmarksPage() {
                         </div>
                       ))}
                     </dl>
-                    <SourceExamples
-                      examples={examples.filter((page) =>
-                        page.choices.some((choice) => choice.key === key),
-                      )}
-                      questionKey={key}
-                    />
                   </PracticeChart>
                 );
               })}
@@ -216,46 +204,5 @@ function BenchmarksPage() {
         </>
       )}
     </main>
-  );
-}
-
-type ExamplePage = {
-  id: string;
-  slug: string;
-  displayName: string | null;
-  normalizedDomain: string;
-  scannedAt: Date | string;
-  choices: { key: string; choice: string }[];
-  signals: { key: string; probability: number }[];
-};
-function SourceExamples({
-  examples,
-  questionKey,
-}: {
-  examples: ExamplePage[];
-  questionKey?: string;
-}) {
-  if (!examples.length)
-    return <p className="chart-footnote">No source examples for this observation yet.</p>;
-  return (
-    <ul className="source-examples">
-      {examples.slice(0, 8).map((page) => (
-        <li key={page.id}>
-          <Link to="/pages/$slug" params={{ slug: page.slug }}>
-            {page.displayName ?? page.normalizedDomain}
-          </Link>
-          {questionKey ? (
-            <span>
-              {formatToken(
-                page.choices.find((choice) => choice.key === questionKey)?.choice ?? "uncertain",
-              )}
-            </span>
-          ) : null}
-          <small>
-            Captured <RelativeTime value={page.scannedAt} />
-          </small>
-        </li>
-      ))}
-    </ul>
   );
 }

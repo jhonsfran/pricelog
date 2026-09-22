@@ -9,18 +9,28 @@ import {
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
 import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
 import { LatestWire } from "@/components/latest-wire";
 import { LayerTitle } from "@/components/layer-title";
 import { RelativeTime } from "@/components/relative-time";
 import { staggerDelay } from "@/lib/animation";
+import {
+  describeDirectoryFilter,
+  hasDirectoryFilter,
+  parseDirectoryFilter,
+} from "@/lib/directory-filter";
 import { orpc } from "@/utils/orpc";
 
-export const Route = createFileRoute("/")({ component: DirectoryPage });
+export const Route = createFileRoute("/")({
+  component: DirectoryPage,
+  validateSearch: parseDirectoryFilter,
+});
 
 function DirectoryPage() {
+  const filter = Route.useSearch();
+  const filtered = hasDirectoryFilter(filter);
   const [search, setSearch] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const deferredSearch = useDeferredValue(search);
@@ -52,6 +62,7 @@ function DirectoryPage() {
     orpc.directory.list.infiniteOptions({
       input: (cursor: DescendingTimestampCursor | null) => ({
         ...(normalizedSearch ? { search: normalizedSearch } : {}),
+        ...filter,
         ...(cursor ? { cursor } : {}),
         limit: 50,
       }),
@@ -60,6 +71,8 @@ function DirectoryPage() {
     }),
   );
   const items = directory.data?.pages.flatMap((result) => result.items) ?? [];
+  // The server counts the whole filter; items is only what has been paged in.
+  const total = directory.data?.pages[0]?.total ?? 0;
   // The wire reports the freshest captures, which is not the order the
   // directory is paged in — that one is newest indexed first.
   const wire = items.map((item) => ({
@@ -71,7 +84,7 @@ function DirectoryPage() {
   return (
     <main className="directory-shell">
       <div className="wire-slot">
-        <LatestWire items={wire} total={items.length} />
+        <LatestWire items={wire} total={filtered ? undefined : total} />
       </div>
       <section className="directory-hero">
         <div>
@@ -93,9 +106,29 @@ function DirectoryPage() {
       </p>
       <section className="directory-section" aria-labelledby="directory-title">
         <div className="section-kicker">
-          <span id="directory-title">ON RECORD</span>
-          <span>{directory.isLoading ? "—" : `${items.length} PAGES`}</span>
+          <span id="directory-title">{filtered ? "FILTERED" : "ON RECORD"}</span>
+          <span>{directory.isLoading ? "—" : `${total} PAGES`}</span>
         </div>
+        {filtered ? (
+          <div className="filter-bar">
+            {describeDirectoryFilter(filter).map((chip) => (
+              <Link
+                className="filter-chip"
+                key={chip.id}
+                to="/"
+                search={chip.without}
+                aria-label={`Remove filter ${chip.kind}: ${chip.label}`}
+              >
+                <small>{chip.kind}</small>
+                {chip.label}
+                <X size={13} aria-hidden="true" />
+              </Link>
+            ))}
+            <Link className="filter-clear" to="/" search={{}}>
+              Clear all
+            </Link>
+          </div>
+        ) : null}
         <Field className="search-field">
           <FieldLabel className="sr-only" htmlFor="directory-search">
             Search pricing pages
@@ -131,7 +164,9 @@ function DirectoryPage() {
           ) : items.length === 0 ? (
             <DirectoryMessage
               text={
-                search ? "No pages match this search." : "No pricing pages have been indexed yet."
+                search || filtered
+                  ? "No pages match these filters."
+                  : "No pricing pages have been indexed yet."
               }
             />
           ) : (

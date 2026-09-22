@@ -582,3 +582,88 @@
     gap: 28px;
   }
 }
+
+/* ------------------------------------------------------------
+   L11. Directory filters
+
+   A chart bar is a population. Clicking one lands here, so the page
+   has to say which population it is showing and how to leave it.
+   ------------------------------------------------------------ */
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 14px;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--hot);
+  color: var(--paper);
+  font-size: 13px;
+  text-decoration: none;
+  transition:
+    background var(--dur-hover) var(--ease-hover),
+    transform var(--dur-press) var(--ease-out);
+}
+.filter-chip small {
+  color: var(--hot);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.filter-chip svg {
+  color: var(--faint);
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+.filter-chip:active {
+  transform: scale(0.97);
+}
+.filter-clear {
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .filter-chip:hover {
+    background: color-mix(in srgb, var(--hot) 12%, transparent);
+  }
+  .filter-chip:hover svg {
+    color: var(--hot);
+  }
+  .filter-clear:hover {
+    color: var(--paper);
+  }
+}
+
+/* A linked chart row keeps the bar geometry and gains an affordance. */
+.chart-row-inner {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: inherit;
+  color: inherit;
+  text-decoration: none;
+}
+a.chart-row-inner .chart-label {
+  text-underline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  a.chart-row-inner:hover .chart-label {
+    color: var(--paper);
+    text-decoration: underline;
+  }
+  a.chart-row-inner:hover .chart-track > span {
+    filter: brightness(1.25);
+  }
+}

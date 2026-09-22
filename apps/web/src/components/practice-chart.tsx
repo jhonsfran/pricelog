@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
+import type { DirectoryFilter } from "@/lib/directory-filter";
 
 export type ChartRow = {
   key: string;
@@ -6,6 +8,8 @@ export type ChartRow = {
   /** 0–1. Drives the bar only; the printed value is passed separately. */
   fill: number;
   display: string;
+  /** When set, the row opens the directory filtered to the pages it counts. */
+  filter?: DirectoryFilter;
 };
 
 /**
@@ -49,11 +53,15 @@ export function PracticeChart({
                 } as CSSProperties
               }
             >
-              <span className="chart-label">{row.label}</span>
-              <span className="chart-track" aria-hidden="true">
-                <span />
-              </span>
-              <span className="chart-value">{row.display}</span>
+              {row.filter ? (
+                <Link className="chart-row-inner" to="/" search={row.filter}>
+                  <ChartRowBody row={row} />
+                </Link>
+              ) : (
+                <span className="chart-row-inner">
+                  <ChartRowBody row={row} />
+                </span>
+              )}
             </li>
           ))}
         </ol>
@@ -66,5 +74,17 @@ export function PracticeChart({
         </details>
       ) : null}
     </section>
+  );
+}
+
+function ChartRowBody({ row }: { row: ChartRow }) {
+  return (
+    <>
+      <span className="chart-label">{row.label}</span>
+      <span className="chart-track" aria-hidden="true">
+        <span />
+      </span>
+      <span className="chart-value">{row.display}</span>
+    </>
   );
 }

@@ -148,7 +148,6 @@
 .chart-row {
   display: grid;
   grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 72px;
-  align-items: center;
   gap: 18px;
 }
 .chart-label {
