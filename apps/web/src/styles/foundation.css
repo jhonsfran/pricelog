@@ -28,6 +28,11 @@
   /* Signal. Acid marks what is live or what changed, and nothing
      else. The moment it decorates a link it stops meaning anything. */
   --acid: #c8ff42;
+
+  /* Attention. One colour that asks for an action or points at the
+     finding in a chart. Acid reports what the record did; hot is what
+     you are meant to do about it. Two colours, two jobs, no overlap. */
+  --hot: #ff2d8a;
   --score-high: #c8ff42;
   --score-mid: #ffc94b;
   --score-low: #ff6f5e;
@@ -63,7 +68,7 @@
   --card-foreground: #f0f0ec;
   --popover: #0e0e0e;
   --popover-foreground: #f0f0ec;
-  --primary: #c8ff42;
+  --primary: #ff2d8a;
   --primary-foreground: #050505;
   --secondary: #151515;
   --secondary-foreground: #f0f0ec;
@@ -74,7 +79,7 @@
   --destructive: #ff6f5e;
   --border: #242424;
   --input: #242424;
-  --ring: #c8ff42;
+  --ring: #ff2d8a;
   --radius: 0.125rem;
 }
 
@@ -117,7 +122,7 @@ h4 {
 }
 
 :focus-visible {
-  outline: 2px solid var(--acid);
+  outline: 2px solid var(--hot);
   outline-offset: 3px;
   border-radius: 1px;
 }
@@ -196,7 +201,7 @@ h4 {
   position: absolute;
   inset: auto 0 -2px;
   height: 1px;
-  background: var(--paper);
+  background: var(--hot);
   transform: scaleX(0);
   transition: transform var(--dur-hover) var(--ease-out);
 }
@@ -607,7 +612,7 @@ h4 {
   gap: 8px;
   padding: 0 22px;
   border: 0;
-  background: var(--acid);
+  background: var(--hot);
   color: var(--ink);
   font-family: var(--mono);
   font-size: 11px;
@@ -629,8 +634,8 @@ button:disabled {
 }
 @media (hover: hover) and (pointer: fine) {
   .load-more-button:hover:not(:disabled) {
-    border-color: var(--line-strong);
-    color: var(--paper);
+    border-color: var(--hot);
+    color: var(--hot);
   }
   .add-page-form button:hover:not(:disabled),
   .scan-button:hover:not(:disabled) {

@@ -55,7 +55,7 @@
   color: var(--faint);
 }
 .add-page-form input:focus {
-  border-color: var(--acid);
+  border-color: var(--hot);
 }
 .add-page-form input:focus-visible {
   outline: none;
@@ -284,7 +284,7 @@
   color: var(--faint);
 }
 .auth-field input:focus {
-  border-color: var(--acid);
+  border-color: var(--hot);
 }
 .auth-field input:focus-visible {
   outline: none;
@@ -297,7 +297,7 @@
   min-height: 48px;
   margin-top: 6px;
   border: 0;
-  background: var(--acid);
+  background: var(--hot);
   color: var(--ink);
   font: 700 12px var(--mono);
   letter-spacing: 0.08em;

@@ -466,6 +466,6 @@
   .state-page a:hover,
   .hero-copy a:hover,
   .numeric-prices > p a:hover {
-    text-decoration-color: var(--paper);
+    text-decoration-color: var(--hot);
   }
 }
