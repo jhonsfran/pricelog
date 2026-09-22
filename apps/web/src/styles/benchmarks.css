@@ -1,5 +1,10 @@
 /* ============================================================
-   19. The index: distributions and shares
+   19. The index: one ranked chart column
+
+   The page used to be a grid of cards, each carrying its number, its
+   question, its counts and its definitions at once. Ranked bars in a
+   single column say the same thing in a shape you can read down, and
+   everything needed to audit a number moves behind a disclosure.
    ============================================================ */
 
 .benchmark-shell {
@@ -10,8 +15,8 @@
   grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 8vw;
-  min-height: 300px;
-  padding: 40px 0;
+  min-height: 260px;
+  padding: 24px 0 40px;
   border-bottom: 1px solid var(--line);
 }
 .benchmark-hero h1 {
@@ -34,8 +39,10 @@
   text-underline-offset: 3px;
 }
 .benchmark-section {
-  padding-top: 46px;
+  padding-top: 40px;
 }
+
+/* Category picker */
 
 .cohort-picker {
   display: flex;
@@ -51,6 +58,7 @@
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--muted-foreground);
+  font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -68,11 +76,11 @@
   transform: scale(0.97);
 }
 .cohort-picker button[aria-pressed="true"] {
-  border-color: var(--paper);
-  color: var(--paper);
+  border-color: var(--hot);
+  color: var(--hot);
 }
 .cohort-picker button[aria-pressed="true"] small {
-  color: var(--paper-dim);
+  color: var(--hot);
 }
 @media (hover: hover) and (pointer: fine) {
   .cohort-picker button:hover {
@@ -81,206 +89,260 @@
   }
 }
 
-/* Headline findings */
-.finding-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 1px;
-  margin-top: 18px;
-  background: var(--line);
-  border: 1px solid var(--line);
-}
-.finding-card {
+/* One line of provenance, in place of three paragraphs of it. */
+.cohort-summary {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 22px;
-  background: var(--panel);
-}
-.finding-card strong {
-  color: var(--paper);
-  font: 500 46px/0.9 var(--display);
-  font-variant-numeric: tabular-nums;
-}
-.finding-card span {
-  font: 500 14px var(--display);
-}
-.finding-card small {
-  color: var(--faint);
-  font-size: 11px;
-}
-
-/* Distributions */
-.dist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 18px;
-  margin-top: 18px;
-}
-.dist-card {
-  margin: 0;
-  padding: 20px 22px 18px;
-  border: 1px solid var(--line);
-  background: var(--sheet);
-}
-.dist-head {
-  display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 16px;
-}
-.dist-label {
-  font: 500 14px var(--display);
-}
-.dist-median {
-  color: var(--band, var(--paper));
-  font: 500 22px var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-.dist-question {
-  margin: 8px 0 0;
-  color: var(--faint);
-  font-size: 12px;
-  line-height: 1.5;
-}
-.dist-chart {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 68px;
-  margin-top: 18px;
-}
-.dist-iqr {
-  position: absolute;
-  inset: 0 auto 0 var(--from);
-  width: calc(var(--to) - var(--from));
-  background: #1a1a1a;
-}
-.dist-median-line {
-  position: absolute;
-  inset: 0 auto 0 var(--at);
-  width: 1px;
-  background: var(--band, var(--paper));
-  opacity: 0.55;
-}
-.dist-bar {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  background: var(--band, var(--paper));
-  transform: scaleY(var(--fill, 0));
-  transform-origin: bottom;
-  transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
-}
-@starting-style {
-  .dist-bar {
-    transform: scaleY(0);
-  }
-}
-.dist-axis {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 9px;
-  color: var(--faint);
+  gap: 8px 18px;
+  margin: 0;
+  padding: 14px 0 6px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted-foreground);
+  font-family: var(--mono);
   font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cohort-summary strong {
+  color: var(--paper);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+.cohort-summary a {
+  margin-left: auto;
+  color: var(--paper-dim);
 }
 
-/* Shares */
-.share-grid {
+/* ------------------------------------------------------------
+   Chart blocks
+   ------------------------------------------------------------ */
+
+.chart-column {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 18px;
-  margin-top: 18px;
+  gap: 4px;
 }
-.share-card {
-  padding: 20px 22px 18px;
-  border: 1px solid var(--line);
-  background: var(--sheet);
+.chart-block {
+  padding: 22px 0 18px;
+  border-bottom: 1px solid var(--line-soft);
 }
-.benchmark-section > .share-card {
-  margin-top: 18px;
-}
-.share-title {
+.chart-title {
   margin: 0;
-  font: 500 15px var(--display);
+  font: 600 19px/1.25 var(--display);
+  letter-spacing: -0.02em;
 }
-.share-list {
+.chart-question {
+  margin: 8px 0 0;
+  max-width: 68ch;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.chart-rows {
   display: grid;
-  gap: 11px;
-  margin: 18px 0 0;
+  gap: 14px;
+  margin: 22px 0 0;
   padding: 0;
   list-style: none;
 }
-.share-row {
+.chart-row {
   display: grid;
-  grid-template-columns: minmax(0, 120px) 1fr auto;
+  grid-template-columns: minmax(0, 210px) minmax(0, 1fr) 72px;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
 }
-.share-name {
-  overflow: hidden;
+.chart-label {
+  min-width: 0;
   color: var(--paper-dim);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.3;
 }
-.share-track {
+.chart-track {
   display: block;
-  height: 8px;
-  background: #1c1c1c;
+  height: 12px;
+  background: #1b1b1b;
 }
-.share-track span {
+.chart-track > span {
   display: block;
   height: 100%;
-  background: var(--paper-dim);
+  background: var(--faint);
   transform: scaleX(var(--fill, 0));
   transform-origin: left;
   transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
 }
 @starting-style {
-  .share-track span {
+  .chart-track > span {
     transform: scaleX(0);
   }
 }
-.share-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 13px;
+.chart-value {
+  justify-self: end;
+  color: var(--paper-dim);
+  font-family: var(--mono);
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
-.share-value small {
-  color: var(--faint);
-  font-size: 11px;
+/* The top row is the finding. It is the only thing on the page allowed
+   to use the attention colour, which is what makes it work. */
+.chart-row[data-lead="true"] .chart-track > span {
+  background: var(--hot);
 }
-.share-empty,
-.share-denominator {
+.chart-row[data-lead="true"] .chart-value {
+  color: var(--hot);
+}
+.chart-row[data-lead="true"] .chart-label {
+  color: var(--paper);
+}
+.chart-empty,
+.chart-footnote {
   margin: 14px 0 0;
   color: var(--faint);
   font-size: 12px;
+  line-height: 1.55;
+}
+.chart-detail {
+  margin-top: 16px;
+}
+.chart-detail summary::-webkit-details-marker {
+  display: none;
+}
+.chart-detail summary::before {
+  content: "\25b8";
+  display: inline-block;
+  color: var(--faint);
+  transition: transform var(--dur-hover) var(--ease-out);
+}
+.chart-detail[open] summary::before {
+  transform: rotate(90deg);
+}
+.chart-detail summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  padding: 6px 0;
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .chart-detail summary:hover {
+    color: var(--paper);
+  }
+}
+.chart-detail > div {
+  padding: 8px 0 4px;
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+  margin-top: 8px;
+}
+.definition + .definition {
+  margin-top: 22px;
+}
+.definition h4 {
+  margin: 0;
+  font: 600 14px var(--display);
+}
+.definition-counts {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.definition p {
+  margin: 6px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.definition-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.definition-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) 1fr;
+  gap: 14px;
+}
+.definition-list dt {
+  color: var(--paper-dim);
+  font-size: 13px;
+}
+.definition-list dd {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
-/* Peer marker on a single page's score.
-   The track clips its fill; the marker has to overhang to be visible at 3px,
-   and the fill is already clamped to 0-1 so nothing else can escape. */
-.score-track {
-  overflow: visible;
+/* The weekly headline: the count first, its caveats directly under it. */
+.change-summary {
+  display: grid;
+  gap: 6px;
+  padding: 34px 0 26px;
 }
-.score-peer-marker {
-  position: absolute;
-  inset: -3px auto -3px var(--at);
-  width: 1px;
-  background: var(--paper);
-  opacity: 0.45;
-  transform: none;
+.change-summary strong {
+  color: var(--paper);
+  font: 700 clamp(56px, 9vw, 104px)/0.85 var(--display);
+  font-variation-settings: "wdth" 84;
+  font-variant-numeric: tabular-nums;
 }
-.score-confidence strong {
-  color: var(--band, var(--paper));
+/* A zero is a result; a number above zero is the news. */
+.change-summary[data-found="true"] strong {
+  color: var(--hot);
+}
+.change-summary span {
+  font: 500 18px var(--display);
+}
+.change-summary small {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.change-transition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin: 10px 0 0;
+  font-size: 15px;
+}
+.change-transition span {
+  color: var(--faint);
+}
+.change-transition em {
+  color: var(--faint);
+  font-style: normal;
+}
+.change-transition strong {
+  color: var(--hot);
   font-weight: 500;
+}
+
+@media (max-width: 760px) {
+  .chart-row {
+    grid-template-columns: minmax(0, 1fr) 62px;
+    gap: 10px 14px;
+  }
+  .chart-label {
+    grid-column: 1 / -1;
+  }
+  .definition-list > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .cohort-summary a {
+    margin-left: 0;
+  }
 }
 
 /* ============================================================

@@ -13,12 +13,11 @@ import { ToggleGroup, ToggleGroupItem } from "@my-better-t-app/ui/components/tog
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { ShareBars } from "@/components/distribution-chart";
 import { formatToken } from "@/components/intelligence-profile";
 import { LayerTitle } from "@/components/layer-title";
-import { RelativeTime } from "@/components/relative-time";
-import { WeeklyChangesReport } from "@/components/weekly-changes-report";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
+import { PracticeChart, type ChartRow } from "@/components/practice-chart";
+import { RelativeTime } from "@/components/relative-time";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/benchmarks")({ component: BenchmarksPage });
@@ -41,14 +40,13 @@ function BenchmarksPage() {
     <main className="directory-shell benchmark-shell">
       <section className="benchmark-hero">
         <div>
-          <p className="eyebrow">THE AI PRICING INDEX</p>
+          <p className="eyebrow">The AI pricing index</p>
           <h1>
             <LayerTitle>HOW AI PRODUCTS CHARGE</LayerTitle>
           </h1>
         </div>
         <p className="hero-copy">
-          Compare published charging methods and policies before you launch or change paid AI usage.
-          Each observation describes one captured pricing page.
+          What published pricing pages actually say about charging, across one category at a time.
         </p>
       </section>
       <ToggleGroup
@@ -68,12 +66,6 @@ function BenchmarksPage() {
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-      <p className="benchmark-meta">
-        {cohort === AI_APPLICATIONS_COHORT
-          ? "AI applications covers eight task categories. Model APIs are separate. "
-          : "Category membership describes the stated product purpose. "}
-        <Link to="/methodology">Questions and methodology</Link>
-      </p>
       {benchmarks.isLoading ? (
         <div className="directory-message" role="status">
           <Spinner />
@@ -87,38 +79,36 @@ function BenchmarksPage() {
         </p>
       ) : (
         <>
-          <p className="benchmark-meta">
-            {selected.pageCount} pricing pages.{" "}
-            {data?.computedAt
-              ? `Computed ${formatDate(data.computedAt)}.`
-              : "Computed from the latest successful captures."}{" "}
-            {data?.totalIndexedPages !== data?.indexedPages
-              ? `${data?.indexedPages} of ${data?.totalIndexedPages} indexed pages use the current rubric.`
-              : ""}
+          {/* One line of provenance. The caveats that used to sit here in
+              full are on the methodology page, one click away. */}
+          <p className="cohort-summary">
+            <strong>{selected.pageCount} pages</strong>
+            <span>
+              {data?.computedAt ? (
+                <>
+                  computed <RelativeTime value={data.computedAt} />
+                </>
+              ) : (
+                "from the latest successful captures"
+              )}
+            </span>
+            <Link to="/methodology">How this is measured</Link>
           </p>
           {selected.pageCount < minimum ? (
-            <p className="benchmark-meta">
-              This category has fewer than {minimum} pages. Counts and observed pages remain
-              visible; percentages are withheld.
+            <p className="chart-footnote">
+              Fewer than {minimum} pages in this category, so counts are shown in place of
+              percentages.
             </p>
           ) : null}
-          <NumericBenchmarkPanel
-            prices={selected.numericPrices}
-            category={cohort.startsWith("category:")}
-            examples={data?.priceExamples ?? []}
-            pageCount={selected.pageCount}
-          />
           <section className="benchmark-section">
             <div className="section-kicker">
               <span>CHARGING STRUCTURE</span>
               <span>COMPONENTS CAN OVERLAP</span>
             </div>
-            <p className="benchmark-meta">
-              A low disclosure probability means the page does not establish a charge. It does not
-              prove that the product lacks it.
-            </p>
-            <div className="finding-grid">
-              {CHARGING_SIGNAL_KEYS.map((key) => {
+            <PracticeChart
+              title="How these products charge"
+              question="Share of classified pages that state each charge. A page can state several."
+              rows={CHARGING_SIGNAL_KEYS.map((key): ChartRow => {
                 const metadata = getPricingSignalMetadata(key)!;
                 const share = selected.signalShares[key] ?? {
                   stated: 0,
@@ -126,123 +116,105 @@ function BenchmarksPage() {
                   uncertain: selected.pageCount,
                 };
                 const classified = share.stated + share.notEstablished;
+                const comparable = classified >= minimum && selected.pageCount >= minimum;
+                return {
+                  key,
+                  label: metadata.label,
+                  fill: classified > 0 ? share.stated / classified : 0,
+                  display: comparable
+                    ? `${Math.round((share.stated / classified) * 100)}%`
+                    : `${share.stated}`,
+                };
+              })}
+              footnote={`${selected.pageCount} pages in this category. Percentages use classified pages only, and a charge that is not established describes the page rather than the product.`}
+            >
+              {CHARGING_SIGNAL_KEYS.map((key) => {
+                const metadata = getPricingSignalMetadata(key)!;
                 return (
-                  <article className="finding-card" key={key}>
-                    <strong>
-                      {classified >= minimum && selected.pageCount >= minimum
-                        ? `${Math.round((share.stated / classified) * 100)}%`
-                        : share.stated}
-                    </strong>
-                    <span>{metadata.label}</span>
-                    <small>
-                      {share.stated} stated · {share.notEstablished} not established ·{" "}
-                      {share.uncertain} uncertain
-                    </small>
-                    <p className="dist-question">{metadata.question}</p>
-                    <small>
-                      {classified} classified of {selected.pageCount} pages.{" "}
-                      {classified < minimum
-                        ? `Percentages need ${minimum} classified pages.`
-                        : "Percentage uses classified pages."}
-                    </small>
-                    <details>
-                      <summary>Definitions and source examples</summary>
-                      <p>Stated: {metadata.whenTrue}</p>
-                      <p>Not established: {metadata.whenFalse}</p>
-                      <SourceExamples
-                        examples={examples.filter((page) =>
-                          page.signals.some(
-                            (signal) =>
-                              signal.key === key && signal.probability >= TAG_PROBABILITY_THRESHOLD,
-                          ),
-                        )}
-                      />
-                    </details>
-                  </article>
+                  <div className="definition" key={key}>
+                    <h4>{metadata.label}</h4>
+                    <p className="definition-counts">
+                      {selected.signalShares[key]?.stated ?? 0} stated ·{" "}
+                      {selected.signalShares[key]?.notEstablished ?? 0} not established ·{" "}
+                      {selected.signalShares[key]?.uncertain ?? selected.pageCount} uncertain
+                    </p>
+                    <p className="chart-question">{metadata.question}</p>
+                    <p>Stated: {metadata.whenTrue}</p>
+                    <p>Not established: {metadata.whenFalse}</p>
+                    <SourceExamples
+                      examples={examples.filter((page) =>
+                        page.signals.some(
+                          (signal) =>
+                            signal.key === key && signal.probability >= TAG_PROBABILITY_THRESHOLD,
+                        ),
+                      )}
+                    />
+                  </div>
                 );
               })}
-            </div>
+            </PracticeChart>
           </section>
           <section className="benchmark-section">
             <div className="section-kicker">
               <span>COMMERCIAL TERMS</span>
+              <span>{PRACTICE_CHOICE_KEYS.length} QUESTIONS</span>
             </div>
-            <p className="benchmark-meta">
-              Not disclosed remains in the comparison. Not applicable is excluded. Uncertain answers
-              remain separate.
-            </p>
-            <div className="share-grid">
+            <div className="chart-column">
               {PRACTICE_CHOICE_KEYS.map((key) => {
                 const metadata = getPricingChoiceMetadata(key)!;
                 const share = selected.choiceShares[key];
                 const coverage = pricingPolicyCoverage(selected.pageCount, share);
-                const items = Object.entries(share?.options ?? {})
+                const comparable = coverage.applicable >= minimum;
+                const rows = Object.entries(share?.options ?? {})
                   .filter(([option]) => option !== "not_applicable")
-                  .map(([option, count]) => ({ key: option, label: formatToken(option), count }));
+                  .map(([option, count]): ChartRow => ({
+                    key: option,
+                    label: formatToken(option),
+                    fill: coverage.applicable > 0 ? count / coverage.applicable : 0,
+                    display: comparable
+                      ? `${Math.round((count / coverage.applicable) * 100)}%`
+                      : `${count}`,
+                  }));
                 return (
-                  <div key={key}>
-                    <ShareBars
-                      title={metadata.label}
-                      question={metadata.question}
-                      answered={coverage.applicable}
-                      minimum={minimum}
-                      items={items}
-                    />
-                    <p className="benchmark-meta">
-                      {selected.pageCount} pages · {coverage.classified} classified ·{" "}
-                      {coverage.uncertain} uncertain · {coverage.notApplicable} not applicable ·{" "}
-                      {coverage.notDisclosed} not disclosed
+                  <PracticeChart
+                    key={key}
+                    title={metadata.label}
+                    question={metadata.question}
+                    rows={rows}
+                    footnote={`${coverage.applicable} applicable of ${selected.pageCount} pages`}
+                  >
+                    <p className="chart-question">
+                      {coverage.classified} classified · {coverage.uncertain} uncertain ·{" "}
+                      {coverage.notApplicable} not applicable · {coverage.notDisclosed} not
+                      disclosed
                     </p>
-                    <details className="metric-definitions">
-                      <summary>Answer definitions and source examples</summary>
-                      <dl>
-                        {Object.entries(metadata.options).map(([option, description]) => (
-                          <div key={option}>
-                            <dt>{formatToken(option)}</dt>
-                            <dd>{description}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      <SourceExamples
-                        examples={examples.filter((page) =>
-                          page.choices.some((choice) => choice.key === key),
-                        )}
-                        questionKey={key}
-                      />
-                    </details>
-                  </div>
+                    <dl className="definition-list">
+                      {Object.entries(metadata.options).map(([option, description]) => (
+                        <div key={option}>
+                          <dt>{formatToken(option)}</dt>
+                          <dd>{description}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <SourceExamples
+                      examples={examples.filter((page) =>
+                        page.choices.some((choice) => choice.key === key),
+                      )}
+                      questionKey={key}
+                    />
+                  </PracticeChart>
                 );
               })}
             </div>
           </section>
-          <section className="benchmark-section">
-            <div className="section-kicker">
-              <span>OBSERVED PAGES</span>
-            </div>
-            <p className="benchmark-meta">Up to 12 captured source examples from this category.</p>
-            <SourceExamples examples={examples} />
-          </section>
+          <NumericBenchmarkPanel
+            prices={selected.numericPrices}
+            category={cohort.startsWith("category:")}
+            examples={data?.priceExamples ?? []}
+            pageCount={selected.pageCount}
+          />
         </>
       )}
-      <WeeklyChangesReport cohort={cohort} minimum={minimum} />
-      <section className="methodology-note">
-        <h2>From pricing research to implementation</h2>
-        <p>
-          Compare published prices alongside charging rules, included usage, and overage terms.
-          Select a category to see numeric benchmarks and source evidence.
-        </p>
-        <p>
-          Pricelog is by{" "}
-          <a href="https://unprice.dev" target="_blank" rel="noreferrer">
-            Unprice
-          </a>
-          . For implementation, see{" "}
-          <a href="https://docs.unprice.dev" target="_blank" rel="noreferrer">
-            Unprice documentation
-          </a>{" "}
-          for usage billing and customer budgets.
-        </p>
-      </section>
     </main>
   );
 }
@@ -264,10 +236,10 @@ function SourceExamples({
   questionKey?: string;
 }) {
   if (!examples.length)
-    return <p className="benchmark-meta">No source examples for this observation yet.</p>;
+    return <p className="chart-footnote">No source examples for this observation yet.</p>;
   return (
     <ul className="source-examples">
-      {examples.map((page) => (
+      {examples.slice(0, 8).map((page) => (
         <li key={page.id}>
           <Link to="/pages/$slug" params={{ slug: page.slug }}>
             {page.displayName ?? page.normalizedDomain}
@@ -285,10 +257,5 @@ function SourceExamples({
         </li>
       ))}
     </ul>
-  );
-}
-function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(
-    new Date(value),
   );
 }
