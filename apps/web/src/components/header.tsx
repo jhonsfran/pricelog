@@ -1,13 +1,18 @@
 import { Link } from "@tanstack/react-router";
+import { Dateline } from "./dateline";
+import { LayerMark } from "./layer-mark";
 import UserMenu from "./user-menu";
 
 export default function Header() {
   return (
     <header className="site-header">
-      <Link className="wordmark" to="/">
-        <span>▲</span>
-        <b>PRICELOG</b>
-      </Link>
+      <div className="masthead-brand">
+        <Link className="wordmark" to="/">
+          <LayerMark size={22} />
+          <b>PRICELOG</b>
+        </Link>
+        <Dateline />
+      </div>
       <nav aria-label="Primary navigation">
         <Link to="/" activeProps={{ "data-active": true }} activeOptions={{ exact: true }}>
           Directory
