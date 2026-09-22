@@ -1,0 +1,471 @@
+/* ============================================================
+   L. The layer system
+
+   Everything Pricelog knows is a stack of captures of the same page.
+   These primitives are the only place that idea is drawn, so the mark,
+   the page titles, the cards and the scan history all travel the same
+   diagonal (--layer-x / --layer-y) and read as one product.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   L1. The mark — three squares stepping up and to the right.
+   They overlap enough that the silhouette reads as one diagonal
+   bar, and the leading square is the live capture.
+   ------------------------------------------------------------ */
+
+.layer-mark {
+  display: block;
+  flex: none;
+  overflow: visible;
+  color: var(--paper);
+}
+.layer-mark rect {
+  fill: currentColor;
+  /* SVG user units, so the fan is identical at 20px and at 96px. */
+  transition: transform 260ms var(--ease-out);
+}
+.layer-mark rect[data-depth="3"] {
+  opacity: 0.26;
+}
+.layer-mark rect[data-depth="2"] {
+  opacity: 0.52;
+}
+.layer-mark rect[data-depth="1"] {
+  fill: var(--acid);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wordmark:hover .layer-mark rect[data-depth="3"] {
+    transform: translate(-2px, 2px);
+  }
+  .wordmark:hover .layer-mark rect[data-depth="1"] {
+    transform: translate(2px, -2px);
+  }
+}
+
+/* ------------------------------------------------------------
+   L2. Layered titles — the page name printed three times, the
+   older impressions outlined and offset behind the live one.
+   Only the face carries colour, so the heading stays readable.
+   ------------------------------------------------------------ */
+
+.layer-title {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+.layer-title-stack {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+/* inset:0 rather than a bare origin, so a ghost wraps on exactly the
+   same words as the face it sits behind. */
+.layer-title-stack > span {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-stroke-width: max(1px, 0.014em);
+  -webkit-text-stroke-color: var(--line-strong);
+  opacity: calc(1 / (var(--layer-i) + 0.7));
+  transform: translate(
+    calc(var(--layer-i) * var(--layer-title-x)),
+    calc(var(--layer-i) * var(--layer-title-y))
+  );
+  animation: layer-fan 560ms var(--ease-out) calc(var(--layer-i) * 70ms) backwards;
+}
+/* The stack fans out of the live title on load: the record arriving,
+   rather than three copies that were always sitting there. */
+@keyframes layer-fan {
+  from {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+}
+.layer-title-face {
+  position: relative;
+}
+
+/* ------------------------------------------------------------
+   L3. Sheets — a card with the edges of older captures showing
+   behind it. Two edges is the limit; past that it reads as noise.
+   ------------------------------------------------------------ */
+
+.sheet,
+.profile-card-main,
+.intelligence-card,
+.share-card,
+.dist-card,
+.weekly-change {
+  position: relative;
+  isolation: isolate;
+}
+.sheet::before,
+.sheet::after,
+.profile-card-main::before,
+.profile-card-main::after,
+.intelligence-card::before,
+.intelligence-card::after,
+.share-card::before,
+.share-card::after,
+.dist-card::before,
+.dist-card::after,
+.weekly-change::before,
+.weekly-change::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--line-soft);
+  background: var(--sheet-back);
+  pointer-events: none;
+  transition: transform var(--dur-hover) var(--ease-out);
+}
+.sheet::before,
+.profile-card-main::before,
+.intelligence-card::before,
+.share-card::before,
+.dist-card::before,
+.weekly-change::before {
+  transform: translate(var(--layer-x), var(--layer-y));
+}
+.sheet::after,
+.profile-card-main::after,
+.intelligence-card::after,
+.share-card::after,
+.dist-card::after,
+.weekly-change::after {
+  z-index: -2;
+  background: var(--ink);
+  transform: translate(calc(var(--layer-x) * 2), calc(var(--layer-y) * 2));
+}
+/* One visible edge where the card is small or sits in a tight grid. */
+.sheet[data-sheets="1"]::after {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .weekly-change:hover::before,
+  .sheet[data-interactive]:hover::before {
+    transform: translate(calc(var(--layer-x) * 1.6), calc(var(--layer-y) * 1.6));
+  }
+  .weekly-change:hover::after,
+  .sheet[data-interactive]:hover::after {
+    transform: translate(calc(var(--layer-x) * 3), calc(var(--layer-y) * 3));
+  }
+}
+
+/* ------------------------------------------------------------
+   L4. Depth badge — how many captures are behind a record.
+   Only rendered where a real count exists.
+   ------------------------------------------------------------ */
+
+.layer-depth {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.layer-depth-glyph {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+.layer-depth-glyph i {
+  display: block;
+  width: 3px;
+  background: var(--line-strong);
+}
+.layer-depth-glyph i:nth-child(1) {
+  height: 5px;
+}
+.layer-depth-glyph i:nth-child(2) {
+  height: 8px;
+}
+.layer-depth-glyph i:nth-child(3) {
+  height: 11px;
+  background: var(--paper);
+}
+
+/* ------------------------------------------------------------
+   L5. Dateline and live marker — the record is being kept right
+   now, and the header should say so without shouting.
+   ------------------------------------------------------------ */
+
+.dateline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 25ch;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dateline-clock {
+  color: var(--paper-dim);
+  /* The seconds tick, so the width must not. */
+  font-variant-numeric: tabular-nums;
+}
+/* The dateline is the first thing to go when the masthead gets tight —
+   the navigation has to win that space. */
+@media (max-width: 1200px) {
+  .dateline {
+    display: none;
+  }
+}
+
+.live-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acid);
+}
+.live-dot[data-live="true"] {
+  animation: live-ping 2.4s var(--ease-in-out) infinite;
+}
+@keyframes live-ping {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--acid) 55%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--acid) 0%, transparent);
+  }
+}
+
+/* ------------------------------------------------------------
+   L6. The wire — one line of what was captured most recently.
+   A single rotating item, not a marquee: this is a record, and a
+   record that scrolls is harder to read than one that sits still.
+   ------------------------------------------------------------ */
+
+.wire {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+.wire-label {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  color: var(--paper);
+}
+.wire-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+  animation: wire-in 420ms var(--ease-out);
+}
+.wire-item strong {
+  overflow: hidden;
+  color: var(--paper-dim);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-hover) var(--ease-hover);
+}
+.wire-item time {
+  flex: none;
+  color: var(--faint);
+}
+@media (hover: hover) and (pointer: fine) {
+  .wire-item:hover strong {
+    color: var(--paper);
+  }
+}
+@keyframes wire-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+.wire-count {
+  margin-left: auto;
+  flex: none;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 720px) {
+  .wire-count {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------
+   L7. Capture stack — the scan history drawn as what it is, a
+   pile of sheets with the newest on top.
+   ------------------------------------------------------------ */
+
+.capture-stack {
+  margin-top: 8px;
+  border-top: 1px solid var(--line-strong);
+}
+.capture-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 150px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 84px;
+  padding-left: 16px;
+  border-bottom: 1px solid var(--line);
+}
+/* The rail is the stack seen edge-on: the live capture is flush,
+   every older one steps further back. */
+.capture-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--line-strong);
+}
+.capture-row[data-live="true"]::before {
+  background: var(--acid);
+}
+.capture-index {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+.capture-index strong {
+  color: var(--paper-dim);
+  font-weight: 500;
+  font-size: 13px;
+}
+.capture-row[data-live="true"] .capture-index strong {
+  color: var(--paper);
+}
+
+@media (max-width: 860px) {
+  .capture-row {
+    grid-template-columns: 72px minmax(0, 1fr);
+    row-gap: 12px;
+    padding: 18px 0 18px 16px;
+  }
+}
+
+/* ------------------------------------------------------------
+   L8. Reduced motion — the layering is a static composition, so
+   nothing here depends on the animation to be understood.
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .layer-title-stack > span,
+  .wire-item {
+    animation: none;
+  }
+  .live-dot[data-live="true"] {
+    animation: none;
+  }
+  .layer-mark rect,
+  .sheet::before,
+  .sheet::after,
+  .weekly-change::before,
+  .weekly-change::after {
+    transition: none;
+  }
+}
+
+/* The wire reserves its line so a late query cannot shove the masthead down. */
+.wire-slot {
+  min-height: 45px;
+}
+
+/* The stamp on a single published capture. */
+.capture-stamp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+  color: var(--paper-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.capture-stamp time {
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------
+   L9. Prose links
+
+   Colour used to be the affordance here, and colour is now spoken
+   for. Tailwind's preflight drops the default underline, so without
+   this a link in body copy is indistinguishable from the text
+   around it. The rule is scoped to prose: rows, nav and the mark
+   carry their own affordances and must not pick up an underline.
+   ------------------------------------------------------------ */
+
+.profile-card a,
+.methodology-note a,
+.methodology-correction a,
+.benchmark-meta a,
+.share-denominator a,
+.price-evidence a,
+.weekly-change a,
+.source-examples a,
+.metric-definitions a,
+.directory-message a,
+.state-page a,
+.hero-copy a,
+.numeric-prices > p a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--dur-hover) var(--ease-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .profile-card a:hover,
+  .methodology-note a:hover,
+  .methodology-correction a:hover,
+  .benchmark-meta a:hover,
+  .share-denominator a:hover,
+  .price-evidence a:hover,
+  .weekly-change a:hover,
+  .source-examples a:hover,
+  .metric-definitions a:hover,
+  .directory-message a:hover,
+  .state-page a:hover,
+  .hero-copy a:hover,
+  .numeric-prices > p a:hover {
+    text-decoration-color: var(--paper);
+  }
+}
