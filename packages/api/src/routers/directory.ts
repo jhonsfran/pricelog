@@ -9,11 +9,16 @@ import {
   cohortsForPage,
   COHORT_MINIMUM,
 } from "../benchmark";
-import { PRICING_INTELLIGENCE_RUBRIC_ID } from "../pricing-intelligence";
+import {
+  isPricingChoiceKey,
+  isPricingSignalKey,
+  PRICING_INTELLIGENCE_RUBRIC_ID,
+} from "../pricing-intelligence";
 import { buildWeeklyReport, sourceUrl } from "../pricing-history";
 import { readWeeklyHistory } from "../pricing-history-store";
 import { loadBenchmarks } from "../benchmark-store";
 import { publicProcedure } from "../index";
+import { hasChoice, inCohort, statesSignal } from "../directory-filters";
 import { descendingCursorCondition } from "../pagination";
 import { descendingTimestampCursorSchema } from "../pagination-schema";
 
@@ -23,6 +28,13 @@ export const directoryRouter = {
       z
         .object({
           search: z.string().trim().max(100).optional(),
+          /** A charging signal the page states, e.g. `fixed_subscription`. */
+          signal: z.string().trim().max(64).refine(isPricingSignalKey).optional(),
+          /** A published classification, e.g. `credit_conversion` = `not_disclosed`. */
+          choiceKey: z.string().trim().max(64).refine(isPricingChoiceKey).optional(),
+          choiceValue: z.string().trim().max(64).optional(),
+          /** The cohort a chart was measured over, so a bar links to its own population. */
+          cohort: z.string().trim().max(64).optional(),
           cursor: descendingTimestampCursorSchema.optional(),
           limit: z.number().int().min(1).max(50).default(25),
         })
@@ -31,9 +43,6 @@ export const directoryRouter = {
     .handler(async ({ context, input }) => {
       const search = input?.search;
       const conditions = [eq(page.state, "active")];
-      if (input?.cursor) {
-        conditions.push(descendingCursorCondition(page.createdAt, page.id, input.cursor));
-      }
       if (search) {
         const pattern = `%${search}%`;
         conditions.push(
@@ -44,29 +53,51 @@ export const directoryRouter = {
           )!,
         );
       }
+      if (input?.signal) conditions.push(statesSignal(input.signal));
+      if (input?.choiceKey && input.choiceValue) {
+        conditions.push(hasChoice(input.choiceKey, input.choiceValue));
+      }
+      if (input?.cohort) {
+        const cohort = inCohort(input.cohort);
+        if (cohort) conditions.push(cohort);
+      }
+
       const limit = input?.limit ?? 25;
-      const rows = await context.db
-        .select({
-          id: page.id,
-          slug: page.slug,
-          normalizedDomain: page.normalizedDomain,
-          canonicalUrl: page.canonicalUrl,
-          displayName: page.displayName,
-          description: page.description,
-          createdAt: page.createdAt,
-          choices: pagePublicSummary.choices,
-          tags: pagePublicSummary.tags,
-          scannedAt: pagePublicSummary.scannedAt,
-        })
-        .from(page)
-        .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-        .where(and(...conditions))
-        .orderBy(desc(page.createdAt), desc(page.id))
-        .limit(limit + 1);
+      const paged = input?.cursor
+        ? [...conditions, descendingCursorCondition(page.createdAt, page.id, input.cursor)]
+        : conditions;
+      const [rows, [totalRow]] = await Promise.all([
+        context.db
+          .select({
+            id: page.id,
+            slug: page.slug,
+            normalizedDomain: page.normalizedDomain,
+            canonicalUrl: page.canonicalUrl,
+            displayName: page.displayName,
+            description: page.description,
+            createdAt: page.createdAt,
+            choices: pagePublicSummary.choices,
+            tags: pagePublicSummary.tags,
+            scannedAt: pagePublicSummary.scannedAt,
+          })
+          .from(page)
+          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+          .where(and(...paged))
+          .orderBy(desc(page.createdAt), desc(page.id))
+          .limit(limit + 1),
+        // The count ignores the cursor, so "34 pages" means the filter's
+        // total rather than however many have been scrolled into view.
+        context.db
+          .select({ value: count() })
+          .from(page)
+          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+          .where(and(...conditions)),
+      ]);
       const hasMore = rows.length > limit;
       const items = rows.slice(0, limit);
       return {
         items,
+        total: totalRow?.value ?? 0,
         nextCursor: hasMore
           ? (() => {
               const last = items.at(-1);

@@ -21,6 +21,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@libsql/client": "0.18.0",
     "@my-better-t-app/config": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"
