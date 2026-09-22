@@ -9,6 +9,7 @@ import { evlogErrorHandler } from "evlog/nitro/v3";
 import type { orpc } from "@/utils/orpc";
 
 import Header from "../components/header";
+import { SiteFooter } from "../components/site-footer";
 
 import appCss from "../index.css?url";
 export interface RouterAppContext {
@@ -57,9 +58,12 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <div className="min-h-svh">
+        <div className="app-shell">
           <Header />
-          <Outlet />
+          <div className="app-main">
+            <Outlet />
+          </div>
+          <SiteFooter />
         </div>
         <Toaster richColors />
         <TanStackRouterDevtools position="bottom-left" />
