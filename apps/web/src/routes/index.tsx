@@ -12,6 +12,9 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
 import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
+import { LatestWire } from "@/components/latest-wire";
+import { LayerTitle } from "@/components/layer-title";
+import { RelativeTime } from "@/components/relative-time";
 import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
 
@@ -57,17 +60,29 @@ function DirectoryPage() {
     }),
   );
   const items = directory.data?.pages.flatMap((result) => result.items) ?? [];
+  // The wire reports the freshest captures, which is not the order the
+  // directory is paged in — that one is newest indexed first.
+  const wire = items.map((item) => ({
+    slug: item.slug,
+    name: item.displayName ?? item.normalizedDomain,
+    scannedAt: item.scannedAt,
+  }));
 
   return (
     <main className="directory-shell">
+      <div className="wire-slot">
+        <LatestWire items={wire} total={items.length} />
+      </div>
       <section className="directory-hero">
         <div>
-          <p className="eyebrow">THE OPEN PRICING INDEX</p>
-          <h1>PRICELOG</h1>
+          <p className="eyebrow">The open pricing index</p>
+          <h1>
+            <LayerTitle depth={3}>PRICELOG</LayerTitle>
+          </h1>
         </div>
         <p className="hero-copy">
-          See how AI products charge, compare their published policies, and track verified weekly
-          changes. Built for founders and product teams preparing paid AI usage.
+          Every pricing page here is captured on a schedule and kept as a stack of dated versions.
+          Compare how AI products charge today, and see what moved this week.
         </p>
       </section>
       <p className="benchmark-meta">
@@ -78,7 +93,7 @@ function DirectoryPage() {
       </p>
       <section className="directory-section" aria-labelledby="directory-title">
         <div className="section-kicker">
-          <span id="directory-title">PRICING DIRECTORY</span>
+          <span id="directory-title">ON RECORD</span>
           <span>{directory.isLoading ? "—" : `${items.length} PAGES`}</span>
         </div>
         <Field className="search-field">
@@ -106,7 +121,7 @@ function DirectoryPage() {
           <div className="directory-head">
             <span>PAGE</span>
             <span>CATEGORY</span>
-            <span>LAST SCAN</span>
+            <span>LATEST CAPTURE</span>
             <span aria-hidden="true" />
           </div>
           {directory.isLoading ? (
@@ -147,7 +162,7 @@ function DirectoryPage() {
                       "unclassified",
                   )}
                 </span>
-                <span className="scan-date">{formatDate(item.scannedAt)}</span>
+                <RelativeTime className="scan-date" value={item.scannedAt} />
                 <span className="row-arrow" aria-hidden="true">
                   ↗
                 </span>
@@ -186,9 +201,4 @@ function DirectorySkeleton() {
 
 function DirectoryMessage({ text }: { text: string }) {
   return <div className="directory-message">{text}</div>;
-}
-function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "2-digit" })
-    .format(new Date(value))
-    .toUpperCase();
 }

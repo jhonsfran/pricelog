@@ -15,6 +15,8 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ShareBars } from "@/components/distribution-chart";
 import { formatToken } from "@/components/intelligence-profile";
+import { LayerTitle } from "@/components/layer-title";
+import { RelativeTime } from "@/components/relative-time";
 import { WeeklyChangesReport } from "@/components/weekly-changes-report";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
 import { orpc } from "@/utils/orpc";
@@ -40,7 +42,9 @@ function BenchmarksPage() {
       <section className="benchmark-hero">
         <div>
           <p className="eyebrow">THE AI PRICING INDEX</p>
-          <h1>HOW AI PRODUCTS CHARGE</h1>
+          <h1>
+            <LayerTitle>HOW AI PRODUCTS CHARGE</LayerTitle>
+          </h1>
         </div>
         <p className="hero-copy">
           Compare published charging methods and policies before you launch or change paid AI usage.
@@ -275,7 +279,9 @@ function SourceExamples({
               )}
             </span>
           ) : null}
-          <small>Captured {formatDate(page.scannedAt)}</small>
+          <small>
+            Captured <RelativeTime value={page.scannedAt} />
+          </small>
         </li>
       ))}
     </ul>

@@ -12,6 +12,7 @@ import {
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { formatToken } from "@/components/intelligence-profile";
+import { LayerTitle } from "@/components/layer-title";
 
 export const Route = createFileRoute("/methodology")({ component: MethodologyPage });
 
@@ -31,7 +32,9 @@ function MethodologyPage() {
       <section className="profile-heading">
         <div>
           <p className="eyebrow">HOW PRICELOG MEASURES</p>
-          <h1>Methodology</h1>
+          <h1>
+            <LayerTitle>Methodology</LayerTitle>
+          </h1>
         </div>
       </section>
 

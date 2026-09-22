@@ -18,17 +18,19 @@
   margin: 8px 0 0;
   font-family: var(--display);
   font-size: clamp(46px, 7vw, 92px);
+  font-weight: 700;
+  font-variation-settings: "wdth" 80;
   line-height: 0.88;
   letter-spacing: -0.05em;
 }
 .benchmark-meta {
   margin: 0 0 8px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .benchmark-meta a {
-  color: var(--acid);
+  color: var(--paper);
   text-underline-offset: 3px;
 }
 .benchmark-section {
@@ -49,7 +51,7 @@
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
@@ -66,11 +68,11 @@
   transform: scale(0.97);
 }
 .cohort-picker button[aria-pressed="true"] {
-  border-color: var(--acid);
-  color: var(--acid);
+  border-color: var(--paper);
+  color: var(--paper);
 }
 .cohort-picker button[aria-pressed="true"] small {
-  color: var(--acid);
+  color: var(--paper-dim);
 }
 @media (hover: hover) and (pointer: fine) {
   .cohort-picker button:hover {
@@ -96,16 +98,16 @@
   background: var(--panel);
 }
 .finding-card strong {
-  color: var(--acid);
+  color: var(--paper);
   font: 500 46px/0.9 var(--display);
   font-variant-numeric: tabular-nums;
 }
 .finding-card span {
-  font: 500 13px var(--display);
+  font: 500 14px var(--display);
 }
 .finding-card small {
   color: var(--faint);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 /* Distributions */
@@ -119,7 +121,7 @@
   margin: 0;
   padding: 20px 22px 18px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  background: var(--sheet);
 }
 .dist-head {
   display: flex;
@@ -131,14 +133,14 @@
   font: 500 14px var(--display);
 }
 .dist-median {
-  color: var(--band, var(--acid));
+  color: var(--band, var(--paper));
   font: 500 22px var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .dist-question {
   margin: 8px 0 0;
   color: var(--faint);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .dist-chart {
@@ -159,7 +161,7 @@
   position: absolute;
   inset: 0 auto 0 var(--at);
   width: 1px;
-  background: var(--band, var(--acid));
+  background: var(--band, var(--paper));
   opacity: 0.55;
 }
 .dist-bar {
@@ -167,7 +169,7 @@
   flex: 1;
   min-width: 0;
   height: 100%;
-  background: var(--band, var(--acid));
+  background: var(--band, var(--paper));
   transform: scaleY(var(--fill, 0));
   transform-origin: bottom;
   transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
@@ -183,7 +185,7 @@
   gap: 12px;
   margin-top: 9px;
   color: var(--faint);
-  font-size: 9px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -197,14 +199,14 @@
 .share-card {
   padding: 20px 22px 18px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  background: var(--sheet);
 }
 .benchmark-section > .share-card {
   margin-top: 18px;
 }
 .share-title {
   margin: 0;
-  font: 500 14px var(--display);
+  font: 500 15px var(--display);
 }
 .share-list {
   display: grid;
@@ -222,7 +224,7 @@
 .share-name {
   overflow: hidden;
   color: var(--paper-dim);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -234,7 +236,7 @@
 .share-track span {
   display: block;
   height: 100%;
-  background: var(--acid);
+  background: var(--paper-dim);
   transform: scaleX(var(--fill, 0));
   transform-origin: left;
   transition: transform var(--dur-fill) var(--ease-out) var(--fill-delay, 0ms);
@@ -248,18 +250,18 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .share-value small {
   color: var(--faint);
-  font-size: 9px;
+  font-size: 11px;
 }
 .share-empty,
 .share-denominator {
   margin: 14px 0 0;
   color: var(--faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Peer marker on a single page's score.
@@ -291,12 +293,12 @@
 .methodology-note {
   padding: 34px 0 10px;
   color: var(--paper-dim);
-  font-size: 12px;
-  line-height: 1.75;
+  font-size: 15px;
+  line-height: 1.7;
 }
 .methodology-note h2 {
   margin: 0 0 14px;
-  font: 500 20px var(--display);
+  font: 500 22px var(--display);
   color: var(--paper);
 }
 .methodology-note ul {
@@ -320,12 +322,12 @@
 }
 .methodology-question h3 {
   margin: 0;
-  font: 500 15px var(--display);
+  font: 500 17px var(--display);
 }
 .methodology-prompt {
   margin: 8px 0 0;
-  color: var(--acid);
-  font-size: 12px;
+  color: var(--paper);
+  font-size: 14px;
   line-height: 1.5;
 }
 .methodology-criteria {
@@ -341,7 +343,7 @@
   grid-template-columns: 22px 1fr;
   gap: 10px;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 .methodology-criteria span {
@@ -360,19 +362,19 @@
 }
 .methodology-options dt {
   color: var(--paper-dim);
-  font-size: 11px;
+  font-size: 13px;
 }
 .methodology-options dd {
   margin: 0;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 .methodology-table {
   width: 100%;
   margin-top: 8px;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 13px;
   text-align: left;
 }
 .methodology-table th,
@@ -384,7 +386,7 @@
 }
 .methodology-table thead th {
   color: var(--faint);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -481,4 +483,93 @@
   padding: 1rem;
   border-left: 2px solid var(--line);
   font-size: 0.8rem;
+}
+
+/* ============================================================
+   21. Published prices
+
+   A price table is the densest thing on the site, so it gets the
+   mono face, tabular figures and a horizontal scroller rather than
+   a layout that collapses the numbers out of alignment.
+   ============================================================ */
+
+.numeric-prices {
+  margin-top: 28px;
+  padding: 22px 24px 24px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+}
+.numeric-prices h2 {
+  margin: 0 0 12px;
+  font: 600 20px var(--display);
+  letter-spacing: -0.02em;
+}
+.numeric-prices > p {
+  margin: 0 0 12px;
+  color: var(--paper-dim);
+  font-size: 14px;
+}
+.price-table-scroll {
+  margin-top: 18px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.price-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.price-table thead th {
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font: 400 11px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.price-table tbody th,
+.price-table td {
+  padding: 16px 16px 16px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-weight: 400;
+  vertical-align: top;
+}
+.price-table tbody th {
+  color: var(--paper);
+  font: 600 14px var(--display);
+}
+.price-table td {
+  color: var(--paper-dim);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.price-table strong {
+  display: block;
+  color: var(--paper);
+  font-weight: 500;
+}
+.price-table small {
+  display: block;
+  margin-top: 5px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.price-evidence {
+  margin-top: 16px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.price-evidence blockquote {
+  margin: 10px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+  color: var(--paper-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

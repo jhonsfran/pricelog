@@ -4,6 +4,9 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { ENV } from "@/env.public";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { NumericPricesPanel } from "@/components/numeric-prices";
+import { LayerTitle } from "@/components/layer-title";
+import { RelativeTime } from "@/components/relative-time";
+import { formatStamp, isFresh } from "@/lib/time";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({ component: PublicPageProfile });
@@ -22,13 +25,21 @@ function PublicPageProfile() {
       </Link>
       <section className="profile-heading">
         <div>
-          <p className="eyebrow">PRICING PAGE RECORD</p>
-          <h1>{item.displayName ?? item.normalizedDomain}</h1>
+          <p className="eyebrow">Pricing page record</p>
+          <h1>
+            <LayerTitle>{item.displayName ?? item.normalizedDomain}</LayerTitle>
+          </h1>
           <a href={item.canonicalUrl} target="_blank" rel="noreferrer">
             {item.normalizedDomain}
             <ExternalLink size={14} />
           </a>
         </div>
+        {/* The live layer, stamped. Everything below describes this one capture. */}
+        <p className="capture-stamp">
+          <span className="live-dot" data-live={isFresh(item.scannedAt)} aria-hidden="true" />
+          <span>Live layer</span>
+          <RelativeTime value={item.scannedAt} />
+        </p>
       </section>
       <section className="profile-grid">
         <div className="profile-card profile-card-main">
@@ -46,8 +57,9 @@ function PublicPageProfile() {
                 href={`${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${item.sourceUrl}`}
                 target="_blank"
                 rel="noreferrer"
+                title={formatStamp(item.scannedAt)}
               >
-                Read the archived source captured {formatDate(item.scannedAt)}
+                Read the archived capture this layer was read from
               </a>
             </p>
           ) : null}
@@ -55,7 +67,7 @@ function PublicPageProfile() {
         <aside className="profile-card profile-facts">
           <div>
             <span>CAPTURED</span>
-            <strong>{formatDate(item.scannedAt)}</strong>
+            <strong>{formatStamp(item.scannedAt)}</strong>
           </div>
           <div>
             <span>RUBRIC</span>
@@ -88,10 +100,5 @@ function StatePage({ text }: { text: string }) {
       <p>{text}</p>
       <Link to="/">Return to directory</Link>
     </main>
-  );
-}
-function formatDate(value: Date | string) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
   );
 }
