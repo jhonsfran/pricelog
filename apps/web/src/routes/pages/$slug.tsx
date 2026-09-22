@@ -3,6 +3,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { ENV } from "@/env.public";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
+import { NumericPricesPanel } from "@/components/numeric-prices";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({ component: PublicPageProfile });
@@ -70,6 +71,7 @@ function PublicPageProfile() {
           </div>
         </aside>
       </section>
+      <NumericPricesPanel prices={item.numericPrices} sourceUrl={item.sourceUrl} />
       <IntelligenceProfile
         rubricId={item.rubricId}
         choices={item.choices}

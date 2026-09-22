@@ -6,6 +6,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
+import { NumericPricesPanel } from "@/components/numeric-prices";
 import { RunStatus } from "@/components/run-status";
 import { ENV } from "@/env.public";
 import { orpc } from "@/utils/orpc";
@@ -83,6 +84,10 @@ function OwnerPageDetail() {
       ) : null}
       {data.summary ? (
         <>
+          <NumericPricesPanel
+            prices={data.summary.numericPrices}
+            sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
+          />
           <IntelligenceProfile
             rubricId={data.summary.rubricId}
             choices={data.summary.choices}

@@ -1,4 +1,5 @@
 import { COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
+import { PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
 import {
   CHOICE_CONFIDENCE_THRESHOLD,
   PRICING_CHOICE_CATALOG,
@@ -42,9 +43,10 @@ function MethodologyPage() {
           absent. Every aggregate on this site is a claim about public disclosure.
         </p>
         <p>
-          Each page is captured with Chromium, converted to Markdown, and evaluated in a single call
-          against the question set below. A page is published only after a successful capture and a
-          complete evaluation. Failed captures and bot challenges are never published.
+          Each page is captured with Chromium, converted to Markdown, and evaluated with typed
+          questions against the full source. A page is published only after a successful capture and
+          a complete practice evaluation. Numeric collection has a separate availability status.
+          Failed captures and bot challenges are never published.
         </p>
         <ul>
           <li>
@@ -69,8 +71,8 @@ function MethodologyPage() {
             uncertain, and excluded counts.
           </li>
           <li>
-            Groups and metric denominators below {COHORT_MINIMUM} show counts only. This display
-            rule does not establish statistical significance or representative sampling.
+            Practice groups and metric denominators below {COHORT_MINIMUM} show counts only. This
+            display rule does not establish statistical significance or representative sampling.
           </li>
           <li>
             Raw probabilities remain stored. Publication thresholds are rules, not measured accuracy
@@ -101,10 +103,34 @@ function MethodologyPage() {
         </p>
         <h2>Prices and interpretation</h2>
         <p>
-          This release uses Jev Choice and Noul classifications. It does not extract numeric prices
-          or generate explanations. Exact price statistics need a validated collection method and
-          are deferred. Published terms cannot establish willingness to pay, margins, conversion
-          performance, or pricing quality.
+          Code copies exact numeric literals from the archived source. Jev Choice questions select
+          candidates and classify billing terms, currency and charging units. Separate Noul checks
+          must validate the base offer's eligibility, billing and charging terms at 0.90 or above.
+          Required Choice classifications need at least 0.90 confidence. Code checks exact numeric
+          literals and bare dollar markers. These thresholds are publication rules, not measured
+          accuracy. Jev scores are never used as money amounts.
+        </p>
+        <p>
+          We collect the lowest verified paid flat fee and per-seat rate for monthly and annual
+          commitments. Free, promotional, crossed-out, competitor, add-on and one-time prices do not
+          qualify. A bare dollar sign is shown with an unspecified currency and excluded from
+          comparisons. Unsupported or ambiguous number formats remain uncollected. Captures may not
+          expose all billing-toggle variants.
+        </p>
+        <p>
+          Category medians and ranges require {PRICE_SAMPLE_MINIMUM} comparable products, grouped by
+          currency, commitment and charging unit. Annual totals are divided by twelve only for a
+          labeled monthly equivalent. This does not make them monthly subscriptions. Each product
+          contributes at most one baseline price per group. The broad AI overview does not pool
+          unrelated categories. These are sample statistics, not representative market estimates.
+        </p>
+        <p>
+          Included usage and overage rates must pass a separate attribution check at 0.95 or above
+          and belong to the same offer. Missing values do not mean zero, unlimited usage or free
+          overage. Credits from different vendors are not equivalent. Exact spend can also depend on
+          minimum seats, taxes, model choice and additional charges. Published terms cannot
+          establish willingness to pay, margins, conversion performance or pricing quality. Numeric
+          price changes are not yet included in the weekly change report.
         </p>
         <p>
           Pricelog is by{" "}

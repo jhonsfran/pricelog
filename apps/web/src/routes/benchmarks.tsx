@@ -16,6 +16,7 @@ import { useState } from "react";
 import { ShareBars } from "@/components/distribution-chart";
 import { formatToken } from "@/components/intelligence-profile";
 import { WeeklyChangesReport } from "@/components/weekly-changes-report";
+import { NumericBenchmarkPanel } from "@/components/numeric-prices";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/benchmarks")({ component: BenchmarksPage });
@@ -97,6 +98,12 @@ function BenchmarksPage() {
               visible; percentages are withheld.
             </p>
           ) : null}
+          <NumericBenchmarkPanel
+            prices={selected.numericPrices}
+            category={cohort.startsWith("category:")}
+            examples={data?.priceExamples ?? []}
+            pageCount={selected.pageCount}
+          />
           <section className="benchmark-section">
             <div className="section-kicker">
               <span>CHARGING STRUCTURE</span>
@@ -215,10 +222,10 @@ function BenchmarksPage() {
       )}
       <WeeklyChangesReport cohort={cohort} minimum={minimum} />
       <section className="methodology-note">
-        <h2>Price statistics are deferred</h2>
+        <h2>From pricing research to implementation</h2>
         <p>
-          Exact prices need a validated collection method. This release compares published charging
-          rules and policies without estimating numeric prices.
+          Compare published prices alongside charging rules, included usage, and overage terms.
+          Select a category to see numeric benchmarks and source evidence.
         </p>
         <p>
           Pricelog is by{" "}

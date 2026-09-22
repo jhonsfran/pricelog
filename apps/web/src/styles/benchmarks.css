@@ -443,3 +443,42 @@
     transform: none;
   }
 }
+.numeric-prices {
+  margin-block: 2rem;
+}
+.numeric-prices h2 {
+  margin-bottom: 0.75rem;
+}
+.price-table-scroll {
+  overflow-x: auto;
+  margin-block: 1rem;
+}
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.price-table th,
+.price-table td {
+  padding: 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+.price-table thead th {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+.price-table small {
+  display: block;
+  margin-top: 0.35rem;
+  font-weight: normal;
+  color: var(--muted-foreground);
+}
+.price-evidence {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  border-left: 2px solid var(--line);
+  font-size: 0.8rem;
+}
