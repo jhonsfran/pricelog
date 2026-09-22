@@ -11,6 +11,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
 import { type CSSProperties, useState } from "react";
 import { toast } from "sonner";
+import { LayerTitle } from "@/components/layer-title";
 import { RunStatus } from "@/components/run-status";
 import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
@@ -35,8 +36,10 @@ function DashboardPage() {
     <main className="dashboard-shell">
       <section className="dashboard-heading">
         <div>
-          <p className="eyebrow">OWNER CONSOLE</p>
-          <h1>Your pages</h1>
+          <p className="eyebrow">Owner console</p>
+          <h1>
+            <LayerTitle>Your pages</LayerTitle>
+          </h1>
         </div>
         <p>
           Each successful scan schedules the next scan seven days later. A failed scan retries the
@@ -72,7 +75,7 @@ function DashboardPage() {
       </form>
       <section className="owner-list">
         <div className="section-kicker">
-          <span>MONITORED PAGES</span>
+          <span>ON RECORD</span>
           <span>{pages.data?.length ?? 0}</span>
         </div>
         {pages.isLoading ? (

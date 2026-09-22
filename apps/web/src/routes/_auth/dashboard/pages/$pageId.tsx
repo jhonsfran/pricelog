@@ -6,7 +6,10 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Download, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
+import { LayerDepth } from "@/components/layer-depth";
+import { LayerTitle } from "@/components/layer-title";
 import { NumericPricesPanel } from "@/components/numeric-prices";
+import { RelativeTime } from "@/components/relative-time";
 import { RunStatus } from "@/components/run-status";
 import { ENV } from "@/env.public";
 import { orpc } from "@/utils/orpc";
@@ -54,6 +57,13 @@ function OwnerPageDetail() {
   const data = pages[0]!;
   const runs = pages.flatMap((result) => result.runs.items);
   const active = runs.find((run) => run.id === data.state?.activeRunId);
+  // Only a successful scan becomes a layer, so failed attempts stay in the
+  // history without taking a number that no stored capture answers to.
+  let captured = 0;
+  const stack = runs.map((run) => ({
+    run,
+    layer: run.status === "succeeded" ? ++captured : null,
+  }));
   return (
     <main className="dashboard-shell detail-shell">
       <Link className="back-link" to="/dashboard">
@@ -62,8 +72,10 @@ function OwnerPageDetail() {
       </Link>
       <section className="detail-heading">
         <div>
-          <p className="eyebrow">OWNER RECORD</p>
-          <h1>{data.page.displayName ?? data.page.normalizedDomain}</h1>
+          <p className="eyebrow">Owner record</p>
+          <h1>
+            <LayerTitle>{data.page.displayName ?? data.page.normalizedDomain}</LayerTitle>
+          </h1>
           <p>{data.page.canonicalUrl}</p>
         </div>
         <Button
@@ -78,7 +90,7 @@ function OwnerPageDetail() {
       {active ? (
         <div className="active-run">
           <RunStatus status={active.status} />
-          <span>Stage: {active.stage}</span>
+          <span>Capturing now · stage {active.stage}</span>
           <span>Run {active.id.slice(0, 8)}</span>
         </div>
       ) : null}
@@ -98,39 +110,49 @@ function OwnerPageDetail() {
       ) : null}
       <section className="run-history">
         <div className="section-kicker">
-          <span>SCAN HISTORY</span>
-          <span>{runs.length} RUNS</span>
+          <span>CAPTURE STACK</span>
+          <LayerDepth count={captured} noun={detail.hasNextPage ? "captures loaded" : "captures"} />
         </div>
-        {runs.map((run) => (
-          <article className="run-row" key={run.id}>
-            <div>
-              <RunStatus status={run.status} />
-              <span className="run-trigger">{run.trigger}</span>
-            </div>
-            <div className="run-time">
-              <strong>{formatDate(run.createdAt)}</strong>
-              <small>{run.errorMessage ?? `Stage: ${run.stage}`}</small>
-            </div>
-            {run.status === "succeeded" ? (
-              <div className="artifact-links">
-                {(["screenshot", "html", "content"] as const).map((kind) => (
-                  <Button
-                    key={kind}
-                    render={<a href={artifactUrl(pageId, run.id, kind)} />}
-                    nativeButton={false}
-                    variant="link"
-                    size="xs"
-                  >
-                    <Download data-icon="inline-start" />
-                    {kind}
-                  </Button>
-                ))}
+        <div className="capture-stack">
+          {stack.map(({ run, layer }) => (
+            <article className="capture-row" data-live={layer === 1} key={run.id}>
+              <span className="capture-index">
+                <strong>
+                  {layer ? (layer === 1 ? "LIVE" : String(layer).padStart(2, "0")) : "—"}
+                </strong>
+                <span>{layer ? "LAYER" : "NO LAYER"}</span>
+              </span>
+              <div>
+                <RunStatus status={run.status} />
+                <span className="run-trigger">{run.trigger}</span>
               </div>
-            ) : (
-              <span />
-            )}
-          </article>
-        ))}
+              <div className="run-time">
+                <strong>
+                  <RelativeTime value={run.createdAt} />
+                </strong>
+                <small>{run.errorMessage ?? `Stage: ${run.stage}`}</small>
+              </div>
+              {run.status === "succeeded" ? (
+                <div className="artifact-links">
+                  {(["screenshot", "html", "content"] as const).map((kind) => (
+                    <Button
+                      key={kind}
+                      render={<a href={artifactUrl(pageId, run.id, kind)} />}
+                      nativeButton={false}
+                      variant="link"
+                      size="xs"
+                    >
+                      <Download data-icon="inline-start" />
+                      {kind}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <span />
+              )}
+            </article>
+          ))}
+        </div>
         {detail.hasNextPage ? (
           <Button
             className="load-more-button"
@@ -148,9 +170,4 @@ function OwnerPageDetail() {
 
 function artifactUrl(pageId: string, runId: string, kind: string) {
   return `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}/api/pages/${pageId}/runs/${runId}/artifacts/${kind}`;
-}
-function formatDate(value: number) {
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
-  );
 }
