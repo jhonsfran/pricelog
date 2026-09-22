@@ -17,6 +17,9 @@ export default function Header() {
         <Link to="/" activeProps={{ "data-active": true }} activeOptions={{ exact: true }}>
           Directory
         </Link>
+        <Link to="/changes" activeProps={{ "data-active": true }}>
+          Changes
+        </Link>
         <Link to="/benchmarks" activeProps={{ "data-active": true }}>
           Pricing practices
         </Link>
