@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
+import type { NumericPrices } from "../numeric-prices";
 import {
   PRICING_INTELLIGENCE_RUBRIC_ID,
   type PricingChoiceKey,
@@ -59,6 +60,7 @@ export const pagePublicSummary = sqliteTable(
     runId: text("run_id").notNull().unique(),
     rubricId: text("rubric_id").notNull(),
     model: text("model").notNull(),
+    numericPrices: text("numeric_prices_json", { mode: "json" }).$type<NumericPrices>(),
     choices: text("choices_json", { mode: "json" })
       .$type<PageChoice[]>()
       .default(sql`'[]'`)
@@ -110,6 +112,25 @@ export type BenchmarkSignalShare = {
   uncertain: number;
 };
 
+export type NumericPriceGroup = {
+  currency: "USD" | "EUR" | "GBP";
+  billing: "monthly" | "annual";
+  chargeUnit: "flat" | "seat";
+  count: number;
+  median: number | null;
+  minimum: number | null;
+  maximum: number | null;
+};
+
+export type NumericPriceBenchmark = {
+  version: "numeric-prices-v1";
+  collected: number;
+  withOffers: number;
+  unavailable: number;
+  notCollected: number;
+  groups: NumericPriceGroup[];
+};
+
 /**
  * One row per cohort per computation. Snapshots are append-only: they are what
  * turns the index into a time series, and that history cannot be backfilled.
@@ -122,6 +143,7 @@ export const benchmarkSnapshot = sqliteTable(
     cohort: text("cohort").notNull(),
     computedAt: integer("computed_at", { mode: "timestamp_ms" }).notNull(),
     pageCount: integer("page_count").notNull(),
+    numericPrices: text("numeric_prices_json", { mode: "json" }).$type<NumericPriceBenchmark>(),
     choiceShares: text("choice_shares_json", { mode: "json" })
       .$type<Record<string, BenchmarkChoiceShare>>()
       .notNull(),

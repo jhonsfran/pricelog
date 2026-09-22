@@ -72,7 +72,33 @@ describe("D1 publication delivery", () => {
     const { sqlite, db } = database();
     try {
       const input = publication("first", 1000);
+      input.numericPrices = {
+        version: "numeric-prices-v1",
+        status: "collected",
+        model: "jev-1.13.0",
+        audit: [{ phase: "selection", answers: [] }],
+        offers: [
+          {
+            amount: "20",
+            currency: "USD",
+            billing: "monthly",
+            chargeUnit: "flat",
+            amountPeriod: "month",
+            evidence: "Pro USD 20/month",
+            plan: "Pro",
+            includedUsage: null,
+            overage: null,
+            confidence: 0.99,
+          },
+        ],
+      };
       await publishPageProjection(db, input);
+      expect(
+        JSON.parse(
+          sqlite.prepare("SELECT numeric_prices_json FROM page_public_summary").get()
+            ?.numeric_prices_json as string,
+        ),
+      ).toEqual({ ...input.numericPrices, audit: undefined });
       await publishPageProjection(db, input);
       expect(sqlite.prepare("SELECT state, display_name FROM page").get()).toEqual({
         state: "active",

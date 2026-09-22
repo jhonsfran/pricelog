@@ -39,6 +39,7 @@ async function readCorpusPage(
       id: page.id,
       choices: pagePublicSummary.choices,
       signals: pagePublicSummary.signals,
+      numericPrices: pagePublicSummary.numericPrices,
     })
     .from(page)
     .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
@@ -140,6 +141,7 @@ export async function loadBenchmarks(
             choiceShares: row.choiceShares,
             signalCounts: row.signalCounts,
             signalShares: row.signalShares,
+            numericPrices: row.numericPrices,
           }))
           .sort((left, right) => right.pageCount - left.pageCount),
         computedAt: latest.computedAt,
@@ -172,6 +174,7 @@ export async function storeBenchmarks(
         choiceShares: snapshot.choiceShares,
         signalCounts: snapshot.signalCounts,
         signalShares: snapshot.signalShares,
+        numericPrices: snapshot.numericPrices,
       })),
     )
     .onConflictDoNothing({

@@ -14,7 +14,9 @@ vi.mock("./url", () => ({
   resolveDnsAddresses: vi.fn(),
 }));
 
-function setup(failure?: "start" | "capture" | "complete" | "projection" | "evaluation") {
+function setup(
+  failure?: "start" | "capture" | "complete" | "projection" | "evaluation" | "numeric",
+) {
   let status = "running";
   let prepared = false;
   const store = {
@@ -86,6 +88,7 @@ function setup(failure?: "start" | "capture" | "complete" | "projection" | "eval
     async (_model: string, input: { questions: Record<string, PersistedQuestion> }) => {
       aiCalls++;
       if (failure === "evaluation" && aiCalls === 2) throw new Error("Second batch failed");
+      if (failure === "numeric" && aiCalls > 1) throw new Error("Numeric provider failed");
       return {
         result: {
           model: "jev-1.13.0",
@@ -117,7 +120,11 @@ function setup(failure?: "start" | "capture" | "complete" | "projection" | "eval
         put: async () => undefined,
         get: async () => ({
           text: async () =>
-            failure === "evaluation" ? "x".repeat(24_000) : "Free plan. Paid plan available.",
+            failure === "evaluation"
+              ? "x".repeat(24_000)
+              : failure === "numeric"
+                ? "Pro USD 20 per month."
+                : "Free plan. Paid plan available.",
         }),
       },
       BROWSER: {
@@ -152,6 +159,18 @@ function setup(failure?: "start" | "capture" | "complete" | "projection" | "eval
 }
 
 describe("scan publication boundaries", () => {
+  it("preserves practice results and records unavailable numeric collection on provider failure", async () => {
+    const scan = setup("numeric");
+    await scan.run();
+    expect(scan.status()).toBe("succeeded");
+    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        numericPrices: expect.objectContaining({ status: "unavailable", offers: [], model: null }),
+      }),
+    );
+    expect(scan.store.publishPending).toHaveBeenCalledOnce();
+  });
   it("does not persist or publish partial answers when a later batch fails", async () => {
     const scan = setup("evaluation");
     await expect(scan.run()).rejects.toThrow("Second batch failed");

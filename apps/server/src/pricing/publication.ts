@@ -55,6 +55,8 @@ export async function publishPageProjection(db: Database, input: PagePublication
     runId: input.runId,
     rubricId: input.rubricId,
     model: input.model,
+    // Decision history stays with the page version in its Durable Object.
+    numericPrices: input.numericPrices ? { ...input.numericPrices, audit: undefined } : null,
     choices: input.choices,
     signals: input.signals,
     tags: input.tags,

@@ -93,6 +93,24 @@ describe("D1 migrations", () => {
         { id: "current", rubric_id: "pricing-intelligence-v5" },
         { id: "legacy", rubric_id: "pricing-intelligence-v3" },
       ]);
+      await database.executeMultiple(
+        await readFile(
+          resolve(migrationsDirectory, "20260922063454_loud_glorian/migration.sql"),
+          "utf8",
+        ),
+      );
+      const numericHistory = await database.execute(
+        "select id, numeric_prices_json from benchmark_snapshot order by id",
+      );
+      expect(numericHistory.rows).toEqual([
+        { id: "current", numeric_prices_json: null },
+        { id: "legacy", numeric_prices_json: null },
+      ]);
+      expect(
+        (await database.execute("pragma table_info(page_public_summary)")).rows.map(
+          (row) => row.name,
+        ),
+      ).toContain("numeric_prices_json");
       const retained = await database.execute(
         "select name from sqlite_master where type = 'table' and name in ('user', 'session', 'page', 'page_public_summary', 'benchmark_snapshot') order by name",
       );

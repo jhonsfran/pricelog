@@ -3,7 +3,10 @@ import type {
   BenchmarkSignalShare,
   PageChoice,
   PageSignal,
+  NumericPriceBenchmark,
 } from "@my-better-t-app/db/schema/pages";
+import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
+import { buildNumericBenchmark } from "./numeric-prices";
 
 import {
   AI_APPLICATION_CATEGORY_OPTIONS,
@@ -20,6 +23,7 @@ import {
 export const COHORT_MINIMUM = 10;
 
 export type BenchmarkPage = {
+  numericPrices?: NumericPrices | null;
   choices: Pick<PageChoice, "key" | "choice">[];
   signals: Pick<PageSignal, "key" | "probability">[];
 };
@@ -28,6 +32,7 @@ export type BenchmarkPage = {
 export type ChoiceShare = BenchmarkChoiceShare;
 
 export type BenchmarkSnapshot = {
+  numericPrices?: NumericPriceBenchmark | null;
   cohort: string;
   pageCount: number;
   choiceShares: Record<string, ChoiceShare>;
@@ -146,6 +151,7 @@ function buildSnapshot(cohort: string, members: BenchmarkPage[]): BenchmarkSnaps
 
   return {
     cohort,
+    numericPrices: buildNumericBenchmark(members),
     pageCount: members.length,
     choiceShares,
     signalCounts,

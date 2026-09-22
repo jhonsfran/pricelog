@@ -92,6 +92,7 @@ export const directoryRouter = {
           tags: pagePublicSummary.tags,
           rubricId: pagePublicSummary.rubricId,
           model: pagePublicSummary.model,
+          numericPrices: pagePublicSummary.numericPrices,
           browserEngine: pagePublicSummary.browserEngine,
           runId: pagePublicSummary.runId,
           scannedAt: pagePublicSummary.scannedAt,
@@ -131,7 +132,10 @@ export const directoryRouter = {
 
       const requested = input?.cohort ?? AI_APPLICATIONS_COHORT;
       const selected = snapshots.find((snapshot) => snapshot.cohort === requested) ?? null;
-      const examples = await readExamples(context.db, requested);
+      const [examples, priceExamples] = await Promise.all([
+        readExamples(context.db, requested),
+        readExamples(context.db, requested, true),
+      ]);
 
       return {
         computedAt,
@@ -141,6 +145,7 @@ export const directoryRouter = {
         totalIndexedPages: directoryCount?.value ?? 0,
         available,
         examples,
+        priceExamples,
         selected: selected ? { ...selected, label: cohortLabel(selected.cohort) } : null,
       };
     }),
@@ -165,7 +170,11 @@ export const directoryRouter = {
     }),
 };
 
-async function readExamples(db: import("@my-better-t-app/db").Database, cohort: string) {
+export async function readExamples(
+  db: import("@my-better-t-app/db").Database,
+  cohort: string,
+  numericOnly = false,
+) {
   const examples = [];
   let cursor: string | undefined;
   for (;;) {
@@ -178,6 +187,8 @@ async function readExamples(db: import("@my-better-t-app/db").Database, cohort: 
         scannedAt: pagePublicSummary.scannedAt,
         choices: pagePublicSummary.choices,
         signals: pagePublicSummary.signals,
+        numericPrices: pagePublicSummary.numericPrices,
+        runId: pagePublicSummary.runId,
       })
       .from(page)
       .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
@@ -191,6 +202,11 @@ async function readExamples(db: import("@my-better-t-app/db").Database, cohort: 
       .orderBy(asc(page.id))
       .limit(100);
     for (const row of rows) {
+      if (
+        numericOnly &&
+        (row.numericPrices?.status !== "collected" || !row.numericPrices.offers.length)
+      )
+        continue;
       if (cohortsForPage(row).includes(cohort)) examples.push(row);
       if (examples.length === 12) return examples;
     }

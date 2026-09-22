@@ -4,6 +4,8 @@ import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloud
 import { publishOwnerProjection } from "./publication";
 import { buildPublicEvaluation } from "./evaluation";
 import { evaluatePricing } from "./evaluation-request";
+import { collectNumericPrices } from "./numeric-prices";
+import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
 import type { PageStore } from "./page-store";
 import type { ArtifactManifest, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
@@ -143,16 +145,34 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         );
         await store.persistAnswers(params.runId, rubric.id, answers);
         const publicEvaluation = buildPublicEvaluation(answers);
-        await store.persistEvaluation(params.runId, {
-          rubricId: rubric.id,
-          model,
-          ...publicEvaluation,
-        });
         return {
           rubricId: rubric.id,
           model,
           ...publicEvaluation,
         };
+      });
+
+      let numericPrices: NumericPrices;
+      try {
+        numericPrices = await step.do("collect numeric prices", RETRY, async () => {
+          const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
+          if (!artifact) throw new Error("Archived Markdown is missing");
+          return collectNumericPrices(await artifact.text(), (input) =>
+            (this.env.AI as unknown as JevBinding).run("typesafe/jev", input, jevGatewayOptions()),
+          );
+        });
+      } catch {
+        numericPrices = {
+          version: "numeric-prices-v1",
+          status: "unavailable",
+          model: null,
+          offers: [],
+          reason: "Numeric evaluation could not be completed for this capture.",
+        };
+      }
+      const completeEvaluation = { ...evaluation, numericPrices };
+      await step.do("persist complete evaluation", RETRY, async () => {
+        await store.persistEvaluation(params.runId, completeEvaluation);
       });
 
       await step.do("prepare publication", RETRY, async () => {
@@ -163,7 +183,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           capturedAt: capture.manifest.capturedAt,
           displayName: capture.manifest.title ?? params.normalizedDomain,
           description: capture.description,
-          ...evaluation,
+          ...completeEvaluation,
         });
       });
 

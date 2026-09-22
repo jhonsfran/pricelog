@@ -133,6 +133,40 @@ async function capture(
 }
 
 describe("page-local pricing history", () => {
+  it("keeps numeric observations with their version and ignores later replacement", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await capture(store, sqlite, "numeric", "2026-09-22", "running");
+      const evaluation = {
+        rubricId: "pricing-intelligence-v5",
+        model: "jev-1.13.0",
+        choices: [],
+        signals: [],
+        tags: [],
+        numericPrices: {
+          version: "numeric-prices-v1" as const,
+          status: "collected" as const,
+          model: "jev-1.13.0",
+          offers: [],
+        },
+      };
+      await store.persistEvaluation("numeric", evaluation);
+      sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run("numeric");
+      await store.persistEvaluation("numeric", {
+        ...evaluation,
+        numericPrices: { ...evaluation.numericPrices, status: "unavailable" },
+      });
+      expect(
+        JSON.parse(
+          sqlite
+            .prepare("SELECT evaluation_json FROM version_evaluation WHERE run_id = 'numeric'")
+            .get()?.evaluation_json as string,
+        ).numericPrices,
+      ).toEqual(evaluation.numericPrices);
+    } finally {
+      sqlite.close();
+    }
+  });
   it("migrates existing versions and keeps choice/noul answers while removing scores", async () => {
     const { store, sqlite } = storeFor("one", 3);
     try {
