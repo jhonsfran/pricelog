@@ -1,8 +1,8 @@
 /**
  * Three captures of the same page, stepping up and to the right. They
  * overlap far enough that the silhouette reads as one diagonal bar, and
- * the leading square — the live capture — is the only thing in signal
- * colour. Drawn on a 24-unit grid so it stays sharp at any size.
+ * the leading square carries the primary colour. Drawn on a 24-unit grid
+ * so it stays sharp at any size.
  */
 export function LayerMark({ size = 20, className }: { size?: number; className?: string }) {
   return (

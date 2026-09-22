@@ -10,7 +10,7 @@
 /* ------------------------------------------------------------
    L1. The mark — three squares stepping up and to the right.
    They overlap enough that the silhouette reads as one diagonal
-   bar, and the leading square is the live capture.
+   bar, and the leading square carries the primary colour.
    ------------------------------------------------------------ */
 
 .layer-mark {
@@ -31,7 +31,7 @@
   opacity: 0.52;
 }
 .layer-mark rect[data-depth="1"] {
-  fill: var(--acid);
+  fill: var(--hot);
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -29,9 +29,9 @@
      else. The moment it decorates a link it stops meaning anything. */
   --acid: #c8ff42;
 
-  /* Attention. One colour that asks for an action or points at the
-     finding in a chart. Acid reports what the record did; hot is what
-     you are meant to do about it. Two colours, two jobs, no overlap. */
+  /* Attention, and the brand. It leads the mark, asks for an action and
+     points at the finding in a chart. Acid reports what the record did;
+     hot is what you are meant to do about it. */
   --hot: #ff2d8a;
   --score-high: #c8ff42;
   --score-mid: #ffc94b;
