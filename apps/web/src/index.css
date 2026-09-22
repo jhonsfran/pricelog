@@ -1,3 +1,10 @@
+/* Self-hosted so the index renders in its own voice on the first paint,
+   with no third-party font request. Archivo carries a real width axis,
+   which is why the display type can be condensed instead of stretched. */
+@import "@fontsource-variable/archivo/standard.css";
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";
+
 @import "@my-better-t-app/ui/globals.css";
 @import "./styles/foundation.css";
 @import "./styles/profile.css";
