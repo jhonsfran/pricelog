@@ -1,5 +1,5 @@
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { Button } from "@my-better-t-app/ui/components/button";
+import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -108,12 +108,7 @@ function OwnerPageDetail() {
       <section className="mt-14 border-t border-gray-7">
         <SectionHeading
           title="Capture stack"
-          meta={
-            <LayerDepth
-              count={captured}
-              noun={detail.hasNextPage ? "captures loaded" : "captures"}
-            />
-          }
+          meta={<LayerDepth count={captured} loaded={detail.hasNextPage} />}
         />
         {/* The rail is the stack seen edge-on: the live capture is lit,
             every older one sits behind it. */}
@@ -152,17 +147,17 @@ function OwnerPageDetail() {
               {run.status === "succeeded" ? (
                 <div className="flex flex-wrap gap-2">
                   {(["screenshot", "html", "content"] as const).map((kind) => (
-                    <Button
+                    <a
                       key={kind}
-                      render={<a href={artifactUrl(pageId, run.id, kind)} />}
-                      nativeButton={false}
-                      variant="outline"
-                      size="sm"
-                      className="kicker text-2xs"
+                      href={artifactUrl(pageId, run.id, kind)}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                        "kicker text-2xs",
+                      )}
                     >
-                      <Download data-icon="inline-start" />
+                      <Download data-icon="inline-start" aria-hidden="true" />
                       {kind}
-                    </Button>
+                    </a>
                   ))}
                 </div>
               ) : (

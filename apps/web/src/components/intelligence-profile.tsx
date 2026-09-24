@@ -10,6 +10,7 @@ import {
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
 import { cn } from "@my-better-t-app/ui/lib/utils";
+import { formatToken } from "@/lib/format";
 import type { ReactNode } from "react";
 import { Definitions, Disclosure, SectionHeading, Tag } from "./page";
 import { Panel } from "./panel";
@@ -170,18 +171,6 @@ export function answerTone(choice: string) {
   if (choice === "not_established" || choice === "not_disclosed" || choice === "not_applicable")
     return "text-muted-foreground";
   return "text-foreground";
-}
-
-const ACRONYMS: Record<string, string> = { ai: "AI", api: "API", apis: "APIs", hr: "HR", gb: "GB" };
-
-/** "ai_native" → "AI native": sentence case, with acronyms kept whole. */
-export function formatToken(value: string) {
-  const words = value
-    .split(/[_-]+/)
-    .filter(Boolean)
-    .map((word) => ACRONYMS[word.toLowerCase()] ?? word.toLowerCase());
-  const [first = "", ...rest] = words;
-  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(" ");
 }
 
 export function prioritizeTags(tags: string[]) {

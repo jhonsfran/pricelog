@@ -27,7 +27,10 @@ export function AuthField({
   const invalid = errors.length > 0;
   return (
     <Field data-invalid={invalid}>
-      <FieldLabel htmlFor={field.name} className="text-muted-foreground">
+      <FieldLabel
+        htmlFor={field.name}
+        className="text-muted-foreground group-data-[invalid=true]/field:text-destructive"
+      >
         {label}
       </FieldLabel>
       <Input

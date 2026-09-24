@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatToken } from "./intelligence-profile";
+import { formatToken } from "./format";
 
 describe("formatToken", () => {
   it("sets tokens in sentence case", () => {

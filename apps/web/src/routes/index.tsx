@@ -1,5 +1,6 @@
 import { CategoryPicker } from "@/components/category-picker";
-import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
+import { prioritizeTags } from "@/components/intelligence-profile";
+import { formatToken } from "@/lib/format";
 import {
   BackLink,
   Lede,
@@ -23,7 +24,7 @@ import {
 import { orpc } from "@/utils/orpc";
 import { AI_APPLICATIONS_COHORT } from "@my-better-t-app/api/benchmark";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { Button } from "@my-better-t-app/ui/components/button";
+import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
 import {
   InputGroup,
@@ -32,6 +33,7 @@ import {
 } from "@my-better-t-app/ui/components/input-group";
 import { Kbd } from "@my-better-t-app/ui/components/kbd";
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
+import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Search, X } from "lucide-react";
@@ -147,34 +149,31 @@ function DirectoryPage() {
         {filtered ? (
           <div className="flex flex-wrap items-center gap-2 pt-1 pb-3.5">
             {describeDirectoryFilter(filter).map((chip) => (
-              <Button
+              <Link
                 key={chip.id}
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                className="gap-2 border-brand-7 bg-transparent hover:border-brand-8 hover:bg-brand-3"
-                render={
-                  <Link
-                    to="/"
-                    search={chip.without}
-                    aria-label={`Remove filter ${chip.kind}: ${chip.label}`}
-                  />
-                }
+                to="/"
+                search={chip.without}
+                aria-label={`Remove filter ${chip.kind}: ${chip.label}`}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "gap-2 border-brand-7 bg-transparent hover:border-brand-8 hover:bg-brand-3",
+                )}
               >
                 <small className="kicker text-brand-11">{chip.kind}</small>
                 {chip.label}
                 <X aria-hidden="true" data-icon="inline-end" className="text-muted-foreground" />
-              </Button>
+              </Link>
             ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              className="text-muted-foreground"
-              render={<Link to="/" search={{}} />}
+            <Link
+              to="/"
+              search={{}}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-muted-foreground",
+              )}
             >
               Clear all
-            </Button>
+            </Link>
           </div>
         ) : null}
         <Field>
@@ -196,7 +195,12 @@ function DirectoryPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
             <InputGroupAddon align="inline-end">
-              <Kbd className="transition-opacity group-focus-within/input-group:opacity-0">/</Kbd>
+              <Kbd
+                aria-hidden="true"
+                className="transition-opacity group-focus-within/input-group:opacity-0"
+              >
+                /
+              </Kbd>
             </InputGroupAddon>
           </InputGroup>
         </Field>

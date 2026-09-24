@@ -2,7 +2,8 @@ import type { FactUnit, NumericFact, PricingFacts } from "@my-better-t-app/api/p
 import { serverUrl } from "@/lib/url";
 import { getPricingChoiceLabel } from "@my-better-t-app/api/pricing-intelligence";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
-import { answerTone, formatToken } from "./intelligence-profile";
+import { formatToken } from "@/lib/format";
+import { answerTone } from "./intelligence-profile";
 import { Disclosure, Evidence, StatRow } from "./page";
 import { Panel } from "./panel";
 

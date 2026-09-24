@@ -10,7 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
-import { formatToken } from "@/components/intelligence-profile";
+import { formatToken } from "@/lib/format";
 import { SelectField } from "@/components/select-field";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
 import { Definitions, Lede, Notice, PageHeader, PageShell, StatRow } from "@/components/page";

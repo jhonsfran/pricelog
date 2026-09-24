@@ -1,4 +1,5 @@
 import { ALL_COHORT, cohortLabel } from "@my-better-t-app/api/benchmark";
+import { formatToken } from "./format";
 import {
   getPricingChoiceLabel,
   getPricingSignalMetadata,
@@ -61,7 +62,7 @@ export function describeDirectoryFilter(filter: DirectoryFilter): FilterChip[] {
     chips.push({
       id: "signal",
       kind: "States",
-      label: getPricingSignalMetadata(filter.signal)?.label ?? formatValue(filter.signal),
+      label: getPricingSignalMetadata(filter.signal)?.label ?? formatToken(filter.signal),
       without: { ...filter, signal: undefined },
     });
   }
@@ -69,16 +70,9 @@ export function describeDirectoryFilter(filter: DirectoryFilter): FilterChip[] {
     chips.push({
       id: "choice",
       kind: getPricingChoiceLabel(filter.choiceKey),
-      label: formatValue(filter.choiceValue),
+      label: formatToken(filter.choiceValue),
       without: { ...filter, choiceKey: undefined, choiceValue: undefined },
     });
   }
   return chips;
-}
-
-function formatValue(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

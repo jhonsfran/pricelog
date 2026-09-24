@@ -16,7 +16,7 @@ import {
 } from "@my-better-t-app/api/pricing-intelligence";
 import { createFileRoute } from "@tanstack/react-router";
 import { DataCell, DataRow, DataTable, RowHeader } from "@/components/data-table";
-import { formatToken } from "@/components/intelligence-profile";
+import { formatToken } from "@/lib/format";
 import { BackLink, Definitions, PageHeader, PageShell, SectionHeading } from "@/components/page";
 import { parseCategorySearch } from "@/lib/comparison-search";
 

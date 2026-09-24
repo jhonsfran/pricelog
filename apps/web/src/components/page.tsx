@@ -121,7 +121,7 @@ export const RowLink = createLink(function RowAnchor({ className, ...props }: Co
   return (
     <a
       className={cn(
-        "group relative isolate grid min-h-20 items-center gap-6 border-b border-gray-4 py-4 motion-safe:animate-enter max-md:gap-3.5",
+        "group relative isolate grid min-h-20 items-center gap-6 border-b border-gray-4 py-4 motion-safe:animate-row-enter max-md:gap-3.5",
         "before:absolute before:inset-y-0 before:-inset-x-3.5 before:-z-10 before:bg-gray-2 before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:before:opacity-100 active:before:bg-gray-3 active:before:opacity-100",
         "after:absolute after:inset-y-0 after:-left-3.5 after:w-0.5 after:origin-center after:scale-y-0 after:bg-foreground after:transition-transform after:duration-200 after:ease-out hover:after:scale-y-100",
         className,
@@ -198,12 +198,11 @@ export function Notice({
 
 export function StatePage({ text, loading }: { text: string; loading?: boolean }) {
   return (
-    <main
-      role={loading ? "status" : undefined}
-      className="grid min-h-[70vh] place-content-center justify-items-center gap-5 text-center text-muted-foreground"
-    >
-      {loading ? <Spinner aria-hidden="true" /> : null}
-      <p>{text}</p>
+    <main className="grid min-h-[70vh] place-content-center justify-items-center gap-5 text-center text-muted-foreground">
+      <div role={loading ? "status" : undefined} className="grid justify-items-center gap-5">
+        {loading ? <Spinner aria-hidden="true" /> : null}
+        <p>{text}</p>
+      </div>
       {loading ? null : <Link to="/">Return to directory</Link>}
     </main>
   );

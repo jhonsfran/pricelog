@@ -1,4 +1,4 @@
-import { Button } from "@my-better-t-app/ui/components/button";
+import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@my-better-t-app/ui/components/dropdown-menu";
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
+import { cn } from "@my-better-t-app/ui/lib/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { UserRound } from "lucide-react";
 
@@ -27,14 +28,9 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Button
-        render={<Link to="/login" />}
-        nativeButton={false}
-        variant="outline"
-        className={trigger}
-      >
+      <Link to="/login" className={cn(buttonVariants({ variant: "outline" }), trigger)}>
         Sign in
-      </Button>
+      </Link>
     );
   }
 

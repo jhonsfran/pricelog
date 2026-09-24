@@ -174,4 +174,16 @@
   ::selection {
     @apply bg-brand-5 text-brand-12;
   }
+  /* Reduced motion: state still changes, nothing travels to get there.
+     One rule covers every utility and every shadcn popup. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
