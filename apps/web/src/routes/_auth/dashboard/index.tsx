@@ -1,4 +1,3 @@
-import { LayerTitle } from "@/components/layer-title";
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
 import {
   InputGroup,
@@ -8,10 +7,20 @@ import {
 } from "@my-better-t-app/ui/components/input-group";
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, Plus } from "lucide-react";
-import { type CSSProperties, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Lede,
+  Notice,
+  PageHeader,
+  PageShell,
+  RecordIdentity,
+  RowArrow,
+  RowLink,
+  SectionHeading,
+} from "@/components/page";
 import { RunStatus } from "@/components/run-status";
 import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
@@ -33,36 +42,41 @@ function DashboardPage() {
   );
 
   return (
-    <main className="dashboard-shell">
-      <section className="dashboard-heading">
-        <div>
-          <p className="eyebrow">Pricing page monitoring</p>
-          <h1>
-            <LayerTitle>Your pages</LayerTitle>
-          </h1>
-        </div>
-        <p>Add a pricing page to capture its published terms each week.</p>
-      </section>
+    <PageShell>
+      <PageHeader
+        eyebrow="Pricing page monitoring"
+        title="Your pages"
+        aside={<Lede>Add a pricing page to capture its published terms each week.</Lede>}
+      />
       <form
-        className="add-page-form"
+        className="mt-9 mb-16"
         onSubmit={(event) => {
           event.preventDefault();
           if (url.trim()) createPage.mutate({ url: url.trim() });
         }}
       >
         <Field>
-          <FieldLabel htmlFor="pricing-url">PRICING PAGE URL</FieldLabel>
-          <InputGroup>
+          <FieldLabel htmlFor="pricing-url" className="kicker text-muted-foreground">
+            Pricing page URL
+          </FieldLabel>
+          <InputGroup className="h-14 bg-card dark:bg-card">
             <InputGroupInput
               id="pricing-url"
               type="url"
               required
+              className="px-4 text-base md:text-base"
               placeholder="https://example.com/pricing"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
             />
             <InputGroupAddon align="inline-end">
-              <InputGroupButton type="submit" variant="default" disabled={createPage.isPending}>
+              <InputGroupButton
+                type="submit"
+                variant="default"
+                size="sm"
+                className="h-10 px-4"
+                disabled={createPage.isPending}
+              >
                 <Plus data-icon="inline-start" />
                 {createPage.isPending ? "Adding…" : "Add page"}
               </InputGroupButton>
@@ -70,40 +84,35 @@ function DashboardPage() {
           </InputGroup>
         </Field>
       </form>
-      <section className="owner-list">
-        <div className="section-kicker">
-          <span>PRICING PAGES</span>
-          <span>{pages.data?.length ?? 0}</span>
-        </div>
+      <section className="border-t border-gray-7">
+        <SectionHeading title="Pricing pages" meta={pages.data?.length ?? 0} />
         {pages.isLoading ? (
           <OwnerSkeleton />
         ) : pages.data?.length ? (
           pages.data.map((item, index) => (
-            <Link
+            <RowLink
               key={item.id}
-              className="owner-row row-enter"
+              className="grid-cols-[minmax(13.75rem,1fr)_7.25rem_9.5rem_1.25rem] max-md:grid-cols-[minmax(0,1fr)_auto] max-md:py-4"
               to="/dashboard/pages/$pageId"
               params={{ pageId: item.id }}
-              style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
+              style={{ animationDelay: staggerDelay(index) }}
             >
-              <span className="page-identity">
-                <strong>{item.displayName ?? item.normalizedDomain}</strong>
-                <small>{item.canonicalUrl}</small>
-              </span>
+              <RecordIdentity
+                name={item.displayName ?? item.normalizedDomain}
+                address={item.canonicalUrl}
+              />
               <RunStatus status={item.lastRunStatus} />
-              <span className="next-scan">
+              <span className="kicker text-muted-foreground max-md:hidden">
                 {item.nextScanAt ? `Next ${formatDate(item.nextScanAt)}` : "Scheduling"}
               </span>
-              <ArrowRight size={17} className="row-arrow" aria-hidden="true" />
-            </Link>
+              <RowArrow className="max-md:hidden" />
+            </RowLink>
           ))
         ) : (
-          <div className="directory-message">
-            Add your first pricing page to start its initial scan.
-          </div>
+          <Notice>Add your first pricing page to start its initial scan.</Notice>
         )}
       </section>
-    </main>
+    </PageShell>
   );
 }
 
@@ -112,9 +121,9 @@ function OwnerSkeleton() {
   return (
     <div aria-hidden="true">
       {Array.from({ length: 3 }, (_, index) => (
-        <div className="skeleton-row" key={index}>
-          <Skeleton className="skeleton-bar" style={{ width: `${38 + index * 9}%` }} />
-          <Skeleton className="skeleton-bar h-2" style={{ width: "24%" }} />
+        <div className="grid min-h-20 content-center gap-2 border-b border-gray-4" key={index}>
+          <Skeleton className="h-2.5" style={{ width: `${38 + index * 9}%` }} />
+          <Skeleton className="h-2 w-[24%]" />
         </div>
       ))}
     </div>

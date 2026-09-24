@@ -1,113 +1,144 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/* Radix Colors, dark scales. Each step has one job:
+   1–2 app backgrounds · 3–5 component backgrounds (rest, hover, pressed)
+   6–8 borders (subtle, interactive, focus) · 9–10 solid fills (rest, hover)
+   11–12 text (low contrast, high contrast). */
+@import "@radix-ui/colors/sand-dark.css" layer(base);
+@import "@radix-ui/colors/crimson-dark.css" layer(base);
+@import "@radix-ui/colors/lime-dark.css" layer(base);
+@import "@radix-ui/colors/amber-dark.css" layer(base);
+@import "@radix-ui/colors/tomato-dark.css" layer(base);
+
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
+/* shadcn roles, each pointing at a Radix step. The site is dark only. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--sand-1);
+  --foreground: var(--sand-12);
+  --card: var(--sand-2);
+  --card-foreground: var(--sand-12);
+  --popover: var(--sand-2);
+  --popover-foreground: var(--sand-12);
+  --primary: var(--crimson-9);
+  --primary-foreground: var(--sand-1);
+  --secondary: var(--sand-3);
+  --secondary-foreground: var(--sand-12);
+  --muted: var(--sand-3);
+  --muted-foreground: var(--sand-11);
+  --accent: var(--sand-4);
+  --accent-foreground: var(--sand-12);
+  --destructive: var(--tomato-11);
+  --border: var(--sand-6);
+  --input: var(--sand-7);
+  --ring: var(--crimson-8);
+  --radius: 0.125rem;
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+  /* Only the palette below exists, so nobody reaches for a Tailwind
+     default that sits outside the system. */
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+
   --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Semantic scales. Code names the job; the hue lives only here.
+     gray — structure and text · brand — the brand, the action, the finding
+     signal — live or changed · warning — in progress or uncertain
+     danger — failed or destructive */
+  --color-gray-1: var(--sand-1);
+  --color-gray-2: var(--sand-2);
+  --color-gray-3: var(--sand-3);
+  --color-gray-4: var(--sand-4);
+  --color-gray-5: var(--sand-5);
+  --color-gray-6: var(--sand-6);
+  --color-gray-7: var(--sand-7);
+  --color-gray-8: var(--sand-8);
+  --color-gray-9: var(--sand-9);
+  --color-gray-10: var(--sand-10);
+  --color-gray-11: var(--sand-11);
+  --color-gray-12: var(--sand-12);
+
+  --color-brand-1: var(--crimson-1);
+  --color-brand-2: var(--crimson-2);
+  --color-brand-3: var(--crimson-3);
+  --color-brand-4: var(--crimson-4);
+  --color-brand-5: var(--crimson-5);
+  --color-brand-6: var(--crimson-6);
+  --color-brand-7: var(--crimson-7);
+  --color-brand-8: var(--crimson-8);
+  --color-brand-9: var(--crimson-9);
+  --color-brand-10: var(--crimson-10);
+  --color-brand-11: var(--crimson-11);
+  --color-brand-12: var(--crimson-12);
+
+  --color-signal-1: var(--lime-1);
+  --color-signal-2: var(--lime-2);
+  --color-signal-3: var(--lime-3);
+  --color-signal-4: var(--lime-4);
+  --color-signal-5: var(--lime-5);
+  --color-signal-6: var(--lime-6);
+  --color-signal-7: var(--lime-7);
+  --color-signal-8: var(--lime-8);
+  --color-signal-9: var(--lime-9);
+  --color-signal-10: var(--lime-10);
+  --color-signal-11: var(--lime-11);
+  --color-signal-12: var(--lime-12);
+
+  --color-warning-1: var(--amber-1);
+  --color-warning-2: var(--amber-2);
+  --color-warning-3: var(--amber-3);
+  --color-warning-4: var(--amber-4);
+  --color-warning-5: var(--amber-5);
+  --color-warning-6: var(--amber-6);
+  --color-warning-7: var(--amber-7);
+  --color-warning-8: var(--amber-8);
+  --color-warning-9: var(--amber-9);
+  --color-warning-10: var(--amber-10);
+  --color-warning-11: var(--amber-11);
+  --color-warning-12: var(--amber-12);
+
+  --color-danger-1: var(--tomato-1);
+  --color-danger-2: var(--tomato-2);
+  --color-danger-3: var(--tomato-3);
+  --color-danger-4: var(--tomato-4);
+  --color-danger-5: var(--tomato-5);
+  --color-danger-6: var(--tomato-6);
+  --color-danger-7: var(--tomato-7);
+  --color-danger-8: var(--tomato-8);
+  --color-danger-9: var(--tomato-9);
+  --color-danger-10: var(--tomato-10);
+  --color-danger-11: var(--tomato-11);
+  --color-danger-12: var(--tomato-12);
+
+  --font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -117,14 +148,35 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+@theme {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  /* The built-in curves are too weak for UI motion. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply font-sans bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  body {
+    @apply text-sm/relaxed;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-semibold tracking-tight text-balance;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  ::selection {
+    @apply bg-brand-5 text-brand-12;
   }
 }

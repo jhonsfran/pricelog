@@ -14,6 +14,9 @@ import { UserRound } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 
+// 44px targets on touch screens, the standard control height elsewhere.
+const trigger = "max-md:h-11";
+
 export default function UserMenu() {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
@@ -24,7 +27,13 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Button render={<Link to="/login" />} nativeButton={false} variant="outline">
+      <Button
+        render={<Link to="/login" />}
+        nativeButton={false}
+        variant="outline"
+        size="lg"
+        className={trigger}
+      >
         Sign In
       </Button>
     );
@@ -33,12 +42,19 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" aria-label={`Account for ${session.user.name}`} />}
+        render={
+          <Button
+            variant="outline"
+            size="lg"
+            className={trigger}
+            aria-label={`Account for ${session.user.name}`}
+          />
+        }
       >
-        <UserRound className="mobile-account-icon" aria-hidden="true" />
-        <span className="account-name">{session.user.name}</span>
+        <UserRound className="md:hidden" aria-hidden="true" />
+        <span className="max-w-44 truncate max-md:hidden">{session.user.name}</span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent>
         <DropdownMenuGroup>
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />

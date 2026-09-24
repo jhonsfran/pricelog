@@ -58,9 +58,10 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <div className="app-shell">
+        {/* The footer sits at the bottom of the viewport even on a short page. */}
+        <div className="flex min-h-svh flex-col">
           <Header />
-          <div className="app-main">
+          <div className="flex-1">
             <Outlet />
           </div>
           <SiteFooter />

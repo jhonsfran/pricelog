@@ -1,14 +1,14 @@
-import { LayerTitle } from "@/components/layer-title";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { Button } from "@my-better-t-app/ui/components/button";
-import { Spinner } from "@my-better-t-app/ui/components/spinner";
+import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Download, Play } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Download, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { LayerDepth } from "@/components/layer-depth";
 import { NumericPricesPanel } from "@/components/numeric-prices";
+import { BackLink, PageHeader, PageShell, SectionHeading, StatePage } from "@/components/page";
 import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { RunStatus } from "@/components/run-status";
@@ -45,16 +45,9 @@ function OwnerPageDetail() {
       onError: (error) => toast.error(error.message),
     }),
   );
-  if (detail.isLoading) {
-    return (
-      <div className="state-page" role="status">
-        <Spinner />
-        Loading owner record…
-      </div>
-    );
-  }
+  if (detail.isLoading) return <StatePage loading text="Loading owner record…" />;
   const pages = detail.data?.pages;
-  if (!pages?.length) return <div className="state-page">Page not found.</div>;
+  if (!pages?.length) return <StatePage text="Page not found." />;
   const data = pages[0]!;
   const runs = pages.flatMap((result) => result.runs.items);
   const active = runs.find((run) => run.id === data.state?.activeRunId);
@@ -66,30 +59,29 @@ function OwnerPageDetail() {
     layer: run.status === "succeeded" ? ++captured : null,
   }));
   return (
-    <main className="dashboard-shell detail-shell">
-      <Link className="back-link" to="/dashboard">
-        <ArrowLeft size={15} />
-        Your pages
-      </Link>
-      <section className="detail-heading">
-        <div>
-          <p className="eyebrow">Owner record</p>
-          <h1>
-            <LayerTitle>{data.page.displayName ?? data.page.normalizedDomain}</LayerTitle>
-          </h1>
-          <p>{data.page.canonicalUrl}</p>
-        </div>
-        <Button
-          className="scan-button"
-          disabled={trigger.isPending}
-          onClick={() => trigger.mutate({ pageId })}
-        >
-          <Play data-icon="inline-start" />
-          {active ? "View active scan" : trigger.isPending ? "Starting…" : "Scan now"}
-        </Button>
-      </section>
+    <PageShell>
+      <BackLink to="/dashboard">Your pages</BackLink>
+      <PageHeader
+        eyebrow="Owner record"
+        title={data.page.displayName ?? data.page.normalizedDomain}
+        aside={
+          <Button
+            size="lg"
+            className="h-11 w-fit px-5 md:justify-self-end"
+            disabled={trigger.isPending}
+            onClick={() => trigger.mutate({ pageId })}
+          >
+            <Play data-icon="inline-start" />
+            {active ? "View active scan" : trigger.isPending ? "Starting…" : "Scan now"}
+          </Button>
+        }
+      >
+        <p className="mt-4 font-mono text-xs text-muted-foreground wrap-anywhere">
+          {data.page.canonicalUrl}
+        </p>
+      </PageHeader>
       {active ? (
-        <div className="active-run">
+        <div className="kicker mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border border-signal-6 bg-signal-2 px-4.5 py-4 text-signal-11">
           <RunStatus status={active.status} />
           <span>Capturing now · stage {active.stage}</span>
           <span>Run {active.id.slice(0, 8)}</span>
@@ -113,39 +105,60 @@ function OwnerPageDetail() {
           />
         </>
       ) : null}
-      <section className="run-history">
-        <div className="section-kicker">
-          <span>CAPTURE STACK</span>
-          <LayerDepth count={captured} noun={detail.hasNextPage ? "captures loaded" : "captures"} />
-        </div>
-        <div className="capture-stack">
+      <section className="mt-14 border-t border-gray-7">
+        <SectionHeading
+          title="Capture stack"
+          meta={
+            <LayerDepth
+              count={captured}
+              noun={detail.hasNextPage ? "captures loaded" : "captures"}
+            />
+          }
+        />
+        {/* The rail is the stack seen edge-on: the live capture is lit,
+            every older one sits behind it. */}
+        <div className="mt-2 border-t border-gray-7">
           {stack.map(({ run, layer }) => (
-            <article className="capture-row" data-live={layer === 1} key={run.id}>
-              <span className="capture-index">
-                <strong>
+            <article
+              key={run.id}
+              className={cn(
+                "grid min-h-21 grid-cols-[6rem_9.5rem_minmax(0,1fr)_auto] items-center gap-5 border-b border-l-2 pl-4 max-md:grid-cols-[4.5rem_minmax(0,1fr)] max-md:gap-y-3 max-md:py-4.5",
+                layer === 1 ? "border-l-signal-9" : "border-l-gray-7",
+              )}
+            >
+              <span className="kicker flex flex-col gap-1 text-muted-foreground tabular-nums">
+                <strong
+                  className={cn(
+                    "text-xs font-medium",
+                    layer === 1 ? "text-foreground" : "text-gray-11",
+                  )}
+                >
                   {layer ? (layer === 1 ? "LIVE" : String(layer).padStart(2, "0")) : "—"}
                 </strong>
-                <span>{layer ? "LAYER" : "NO LAYER"}</span>
+                <span>{layer ? "Layer" : "No layer"}</span>
               </span>
-              <div>
+              <div className="flex items-center gap-2.5">
                 <RunStatus status={run.status} />
-                <span className="run-trigger">{run.trigger}</span>
+                <span className="kicker text-muted-foreground">{run.trigger}</span>
               </div>
-              <div className="run-time">
-                <strong>
+              <div className="flex flex-col gap-1.5">
+                <strong className="font-display text-base font-medium">
                   <RelativeTime value={run.createdAt} />
                 </strong>
-                <small>{run.errorMessage ?? `Stage: ${run.stage}`}</small>
+                <small className="text-xs text-muted-foreground">
+                  {run.errorMessage ?? `Stage: ${run.stage}`}
+                </small>
               </div>
               {run.status === "succeeded" ? (
-                <div className="artifact-links">
+                <div className="flex flex-wrap gap-2">
                   {(["screenshot", "html", "content"] as const).map((kind) => (
                     <Button
                       key={kind}
                       render={<a href={artifactUrl(pageId, run.id, kind)} />}
                       nativeButton={false}
-                      variant="link"
-                      size="xs"
+                      variant="outline"
+                      size="sm"
+                      className="kicker text-2xs"
                     >
                       <Download data-icon="inline-start" />
                       {kind}
@@ -160,8 +173,9 @@ function OwnerPageDetail() {
         </div>
         {detail.hasNextPage ? (
           <Button
-            className="load-more-button"
+            className="kicker mx-auto mt-6 flex text-2xs"
             variant="outline"
+            size="lg"
             disabled={detail.isFetchingNextPage}
             onClick={() => detail.fetchNextPage()}
           >
@@ -169,7 +183,7 @@ function OwnerPageDetail() {
           </Button>
         ) : null}
       </section>
-    </main>
+    </PageShell>
   );
 }
 

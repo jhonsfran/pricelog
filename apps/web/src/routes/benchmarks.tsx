@@ -1,4 +1,3 @@
-import { LayerTitle } from "@/components/layer-title";
 import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import {
   CHARGING_SIGNAL_KEYS,
@@ -8,13 +7,13 @@ import {
   pricingPolicyCoverage,
   pricingSignalCoverage,
 } from "@my-better-t-app/api/pricing-intelligence";
-import { Spinner } from "@my-better-t-app/ui/components/spinner";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
 import { formatToken } from "@/components/intelligence-profile";
 import { SelectField } from "@/components/select-field";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
+import { Definitions, Lede, Notice, PageHeader, PageShell, StatRow } from "@/components/page";
 import { PracticeChart, type ChartRow } from "@/components/practice-chart";
 import { RelativeTime } from "@/components/relative-time";
 import type { DirectoryFilter } from "@/lib/directory-filter";
@@ -44,20 +43,18 @@ function BenchmarksPage() {
   // A bar links out carrying the cohort it was measured over, so the
   // directory resolves the same population and the two counts agree.
   return (
-    <main className="directory-shell benchmark-shell">
-      <section className="benchmark-hero">
-        <div>
-          <p className="eyebrow">Pricing practices</p>
-          <h1>
-            <LayerTitle>Compare how AI products charge</LayerTitle>
-          </h1>
-        </div>
-        <p className="hero-copy">
-          Choose a category and a pricing question. Inspect the published terms and the pages behind
-          each answer.
-        </p>
-      </section>
-      <div className="comparison-controls">
+    <PageShell>
+      <PageHeader
+        eyebrow="Pricing practices"
+        title="Compare how AI products charge"
+        aside={
+          <Lede>
+            Choose a category and a pricing question. Inspect the published terms and the pages
+            behind each answer.
+          </Lede>
+        }
+      />
+      <div className="grid gap-5 py-6 md:grid-cols-2">
         <CategoryPicker
           value={cohort}
           counts={data?.available}
@@ -79,29 +76,47 @@ function BenchmarksPage() {
         />
       </div>
       {data ? (
-        <p className="chart-footnote">
-          {data.coverage.eligible} of {data.coverage.total} registered pages eligible ·{" "}
-          {data.coverage.stale} outside the capture window · {data.coverage.incompatible} need a new
-          analysis · {data.coverage.pending} pending. Eligible captures are from the past 14 days.
-        </p>
+        <section aria-label="Sample coverage">
+          <StatRow
+            items={[
+              {
+                label: "Eligible pages",
+                value: (
+                  <>
+                    {data.coverage.eligible}
+                    <span className="text-base text-muted-foreground">
+                      {" "}
+                      / {data.coverage.total}
+                    </span>
+                  </>
+                ),
+              },
+              { label: "Outside capture window", value: data.coverage.stale },
+              { label: "Need a new analysis", value: data.coverage.incompatible },
+              { label: "Pending", value: data.coverage.pending },
+            ]}
+          />
+          <p className="mt-2.5 text-xs text-muted-foreground">
+            Eligible captures are from the past 14 days.
+          </p>
+        </section>
       ) : null}
       {benchmarks.isLoading ? (
-        <div className="directory-message" role="status">
-          <Spinner />
-          Reading pricing practices…
-        </div>
+        <Notice loading>Reading pricing practices…</Notice>
       ) : benchmarks.isError ? (
-        <p className="directory-message">Pricing practices are not available.</p>
+        <Notice>Pricing practices are not available.</Notice>
       ) : !selected ? (
-        <p className="directory-message">
+        <Notice>
           No current observations in this category. Add a pricing page to start collecting it.
-        </p>
+        </Notice>
       ) : (
         <>
           {/* One line of provenance. The caveats that used to sit here in
               full are on the methodology page, one click away. */}
-          <p className="cohort-summary">
-            <strong>{selected.pageCount} pages</strong>
+          <p className="mt-6 flex flex-wrap items-baseline gap-x-4.5 gap-y-2 border-t border-gray-4 pt-3.5 font-mono text-xs text-muted-foreground">
+            <strong className="font-medium text-foreground tabular-nums">
+              {selected.pageCount} pages
+            </strong>
             <span>
               {data?.computedAt ? (
                 <>
@@ -111,18 +126,20 @@ function BenchmarksPage() {
                 "from the latest successful captures"
               )}
             </span>
-            <Link to="/methodology" search={{ cohort }}>
-              How this is measured
-            </Link>
+            <span className="md:ml-auto">
+              <Link to="/methodology" search={{ cohort }}>
+                How this is measured
+              </Link>
+            </span>
           </p>
           {selected.pageCount < minimum && topic !== "prices" ? (
-            <p className="chart-footnote">
+            <p className="mt-3 text-xs text-warning-11">
               Fewer than {minimum} pages in this category, so counts are shown in place of
               percentages.
             </p>
           ) : null}
           {topic === "charging_structure" ? (
-            <section className="benchmark-section">
+            <section className="pt-6">
               <PracticeChart
                 title="How these products charge"
                 question="Share of all eligible pages in this category that state each charge. A page can state several."
@@ -148,16 +165,16 @@ function BenchmarksPage() {
                 {CHARGING_SIGNAL_KEYS.map((key) => {
                   const metadata = getPricingSignalMetadata(key)!;
                   return (
-                    <div className="definition" key={key}>
-                      <h4>{metadata.label}</h4>
-                      <p className="definition-counts">
+                    <div className="grid gap-1.5" key={key}>
+                      <h4 className="text-sm">{metadata.label}</h4>
+                      <p className="font-mono text-2xs text-muted-foreground tabular-nums">
                         {selected.signalShares[key]?.stated ?? 0} stated ·{" "}
                         {selected.signalShares[key]?.notEstablished ?? 0} not established ·{" "}
                         {selected.signalShares[key]?.uncertain ?? selected.pageCount} uncertain
                       </p>
-                      <p className="chart-question">{metadata.question}</p>
-                      <p>Stated: {metadata.whenTrue}</p>
-                      <p>Not established: {metadata.whenFalse}</p>
+                      <p>{metadata.question}</p>
+                      <p className="text-muted-foreground">Stated: {metadata.whenTrue}</p>
+                      <p className="text-muted-foreground">Not established: {metadata.whenFalse}</p>
                     </div>
                   );
                 })}
@@ -165,8 +182,8 @@ function BenchmarksPage() {
             </section>
           ) : null}
           {PRACTICE_CHOICE_KEYS.some((key) => key === topic) ? (
-            <section className="benchmark-section">
-              <div className="chart-column">
+            <section className="pt-6">
+              <div className="grid gap-1">
                 {PRACTICE_CHOICE_KEYS.filter((key) => key === topic).map((key) => {
                   const metadata = getPricingChoiceMetadata(key)!;
                   const share = selected.choiceShares[key];
@@ -195,14 +212,13 @@ function BenchmarksPage() {
                       rows={rows}
                       footnote={`Denominator: all ${selected.pageCount} eligible pages. ${coverage.disclosed} disclose a policy · ${coverage.notDisclosed} do not disclose it · ${coverage.notApplicable} explicitly not applicable · ${coverage.uncertain} uncertain. Nondisclosure does not establish applicability.`}
                     >
-                      <dl className="definition-list">
-                        {Object.entries(metadata.options).map(([option, description]) => (
-                          <div key={option}>
-                            <dt>{formatToken(option)}</dt>
-                            <dd>{description}</dd>
-                          </div>
-                        ))}
-                      </dl>
+                      <Definitions
+                        items={Object.entries(metadata.options).map(([option, description]) => ({
+                          key: option,
+                          term: formatToken(option),
+                          detail: description,
+                        }))}
+                      />
                     </PracticeChart>
                   );
                 })}
@@ -220,6 +236,6 @@ function BenchmarksPage() {
           ) : null}
         </>
       )}
-    </main>
+    </PageShell>
   );
 }

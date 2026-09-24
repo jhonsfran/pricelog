@@ -1,12 +1,19 @@
-import { LayerTitle } from "@/components/layer-title";
 import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@my-better-t-app/api/pricing-facts";
 import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/api/pricing-intelligence";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { ENV } from "@/env.public";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { NumericPricesPanel } from "@/components/numeric-prices";
+import {
+  BackLink,
+  Definitions,
+  LiveDot,
+  PageHeader,
+  PageShell,
+  StatePage,
+} from "@/components/page";
 import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { formatStamp, isFresh, toDate } from "@/lib/time";
@@ -22,7 +29,7 @@ function PublicPageProfile() {
   const { slug } = Route.useParams();
   const filter = Route.useSearch();
   const page = useQuery(orpc.directory.getBySlug.queryOptions({ input: { slug } }));
-  if (page.isLoading) return <StatePage text="Loading page record…" />;
+  if (page.isLoading) return <StatePage loading text="Loading page record…" />;
   if (!page.data) return <StatePage text="This pricing page is not in the public index." />;
   const item = page.data;
   const category = item.choices.find((choice) => choice.key === "product_category")?.choice;
@@ -35,34 +42,37 @@ function PublicPageProfile() {
     age < 0 ||
     age > MAX_CAPTURE_AGE_MS;
   return (
-    <main className="profile-shell">
-      <Link className="back-link" to="/" search={filter}>
-        <ArrowLeft size={15} />
+    <PageShell>
+      <BackLink to="/" search={filter}>
         Directory
-      </Link>
-      <section className="profile-heading">
-        <div>
-          <p className="eyebrow">Pricing page record</p>
-          <h1>
-            <LayerTitle>{item.displayName ?? item.normalizedDomain}</LayerTitle>
-          </h1>
-          <a href={item.canonicalUrl} target="_blank" rel="noreferrer">
-            {item.normalizedDomain}
-            <ExternalLink size={14} />
-          </a>
-        </div>
-        <p className="capture-stamp">
-          <span className="live-dot" data-live={isFresh(item.scannedAt)} aria-hidden="true" />
-          <span>Latest capture</span>
-          <RelativeTime value={item.scannedAt} />
-        </p>
-      </section>
-      <div className="profile-summary">
-        <p>
+      </BackLink>
+      <PageHeader
+        eyebrow="Pricing page record"
+        title={item.displayName ?? item.normalizedDomain}
+        aside={
+          <p className="kicker flex w-fit items-center gap-2.5 border bg-card px-3 py-2 text-muted-foreground md:justify-self-end">
+            <LiveDot live={isFresh(item.scannedAt)} />
+            Latest capture
+            <RelativeTime className="text-foreground" value={item.scannedAt} />
+          </p>
+        }
+      >
+        <a
+          className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+          href={item.canonicalUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {item.normalizedDomain}
+          <ExternalLink className="size-3.5" aria-hidden="true" />
+        </a>
+      </PageHeader>
+      <div className="grid gap-3 pt-5">
+        <p className="max-w-[75ch] text-muted-foreground">
           This record describes terms found on the captured pricing page. Missing disclosure does
           not establish that a product lacks a feature.
         </p>
-        <div className="profile-source-links">
+        <div className="flex flex-wrap gap-x-6 gap-y-3">
           <Link to="/benchmarks" search={{ cohort }}>
             Compare category practices
           </Link>
@@ -79,7 +89,7 @@ function PublicPageProfile() {
         </div>
       </div>
       {excluded ? (
-        <p className="methodology-note">
+        <p className="mt-6 border border-warning-6 bg-warning-2 px-4 py-3 text-warning-11">
           Historical record. This capture is excluded from current comparisons. Current comparisons
           require the current rubric, {EXPECTED_JEV_MODEL}, and a capture from the last 14 days.
         </p>
@@ -92,34 +102,15 @@ function PublicPageProfile() {
         signals={item.signals}
         tags={item.tags}
       >
-        <dl className="definition-list">
-          <div>
-            <dt>Captured</dt>
-            <dd>{formatStamp(item.scannedAt)}</dd>
-          </div>
-          <div>
-            <dt>Rubric</dt>
-            <dd>{item.rubricId}</dd>
-          </div>
-          <div>
-            <dt>Model</dt>
-            <dd>{item.model}</dd>
-          </div>
-          <div>
-            <dt>Browser</dt>
-            <dd>{item.browserEngine}</dd>
-          </div>
-        </dl>
+        <Definitions
+          items={[
+            { term: "Captured", detail: formatStamp(item.scannedAt) },
+            { term: "Rubric", detail: item.rubricId },
+            { term: "Model", detail: item.model },
+            { term: "Browser", detail: item.browserEngine },
+          ]}
+        />
       </IntelligenceProfile>
-    </main>
-  );
-}
-
-function StatePage({ text }: { text: string }) {
-  return (
-    <main className="state-page">
-      <p>{text}</p>
-      <Link to="/">Return to directory</Link>
-    </main>
+    </PageShell>
   );
 }

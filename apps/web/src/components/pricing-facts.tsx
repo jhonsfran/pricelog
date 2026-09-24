@@ -1,7 +1,10 @@
 import type { FactUnit, NumericFact, PricingFacts } from "@my-better-t-app/api/pricing-facts";
 import { getPricingChoiceLabel } from "@my-better-t-app/api/pricing-intelligence";
-import { formatToken } from "@/components/intelligence-profile";
 import { ENV } from "@/env.public";
+import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
+import { answerTone, formatToken } from "./intelligence-profile";
+import { Disclosure, Evidence, StatRow } from "./page";
+import { Panel } from "./panel";
 
 function units(amount: string, unit: FactUnit) {
   if (unit === "flat") return amount;
@@ -49,134 +52,114 @@ export function PricingFactsPanel({
   ];
 
   return (
-    <section className="numeric-prices" aria-label="Pricing facts by offer">
-      <h2>Pricing facts by offer</h2>
-      {!facts ? (
-        <p>Offer facts have not been collected for this capture. A new scan will collect them.</p>
-      ) : facts.status === "unavailable" ? (
-        <p>
-          Offer fact collection is unavailable for this capture. This does not establish that prices
-          or policies are absent.
-        </p>
-      ) : (
+    <Panel
+      role="region"
+      aria-label="Pricing facts by offer"
+      title="Pricing facts by offer"
+      description={
+        !facts
+          ? "Offer facts have not been collected for this capture. A new scan will collect them."
+          : facts.status === "unavailable"
+            ? "Offer fact collection is unavailable for this capture. This does not establish that prices or policies are absent."
+            : undefined
+      }
+    >
+      {facts && facts.status !== "unavailable" ? (
         <>
-          <p className="benchmark-meta">
-            {facts.coverage.accepted} accepted numeric facts from {facts.coverage.candidates}{" "}
-            candidates. {facts.coverage.uncertain} numeric candidates and{" "}
-            {facts.coverage.policyUncertain} policy answers remain unresolved.{" "}
-            {facts.coverage.ignored} candidates were excluded.
-          </p>
+          <StatRow
+            items={[
+              { label: "Accepted facts", value: facts.coverage.accepted },
+              { label: "Candidates", value: facts.coverage.candidates },
+              { label: "Unresolved numbers", value: facts.coverage.uncertain },
+              { label: "Unresolved policies", value: facts.coverage.policyUncertain },
+              { label: "Excluded", value: facts.coverage.ignored },
+            ]}
+          />
           {!offers.length ? (
-            <p>No offer facts were accepted. This does not mean the product is free.</p>
+            <p className="text-muted-foreground">
+              No verified offer facts were found in this capture. Check the archived source for
+              prices that the collection missed.
+            </p>
           ) : null}
           {offers.map((offer) => {
             const numeric = facts.facts.filter((fact) => fact.offer === offer);
             const policies = facts.policies.filter((policy) => policy.offer === offer);
             return (
-              <div key={offer === null ? "unattributed" : `offer:${offer}`}>
-                <h3>{offer ?? "Offer not established"}</h3>
+              <div
+                className="grid grid-cols-[minmax(0,1fr)] gap-3"
+                key={offer === null ? "unattributed" : `offer:${offer}`}
+              >
+                <h3 className="text-base">{offer ?? "Offer not established"}</h3>
                 {offer === null ? (
-                  <p className="benchmark-meta">
+                  <p className="text-muted-foreground">
                     These facts cannot be matched to an offer across captures.
                   </p>
                 ) : null}
                 {numeric.length ? (
-                  <div className="price-table-scroll">
-                    <table className="price-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Fact</th>
-                          <th scope="col">Published value</th>
-                          <th scope="col">Terms</th>
-                          <th scope="col">Source evidence</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {numeric.map((fact, index) => (
-                          <tr key={`${fact.key}:${fact.evidence.start}:${index}`}>
-                            <th scope="row">{formatToken(fact.key)}</th>
-                            <td>
-                              <strong>{factValue(fact)}</strong>
-                              {fact.currency === "DOLLAR_UNSPECIFIED" ? (
-                                <small>Dollar currency not established</small>
-                              ) : null}
-                              {(fact.key.endsWith("_rate") || fact.key === "credit_conversion") &&
-                              (fact.quantity === null || fact.quantityUnit === null) ? (
-                                <small>Rate quantity not established</small>
-                              ) : null}
-                            </td>
-                            <td>
-                              {billingLabels[fact.billing]}
-                              <small>{periodLabels[fact.period]}</small>
-                            </td>
-                            <td>
-                              <details>
-                                <summary>Read evidence</summary>
-                                <blockquote className="price-evidence">
-                                  {fact.evidence.text}
-                                </blockquote>
-                              </details>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable columns={["Fact", "Published value", "Terms", "Source evidence"]}>
+                    {numeric.map((fact, index) => (
+                      <DataRow key={`${fact.key}:${fact.evidence.start}:${index}`}>
+                        <RowHeader>{formatToken(fact.key)}</RowHeader>
+                        <DataCell>
+                          <strong>{factValue(fact)}</strong>
+                          {fact.currency === "DOLLAR_UNSPECIFIED" ? (
+                            <CellNote>Dollar currency not established</CellNote>
+                          ) : null}
+                          {(fact.key.endsWith("_rate") || fact.key === "credit_conversion") &&
+                          (fact.quantity === null || fact.quantityUnit === null) ? (
+                            <CellNote>Rate quantity not established</CellNote>
+                          ) : null}
+                        </DataCell>
+                        <DataCell>
+                          {billingLabels[fact.billing]}
+                          <CellNote>{periodLabels[fact.period]}</CellNote>
+                        </DataCell>
+                        <DataCell>
+                          <EvidenceToggle text={fact.evidence.text} />
+                        </DataCell>
+                      </DataRow>
+                    ))}
+                  </DataTable>
                 ) : null}
                 {policies.length ? (
-                  <div className="price-table-scroll">
-                    <table className="price-table">
-                      <thead>
-                        <tr>
-                          <th scope="col">Policy</th>
-                          <th scope="col">Answer</th>
-                          <th scope="col">Source evidence</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {policies.map((policy) => (
-                          <tr key={policy.key}>
-                            <th scope="row">{getPricingChoiceLabel(policy.key)}</th>
-                            <td>{formatToken(policy.choice)}</td>
-                            <td>
-                              {policy.evidence ? (
-                                <details>
-                                  <summary>Read evidence</summary>
-                                  <blockquote className="price-evidence">
-                                    {policy.evidence.text}
-                                  </blockquote>
-                                </details>
-                              ) : policy.choice === "not_disclosed" ? (
-                                "No disclosure found in this capture"
-                              ) : (
-                                "No accepted evidence"
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <DataTable columns={["Policy", "Answer", "Source evidence"]}>
+                    {policies.map((policy) => (
+                      <DataRow key={policy.key}>
+                        <RowHeader>{getPricingChoiceLabel(policy.key)}</RowHeader>
+                        <DataCell className={answerTone(policy.choice)}>
+                          {formatToken(policy.choice)}
+                        </DataCell>
+                        <DataCell>
+                          {policy.evidence ? (
+                            <EvidenceToggle text={policy.evidence.text} />
+                          ) : policy.choice === "not_disclosed" ? (
+                            "No disclosure found in this capture"
+                          ) : (
+                            "No accepted evidence"
+                          )}
+                        </DataCell>
+                      </DataRow>
+                    ))}
+                  </DataTable>
                 ) : null}
               </div>
             );
           })}
-          <p className="benchmark-meta">
+          <p className="text-xs text-muted-foreground">
             Missing disclosure does not establish product absence. Unknown amounts are not zero.
             These facts do not estimate a total bill.
           </p>
-          <details className="metric-definitions">
-            <summary>Collection details</summary>
-            <p>
+          <Disclosure summary="Collection details" className="mt-0">
+            <p className="font-mono text-2xs text-muted-foreground">
               {facts.version} · {facts.model ?? "Model not recorded"}
             </p>
-            <p>
+            <p className="text-muted-foreground">
               Code copies numeric values from the archived source. Jev classifies each fact and
               checks its evidence. Acceptance thresholds are not measured accuracy.
             </p>
-          </details>
+          </Disclosure>
         </>
-      )}
+      ) : null}
       {sourceUrl ? (
         <p>
           <a
@@ -188,6 +171,17 @@ export function PricingFactsPanel({
           </a>
         </p>
       ) : null}
-    </section>
+    </Panel>
+  );
+}
+
+function EvidenceToggle({ text }: { text: string }) {
+  return (
+    <details>
+      <summary className="w-fit cursor-pointer text-muted-foreground transition-colors hover:text-foreground">
+        Read evidence
+      </summary>
+      <Evidence className="mt-2">{text}</Evidence>
+    </details>
   );
 }

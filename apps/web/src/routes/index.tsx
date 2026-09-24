@@ -1,6 +1,17 @@
 import { CategoryPicker } from "@/components/category-picker";
 import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
-import { LayerTitle } from "@/components/layer-title";
+import {
+  BackLink,
+  Lede,
+  Notice,
+  PageHeader,
+  PageShell,
+  RecordIdentity,
+  RowArrow,
+  RowLink,
+  SectionHeading,
+  Tag,
+} from "@/components/page";
 import { RelativeTime } from "@/components/relative-time";
 import { staggerDelay } from "@/lib/animation";
 import { parseComparisonSearch } from "@/lib/comparison-search";
@@ -10,6 +21,7 @@ import {
   parseDirectoryFilter,
 } from "@/lib/directory-filter";
 import { orpc } from "@/utils/orpc";
+import { AI_APPLICATIONS_COHORT } from "@my-better-t-app/api/benchmark";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { Button } from "@my-better-t-app/ui/components/button";
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
@@ -18,11 +30,12 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@my-better-t-app/ui/components/input-group";
+import { Kbd } from "@my-better-t-app/ui/components/kbd";
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Search, X } from "lucide-react";
-import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   component: DirectoryPage,
@@ -78,160 +91,176 @@ function DirectoryPage() {
   // The server counts the whole filter; items is only what has been paged in.
   const total = directory.data?.pages[0]?.total ?? 0;
   return (
-    <main className="directory-shell">
+    <PageShell>
       {showingExamples ? (
-        <section className="directory-results-heading">
-          <Link
-            className="back-link"
+        <>
+          <BackLink
             to="/benchmarks"
             search={parseComparisonSearch({ cohort: filter.cohort, topic: filter.choiceKey })}
           >
             Compare pricing
-          </Link>
-          <h1>
-            <LayerTitle>Pricing page examples</LayerTitle>
-          </h1>
-        </section>
+          </BackLink>
+          <PageHeader eyebrow="Pages behind an answer" title="Pricing page examples" />
+        </>
       ) : (
-        <section className="directory-hero">
-          <div>
-            <p className="eyebrow">Pricing research for AI product teams</p>
-            <h1>
-              <LayerTitle depth={3}>See how AI pricing changes.</LayerTitle>
-            </h1>
-            <p className="hero-copy">
-              Compare how AI products charge. Dated versions of their pricing pages show what
-              changed over time.
-            </p>
-          </div>
-          <form
-            className="comparison-start"
-            onSubmit={(event) => {
-              event.preventDefault();
-              navigate({ to: "/benchmarks", search: { cohort: comparisonCategory } });
-            }}
-          >
-            <CategoryPicker
-              value={comparisonCategory}
-              onChange={(cohort) => navigate({ search: { ...filter, cohort }, resetScroll: false })}
-            />
-            <Button type="submit">
-              Compare pricing practices <ArrowRight data-icon="inline-end" />
-            </Button>
-            <Link to="/changes" search={{ cohort: comparisonCategory }}>
-              See weekly changes
-            </Link>
-          </form>
-        </section>
+        <PageHeader
+          eyebrow="Pricing research for AI product teams"
+          title="See how AI pricing changes."
+          depth={3}
+          className="md:items-center"
+          aside={
+            <form
+              className="grid gap-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                navigate({ to: "/benchmarks", search: { cohort: comparisonCategory } });
+              }}
+            >
+              <CategoryPicker
+                value={comparisonCategory}
+                onChange={(cohort) =>
+                  navigate({ search: { ...filter, cohort }, resetScroll: false })
+                }
+              />
+              <Button type="submit" size="lg" className="h-11 text-sm">
+                Compare pricing practices <ArrowRight data-icon="inline-end" />
+              </Button>
+              <p>
+                <Link to="/changes" search={{ cohort: comparisonCategory }}>
+                  See weekly changes
+                </Link>
+              </p>
+            </form>
+          }
+        >
+          <Lede className="mt-5">
+            Compare how AI products charge. Dated versions of their pricing pages show what changed
+            over time.
+          </Lede>
+        </PageHeader>
       )}
-      <section className="directory-section" aria-labelledby="directory-title">
-        <div className="section-kicker">
-          <span id="directory-title">
-            {filtered ? "MATCHING PRICING PAGES" : "BROWSE PRICING PAGES"}
-          </span>
-          <span>{directory.isLoading ? "—" : `${total} PAGES`}</span>
-        </div>
+      <section className="pt-8" aria-labelledby="directory-title">
+        <SectionHeading
+          id="directory-title"
+          title={filtered ? "Matching pricing pages" : "Browse pricing pages"}
+          meta={directory.isLoading ? "—" : `${total} pages`}
+        />
         {filtered ? (
-          <div className="filter-bar">
+          <div className="flex flex-wrap items-center gap-2 pt-1 pb-3.5">
             {describeDirectoryFilter(filter).map((chip) => (
-              <Link
-                className="filter-chip"
+              <Button
                 key={chip.id}
-                to="/"
-                search={chip.without}
-                aria-label={`Remove filter ${chip.kind}: ${chip.label}`}
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                className="h-8 gap-2 text-sm dark:border-brand-7 dark:bg-transparent dark:hover:bg-brand-3"
+                render={
+                  <Link
+                    to="/"
+                    search={chip.without}
+                    aria-label={`Remove filter ${chip.kind}: ${chip.label}`}
+                  />
+                }
               >
-                <small>{chip.kind}</small>
+                <small className="kicker text-brand-11">{chip.kind}</small>
                 {chip.label}
-                <X size={13} aria-hidden="true" />
-              </Link>
+                <X aria-hidden="true" data-icon="inline-end" className="text-muted-foreground" />
+              </Button>
             ))}
-            <Link className="filter-clear" to="/" search={{}}>
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              className="kicker h-8 text-2xs text-muted-foreground"
+              render={<Link to="/" search={{}} />}
+            >
               Clear all
-            </Link>
+            </Button>
           </div>
         ) : null}
-        <Field className="search-field">
+        <Field>
           <FieldLabel className="sr-only" htmlFor="directory-search">
             Search pricing pages
           </FieldLabel>
-          <InputGroup className="search-box">
-            <InputGroupAddon>
+          <InputGroup className="h-14 border-0 border-b border-input bg-transparent shadow-none transition-colors dark:bg-transparent has-[[data-slot=input-group-control]:focus-visible]:border-foreground has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+            <InputGroupAddon className="pl-0">
               <Search aria-hidden="true" />
             </InputGroupAddon>
             <InputGroupInput
               id="directory-search"
               ref={searchInput}
               type="search"
+              className="text-base md:text-base"
               placeholder="Search companies or domains"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             <InputGroupAddon align="inline-end">
-              <kbd aria-hidden="true">/</kbd>
+              <Kbd className="transition-opacity group-focus-within/input-group:opacity-0">/</Kbd>
             </InputGroupAddon>
           </InputGroup>
         </Field>
-        <div className="directory-table" aria-live="polite">
-          <div className="directory-head">
-            <span>PAGE</span>
-            <span>CATEGORY</span>
-            <span>LATEST CAPTURE</span>
+        <div className="mt-4" aria-live="polite">
+          <div className={`kicker h-11 border-b text-muted-foreground max-md:hidden ${row}`}>
+            <span>Page</span>
+            <span>Category</span>
+            <span>Latest capture</span>
             <span aria-hidden="true" />
           </div>
           {directory.isLoading ? (
             <DirectorySkeleton />
           ) : directory.isError ? (
-            <DirectoryMessage text="The directory is not available." />
+            <Notice>The directory is not available.</Notice>
           ) : items.length === 0 ? (
-            <DirectoryMessage
-              text={
-                search || filtered
-                  ? "No pages match these filters."
-                  : "No pricing pages have been indexed yet."
-              }
-            />
+            <Notice>
+              {search || filtered
+                ? "No pages match these filters."
+                : "No pricing pages have been indexed yet."}
+            </Notice>
           ) : (
             items.map((item, index) => (
-              <Link
-                className="directory-row row-enter"
+              <RowLink
+                className={row}
                 key={item.id}
                 to="/pages/$slug"
                 params={{ slug: item.slug }}
                 search={filter}
-                style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
+                style={{ animationDelay: staggerDelay(index) }}
               >
-                <span className="page-identity">
-                  <strong>{item.displayName ?? item.normalizedDomain}</strong>
-                  <small>{item.normalizedDomain}</small>
-                  {item.tags.length > 0 && (
-                    <span className="directory-tags">
+                <RecordIdentity
+                  name={item.displayName ?? item.normalizedDomain}
+                  address={item.normalizedDomain}
+                >
+                  {item.tags.length > 0 ? (
+                    <span className="flex flex-wrap gap-1.5">
                       {prioritizeTags(item.tags)
                         .slice(0, 3)
                         .map((tag) => (
-                          <span key={tag}>{formatToken(tag)}</span>
+                          <Tag key={tag}>{formatToken(tag)}</Tag>
                         ))}
                     </span>
-                  )}
-                </span>
-                <span className="practice-cell">
+                  ) : null}
+                </RecordIdentity>
+                <span className="font-mono text-xs text-gray-11 max-md:hidden">
                   {formatToken(
                     item.choices.find((choice) => choice.key === "product_category")?.choice ??
                       "unclassified",
                   )}
                 </span>
-                <RelativeTime className="scan-date" value={item.scannedAt} />
-                <span className="row-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </Link>
+                <RelativeTime
+                  className="font-mono text-2xs text-muted-foreground max-md:hidden"
+                  value={item.scannedAt}
+                />
+                <RowArrow />
+              </RowLink>
             ))
           )}
         </div>
         {directory.hasNextPage ? (
           <Button
-            className="load-more-button"
+            className="kicker mx-auto mt-6 flex text-2xs"
             variant="outline"
+            size="lg"
             disabled={directory.isFetchingNextPage}
             onClick={() => directory.fetchNextPage()}
           >
@@ -239,25 +268,23 @@ function DirectoryPage() {
           </Button>
         ) : null}
       </section>
-    </main>
+    </PageShell>
   );
 }
+
+const row =
+  "grid grid-cols-[minmax(0,1fr)_8.25rem_9.5rem_1.75rem] items-center gap-6 max-md:grid-cols-[minmax(0,1fr)_auto]";
 
 /** Holds the row rhythm while the index loads so results never shift the page. */
 function DirectorySkeleton() {
   return (
     <div aria-hidden="true">
       {Array.from({ length: 8 }, (_, index) => (
-        <div className="skeleton-row" key={index}>
-          <Skeleton className="skeleton-bar" style={{ width: `${34 + ((index * 13) % 26)}%` }} />
-          <Skeleton className="skeleton-bar h-2" style={{ width: "18%" }} />
+        <div className="grid min-h-20 content-center gap-2 border-b border-gray-4" key={index}>
+          <Skeleton className="h-2.5" style={{ width: `${34 + ((index * 13) % 26)}%` }} />
+          <Skeleton className="h-2 w-[18%]" />
         </div>
       ))}
     </div>
   );
 }
-
-function DirectoryMessage({ text }: { text: string }) {
-  return <div className="directory-message">{text}</div>;
-}
-import { AI_APPLICATIONS_COHORT } from "@my-better-t-app/api/benchmark";

@@ -1,7 +1,7 @@
-import { LayerTitle } from "@/components/layer-title";
 import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
+import { Lede, PageHeader, PageShell } from "@/components/page";
 import { parseCategorySearch } from "@/lib/comparison-search";
 import { WeeklyChangesReport } from "@/components/weekly-changes-report";
 
@@ -20,32 +20,32 @@ function ChangesPage() {
   const navigate = Route.useNavigate();
 
   return (
-    <main className="directory-shell benchmark-shell">
-      <section className="benchmark-hero">
-        <div>
-          <p className="eyebrow">Published pricing terms</p>
-          <h1>
-            <LayerTitle>Weekly changes</LayerTitle>
-          </h1>
-        </div>
-        <p className="hero-copy">
-          See which pricing terms changed between the last two complete weeks. Each change includes
-          dated sources and before-and-after text.
-        </p>
-      </section>
-      <div className="comparison-controls">
+    <PageShell>
+      <PageHeader
+        eyebrow="Published pricing terms"
+        title="Weekly changes"
+        aside={
+          <Lede>
+            See which pricing terms changed between the last two complete weeks. Each change
+            includes dated sources and before-and-after text.
+          </Lede>
+        }
+      />
+      <div className="grid gap-5 py-6 md:grid-cols-2">
         <CategoryPicker
           value={cohort}
           onChange={(value) => navigate({ search: { cohort: value }, resetScroll: false })}
         />
       </div>
-      <p className="cohort-summary">
+      <p className="flex flex-wrap items-baseline gap-x-4.5 gap-y-2 border-t border-gray-4 pt-3.5 font-mono text-xs text-muted-foreground">
         <span>Verified against archived pricing pages</span>
-        <Link to="/methodology" search={{ cohort }}>
-          How comparisons are verified
-        </Link>
+        <span className="md:ml-auto">
+          <Link to="/methodology" search={{ cohort }}>
+            How comparisons are verified
+          </Link>
+        </span>
       </p>
       <WeeklyChangesReport cohort={cohort} minimum={COHORT_MINIMUM} />
-    </main>
+    </PageShell>
   );
 }

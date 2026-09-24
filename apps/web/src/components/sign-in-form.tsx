@@ -7,7 +7,7 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
-import { AuthField } from "./auth-field";
+import { AuthField, AuthShell } from "./auth-field";
 import Loader from "./loader";
 
 export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
@@ -53,15 +53,20 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   }
 
   return (
-    <main className="auth-shell">
-      <p className="eyebrow">OWNER CONSOLE</p>
-      <h1>Sign in</h1>
-      <p className="auth-intro">
-        Monitor the pricing pages you own and read every scan against the same question set.
-      </p>
-
+    <AuthShell
+      title="Sign in"
+      intro="Monitor the pricing pages you own and read every scan against the same question set."
+      footer={
+        <>
+          Need an account?{" "}
+          <Button type="button" variant="link" size="xs" onClick={onSwitchToSignUp}>
+            Create one
+          </Button>
+        </>
+      }
+    >
       <form
-        className="auth-form"
+        className="grid gap-5"
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -98,7 +103,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         >
           {({ canSubmit, isSubmitting }) => (
             <Button
-              className="mt-1.5 w-full"
+              className="mt-1.5 h-11 w-full text-sm"
               size="lg"
               type="submit"
               disabled={!canSubmit || isSubmitting}
@@ -108,13 +113,6 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           )}
         </form.Subscribe>
       </form>
-
-      <p className="auth-switch">
-        Need an account?{" "}
-        <Button type="button" variant="link" size="xs" onClick={onSwitchToSignUp}>
-          Create one
-        </Button>
-      </p>
-    </main>
+    </AuthShell>
   );
 }

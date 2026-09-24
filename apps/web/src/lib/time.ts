@@ -12,19 +12,6 @@ const dayFormat = new Intl.DateTimeFormat("en", {
   year: "numeric",
   timeZone: "UTC",
 });
-const datelineFormat = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const clockFormat = new Intl.DateTimeFormat("en", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: "UTC",
-});
 const stampFormat = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -34,23 +21,6 @@ const stampFormat = new Intl.DateTimeFormat("en", {
 /** 22 SEP 2026 — every published date on this site is UTC. */
 export function formatDay(value: Date | string | number) {
   return dayFormat.format(toDate(value)).toUpperCase();
-}
-
-/**
- * MON 22 SEP 2026. en-GB puts the day first, which is how a dateline is
- * set, but it abbreviates September to "Sept" — and a masthead that
- * changes width for one month of the year is a bug, not a detail.
- */
-export function formatDateline(value: Date | string | number) {
-  return datelineFormat
-    .format(toDate(value))
-    .replace(/,/g, "")
-    .replace("Sept", "Sep")
-    .toUpperCase();
-}
-
-export function formatClock(value: Date | string | number) {
-  return `${clockFormat.format(toDate(value))} UTC`;
 }
 
 /** The full stamp, kept for title attributes so the exact time is never lost. */

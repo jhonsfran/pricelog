@@ -1,35 +1,44 @@
+import { Badge } from "@my-better-t-app/ui/components/badge";
+import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ENV } from "@/env.public";
 import { formatDay } from "@/lib/time";
 import { orpc } from "@/utils/orpc";
+import { Disclosure, Evidence, Notice, StatRow } from "./page";
+import { Panel } from "./panel";
 
 export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minimum: number }) {
   const weekly = useQuery(orpc.directory.weeklyChanges.queryOptions({ input: { cohort } }));
   if (weekly.isLoading) {
-    return (
-      <p className="directory-message" role="status">
-        Reading comparison history…
-      </p>
-    );
+    return <Notice loading>Reading comparison history…</Notice>;
   }
   if (weekly.isError || !weekly.data) {
-    return <p className="directory-message">Weekly history is not available.</p>;
+    return <Notice>Weekly history is not available.</Notice>;
   }
   const report = weekly.data;
   const comparable = report.pairedPages >= minimum && report.uncertainPages === 0;
+  const found = report.verifiedPages > 0;
   return (
     <>
       {/* The headline is the count, not the caveats. A cohort with nothing
           paired yet has no count to headline, and a giant zero there would
           read as a finding rather than as missing history. */}
       {report.pairedPages > 0 ? (
-        <section className="change-summary" data-found={report.verifiedPages > 0}>
-          <strong>{report.verifiedPages}</strong>
-          <span>
+        <section className="grid gap-1.5 pt-9 pb-6">
+          {/* A zero is a result; a number above zero is the news. */}
+          <strong
+            className={cn(
+              "font-display text-7xl leading-[0.85] font-bold font-stretch-[84%] tabular-nums sm:text-8xl",
+              found ? "text-primary" : "text-foreground",
+            )}
+          >
+            {report.verifiedPages}
+          </strong>
+          <span className="font-display text-lg font-medium">
             {report.verifiedPages === 1 ? "page has" : "pages have"} a verified commercial change
           </span>
-          <small>
+          <small className="kicker text-muted-foreground">
             {comparable
               ? `${Math.round((report.verifiedPages / report.pairedPages) * 100)}% of ${report.pairedPages} paired pages`
               : report.uncertainPages > 0
@@ -38,60 +47,104 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
           </small>
         </section>
       ) : null}
-      <p className="chart-footnote">
+      <p className="mt-4 font-mono text-xs text-muted-foreground">
         {formatDay(report.previousPeriodStart)} – {formatDay(report.periodStart)} compared with{" "}
         {formatDay(report.periodStart)} – {formatDay(report.periodEnd)}, end dates excluded.
       </p>
-      <details className="chart-detail">
-        <summary>Comparison coverage</summary>
-        <div>
-          {report.pairedPages} paired · {report.reviewedPages} reviewed · {report.uncertainPages}{" "}
-          uncertain · {report.newPages} new · {report.missingPages} missing ·{" "}
-          {report.incompatiblePages} incompatible
-        </div>
-      </details>
+      <Disclosure summary="Comparison coverage">
+        <StatRow
+          items={[
+            { label: "Paired", value: report.pairedPages },
+            { label: "Reviewed", value: report.reviewedPages },
+            { label: "Uncertain", value: report.uncertainPages },
+            { label: "New", value: report.newPages },
+            { label: "Missing", value: report.missingPages },
+            { label: "Incompatible", value: report.incompatiblePages },
+          ]}
+        />
+      </Disclosure>
       {report.pairedPages === 0 ? (
-        <p className="directory-message">
+        <Notice>
           Collecting history. This category needs compatible captures in two adjacent completed
           weeks before changes can be compared.
-        </p>
+        </Notice>
       ) : report.items.length === 0 ? (
-        <p className="directory-message">
+        <Notice>
           No verified changes in this period. Coverage and unresolved comparisons are shown above.
-        </p>
+        </Notice>
       ) : (
         report.items.map((item) => (
-          <article className="weekly-change" key={`${item.pageId}:${item.key}`}>
-            <div className="section-kicker">
-              <Link to="/pages/$slug" params={{ slug: item.slug }} search={{ cohort }}>
+          <Panel layered role="article" key={`${item.pageId}:${item.key}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link
+                className="font-display text-base font-semibold hover:underline"
+                to="/pages/$slug"
+                params={{ slug: item.slug }}
+                search={{ cohort }}
+              >
                 {item.name}
               </Link>
-              <span>{item.kind === "disclosure" ? "DISCLOSURE CHANGE" : "COMMERCIAL CHANGE"}</span>
+              <Badge
+                variant={item.kind === "disclosure" ? "outline" : "default"}
+                className="kicker text-2xs"
+              >
+                {item.kind === "disclosure" ? "Disclosure change" : "Commercial change"}
+              </Badge>
             </div>
-            <h3>{item.label}</h3>
-            <p className="change-transition">
-              <span>{item.beforeLabel}</span>
-              <em aria-hidden="true">→</em>
-              <strong>{item.afterLabel}</strong>
-            </p>
-            <div className="weekly-evidence">
-              <div>
-                <a href={sourceUrl(item.beforeSourceUrl)} target="_blank" rel="noreferrer">
-                  Before · {formatDay(item.beforeCapturedAt)}
-                </a>
-                <blockquote>{item.beforeEvidence}</blockquote>
-              </div>
-              <div>
-                <a href={sourceUrl(item.afterSourceUrl)} target="_blank" rel="noreferrer">
-                  After · {formatDay(item.afterCapturedAt)}
-                </a>
-                <blockquote>{item.afterEvidence}</blockquote>
-              </div>
+            <div>
+              <h3 className="text-lg">{item.label}</h3>
+              <p className="mt-2 flex flex-wrap items-baseline gap-3 font-mono text-base tabular-nums">
+                <span className="text-muted-foreground">{item.beforeLabel}</span>
+                <span className="text-gray-8" aria-hidden="true">
+                  →
+                </span>
+                <strong className="font-medium text-brand-11">{item.afterLabel}</strong>
+              </p>
             </div>
-          </article>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <EvidenceSource
+                label="Before"
+                capturedAt={item.beforeCapturedAt}
+                href={sourceUrl(item.beforeSourceUrl)}
+                text={item.beforeEvidence}
+              />
+              <EvidenceSource
+                label="After"
+                capturedAt={item.afterCapturedAt}
+                href={sourceUrl(item.afterSourceUrl)}
+                text={item.afterEvidence}
+              />
+            </div>
+          </Panel>
         ))
       )}
     </>
+  );
+}
+
+function EvidenceSource({
+  label,
+  capturedAt,
+  href,
+  text,
+}: {
+  label: string;
+  capturedAt: Date | string | number;
+  href: string;
+  text: string;
+}) {
+  return (
+    <div className="grid content-start gap-3">
+      <a
+        className="kicker w-fit text-muted-foreground hover:text-foreground"
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+      >
+        {label} · {formatDay(capturedAt)} ↗
+      </a>
+      <Evidence>{text}</Evidence>
+    </div>
   );
 }
 

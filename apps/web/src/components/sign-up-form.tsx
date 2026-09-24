@@ -7,7 +7,7 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
-import { AuthField } from "./auth-field";
+import { AuthField, AuthShell } from "./auth-field";
 import Loader from "./loader";
 
 export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
@@ -56,16 +56,20 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   }
 
   return (
-    <main className="auth-shell">
-      <p className="eyebrow">OWNER CONSOLE</p>
-      <h1>Create account</h1>
-      <p className="auth-intro">
-        Claim a pricing page and Pricelog captures its published pricing terms and checks for
-        changes every week.
-      </p>
-
+    <AuthShell
+      title="Create account"
+      intro="Claim a pricing page and Pricelog captures its published pricing terms and checks for changes every week."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Button type="button" variant="link" size="xs" onClick={onSwitchToSignIn}>
+            Sign in
+          </Button>
+        </>
+      }
+    >
       <form
-        className="auth-form"
+        className="grid gap-5"
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -113,7 +117,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         >
           {({ canSubmit, isSubmitting }) => (
             <Button
-              className="mt-1.5 w-full"
+              className="mt-1.5 h-11 w-full text-sm"
               size="lg"
               type="submit"
               disabled={!canSubmit || isSubmitting}
@@ -123,13 +127,6 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           )}
         </form.Subscribe>
       </form>
-
-      <p className="auth-switch">
-        Already have an account?{" "}
-        <Button type="button" variant="link" size="xs" onClick={onSwitchToSignIn}>
-          Sign in
-        </Button>
-      </p>
-    </main>
+    </AuthShell>
   );
 }

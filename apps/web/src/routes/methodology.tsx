@@ -1,4 +1,3 @@
-import { LayerTitle } from "@/components/layer-title";
 import { COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import { PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
 import {
@@ -15,9 +14,10 @@ import {
   TAG_PROBABILITY_THRESHOLD,
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { DataCell, DataRow, DataTable, RowHeader } from "@/components/data-table";
 import { formatToken } from "@/components/intelligence-profile";
+import { BackLink, Definitions, PageHeader, PageShell, SectionHeading } from "@/components/page";
 import { parseCategorySearch } from "@/lib/comparison-search";
 
 export const Route = createFileRoute("/methodology")({
@@ -31,22 +31,13 @@ export const Route = createFileRoute("/methodology")({
 function MethodologyPage() {
   const search = Route.useSearch();
   return (
-    <main className="profile-shell methodology-shell">
-      <Link className="back-link" to="/benchmarks" search={search}>
-        <ArrowLeft size={15} />
+    <PageShell narrow>
+      <BackLink to="/benchmarks" search={search}>
         Compare pricing
-      </Link>
+      </BackLink>
+      <PageHeader eyebrow="How Pricelog measures" title="Methodology" />
 
-      <section className="profile-heading">
-        <div>
-          <p className="eyebrow">HOW PRICELOG MEASURES</p>
-          <h1>
-            <LayerTitle>Methodology</LayerTitle>
-          </h1>
-        </div>
-      </section>
-
-      <section className="methodology-note">
+      <section className={prose}>
         <h2>What these numbers measure</h2>
         <p>
           Pricelog records <strong>what a captured pricing page states</strong>. A missing
@@ -100,14 +91,14 @@ function MethodologyPage() {
             claims. Synthetic evaluation fixtures do not establish accuracy on production pages.
           </li>
         </ul>
-        <p className="methodology-correction">
+        <p className="border-t border-gray-4 pt-3.5 text-muted-foreground">
           Each rubric has an immutable content fingerprint and a pinned model version. Changes
           require a new rubric and new evaluation. Archived captures allow each published record to
           be checked against its source.
         </p>
       </section>
 
-      <section className="methodology-note">
+      <section className={prose}>
         <h2>Source scope</h2>
         <p>{PRICING_PAGE_SCOPE}</p>
         <h2>Weekly comparisons</h2>
@@ -169,60 +160,56 @@ function MethodologyPage() {
         </p>
       </section>
 
-      <section className="methodology-section">
-        <div className="section-kicker">
-          <span>CLASSIFICATIONS</span>
-          <span>{Object.keys(PRICING_CHOICE_CATALOG).length} QUESTIONS</span>
-        </div>
+      <section className="pt-10">
+        <SectionHeading
+          title="Classifications"
+          meta={`${Object.keys(PRICING_CHOICE_CATALOG).length} questions`}
+          className="border-b"
+        />
         {PRICING_CHOICE_GROUPS.map((group) => (
-          <div key={group.key}>
-            <h4 className="choice-group-label">{group.label}</h4>
+          <div key={group.key} className="pt-6">
+            <h4 className="kicker font-medium text-gray-11">{group.label}</h4>
             {Object.entries(PRICING_CHOICE_CATALOG)
               .filter(([, entry]) => entry.group === group.key)
               .map(([key, entry]) => (
-                <article className="methodology-question" key={key}>
-                  <h3>{entry.label}</h3>
-                  <p className="methodology-prompt">{entry.question}</p>
-                  <dl className="methodology-options">
-                    {Object.entries(entry.options).map(([option, description]) => (
-                      <div key={option}>
-                        <dt>{formatToken(option)}</dt>
-                        <dd>{description}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                <article className="grid gap-3 border-b border-gray-4 py-5" key={key}>
+                  <h3 className="text-base">{entry.label}</h3>
+                  <p>{entry.question}</p>
+                  <Definitions
+                    items={Object.entries(entry.options).map(([option, description]) => ({
+                      key: option,
+                      term: formatToken(option),
+                      detail: description,
+                    }))}
+                  />
                 </article>
               ))}
           </div>
         ))}
       </section>
 
-      <section className="methodology-section">
-        <div className="section-kicker">
-          <span>SIGNALS</span>
-          <span>{Object.keys(PRICING_SIGNAL_CATALOG).length} QUESTIONS</span>
-        </div>
-        <table className="methodology-table">
-          <thead>
-            <tr>
-              <th scope="col">Signal</th>
-              <th scope="col">Question</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(PRICING_SIGNAL_CATALOG).map(([key, entry]) => (
-              <tr key={key}>
-                <th scope="row">{entry.label}</th>
-                <td>
-                  {entry.question}
-                  <p>Stated: {entry.whenTrue}</p>
-                  <p>Not established: {entry.whenFalse}</p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <section className="pt-10">
+        <SectionHeading
+          title="Signals"
+          meta={`${Object.keys(PRICING_SIGNAL_CATALOG).length} questions`}
+        />
+        <DataTable columns={["Signal", "Question"]} className="min-w-0">
+          {Object.entries(PRICING_SIGNAL_CATALOG).map(([key, entry]) => (
+            <DataRow key={key}>
+              <RowHeader className="w-48 max-sm:w-32">{entry.label}</RowHeader>
+              <DataCell className="grid gap-1.5 font-sans text-sm text-foreground">
+                {entry.question}
+                <span className="text-muted-foreground">Stated: {entry.whenTrue}</span>
+                <span className="text-muted-foreground">Not established: {entry.whenFalse}</span>
+              </DataCell>
+            </DataRow>
+          ))}
+        </DataTable>
       </section>
-    </main>
+    </PageShell>
   );
 }
+
+// Long-form reading: a measure a person can hold, headings in the display face.
+const prose =
+  "grid max-w-prose gap-4 pt-9 text-base/7 text-gray-11 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:text-foreground [&_h2:first-child]:mt-0 [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-5 [&_ul]:marker:text-gray-8";

@@ -1,5 +1,11 @@
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
-import { ChevronDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@my-better-t-app/ui/components/select";
 
 export function SelectField({
   id,
@@ -15,18 +21,31 @@ export function SelectField({
   onChange: (value: string) => void;
 }) {
   return (
-    <Field className="select-field">
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="select-control">
-        <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+    <Field className="min-w-0 gap-2">
+      <FieldLabel htmlFor={id} className="text-muted-foreground">
+        {label}
+      </FieldLabel>
+      <Select
+        items={options}
+        value={value}
+        onValueChange={(next) => {
+          if (typeof next === "string") onChange(next);
+        }}
+      >
+        <SelectTrigger
+          id={id}
+          className="w-full bg-card px-3.5 text-sm data-[size=default]:h-11 dark:bg-card dark:hover:bg-gray-3"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
           {options.map((option) => (
-            <option key={option.value} value={option.value}>
+            <SelectItem key={option.value} value={option.value} className="text-sm">
               {option.label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <ChevronDown size={16} aria-hidden="true" />
-      </div>
+        </SelectContent>
+      </Select>
     </Field>
   );
 }

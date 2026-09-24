@@ -1,6 +1,9 @@
 import { Link, useSearch } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { parseCategorySearch } from "@/lib/comparison-search";
-import { LayerMark } from "./layer-mark";
+import { Wordmark } from "./wordmark";
+
+const link = "text-muted-foreground transition-colors hover:text-foreground";
 
 /**
  * The record's colophon. It states what the site is, where the rest of it
@@ -10,55 +13,64 @@ import { LayerMark } from "./layer-mark";
 export function SiteFooter() {
   const search = parseCategorySearch(useSearch({ strict: false }));
   return (
-    <footer className="site-footer">
-      <div className="footer-top">
-        <div className="footer-brand">
-          <span className="wordmark">
-            <LayerMark size={22} />
-            <b>PRICELOG</b>
-          </span>
-          <p>A weekly record of how AI products charge, with dated sources for every comparison.</p>
+    <footer className="mt-8 border-t bg-gray-2">
+      <div className="mx-auto grid max-w-292 gap-x-[8vw] gap-y-10 px-6 pt-14 pb-11 max-sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div>
+          <Wordmark />
+          <p className="mt-4.5 max-w-[46ch] leading-relaxed text-muted-foreground">
+            A weekly record of how AI products charge, with dated sources for every comparison.
+          </p>
         </div>
-        <nav className="footer-nav" aria-label="Footer">
-          <div>
-            <h2>The record</h2>
-            <Link to="/benchmarks" search={search}>
+        <nav className="grid grid-cols-2 gap-8 sm:grid-cols-3" aria-label="Footer">
+          <FooterGroup title="The record">
+            <Link className={link} to="/benchmarks" search={search}>
               Compare pricing
             </Link>
-            <Link to="/changes" search={search}>
+            <Link className={link} to="/changes" search={search}>
               Weekly changes
             </Link>
-            <Link to="/" search={search}>
+            <Link className={link} to="/" search={search}>
               Directory
             </Link>
-          </div>
-          <div>
-            <h2>How it works</h2>
-            <Link to="/methodology" search={search}>
+          </FooterGroup>
+          <FooterGroup title="How it works">
+            <Link className={link} to="/methodology" search={search}>
               Methodology
             </Link>
-            <Link to="/dashboard">Track a page</Link>
-          </div>
-          <div>
-            <h2>Unprice</h2>
-            <a href="https://unprice.dev" target="_blank" rel="noreferrer">
+            <Link className={link} to="/dashboard">
+              Track a page
+            </Link>
+          </FooterGroup>
+          <FooterGroup title="Unprice">
+            <a className={link} href="https://unprice.dev" target="_blank" rel="noreferrer">
               unprice.dev
             </a>
-            <a href="https://docs.unprice.dev" target="_blank" rel="noreferrer">
+            <a className={link} href="https://docs.unprice.dev" target="_blank" rel="noreferrer">
               Documentation
             </a>
-          </div>
+          </FooterGroup>
         </nav>
       </div>
-      <div className="footer-base">
-        <span>
-          Pricelog by{" "}
-          <a href="https://unprice.dev" target="_blank" rel="noreferrer">
-            Unprice
-          </a>
-        </span>
-        <span>All dates UTC · Measures what a page states, not what a product does</span>
+      <div className="mx-auto max-w-292 px-6 max-sm:px-4">
+        <div className="flex flex-wrap justify-between gap-x-6 gap-y-2.5 border-t border-gray-4 pt-5 pb-7 font-mono text-2xs tracking-wide text-muted-foreground">
+          <span>
+            Pricelog by{" "}
+            <a href="https://unprice.dev" target="_blank" rel="noreferrer">
+              Unprice
+            </a>
+          </span>
+          <span>All dates UTC · Measures what a page states, not what a product does</span>
+        </div>
       </div>
     </footer>
+  );
+}
+
+function FooterGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <h2 className="kicker mb-1 font-normal text-muted-foreground">{title}</h2>
+      {children}
+    </div>
   );
 }
