@@ -10,6 +10,7 @@ import {
 } from "@my-better-t-app/ui/components/dropdown-menu";
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { UserRound } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 
@@ -31,14 +32,18 @@ export default function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
-        {session.user.name}
+      <DropdownMenuTrigger
+        render={<Button variant="outline" aria-label={`Account for ${session.user.name}`} />}
+      >
+        <UserRound className="mobile-account-icon" aria-hidden="true" />
+        <span className="account-name">{session.user.name}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card">
         <DropdownMenuGroup>
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+          <DropdownMenuItem render={<Link to="/dashboard" />}>Your pages</DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             onClick={() => {

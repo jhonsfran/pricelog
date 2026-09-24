@@ -1,3 +1,4 @@
+import { LayerTitle } from "@/components/layer-title";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { Button } from "@my-better-t-app/ui/components/button";
 import { Spinner } from "@my-better-t-app/ui/components/spinner";
@@ -7,8 +8,8 @@ import { ArrowLeft, Download, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { LayerDepth } from "@/components/layer-depth";
-import { LayerTitle } from "@/components/layer-title";
 import { NumericPricesPanel } from "@/components/numeric-prices";
+import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { RunStatus } from "@/components/run-status";
 import { ENV } from "@/env.public";
@@ -98,6 +99,10 @@ function OwnerPageDetail() {
         <>
           <NumericPricesPanel
             prices={data.summary.numericPrices}
+            sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
+          />
+          <PricingFactsPanel
+            facts={data.summary.pricingFacts}
             sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
           />
           <IntelligenceProfile

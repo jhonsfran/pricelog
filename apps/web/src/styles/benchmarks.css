@@ -8,25 +8,24 @@
    ============================================================ */
 
 .benchmark-shell {
-  padding-bottom: 110px;
+  padding-bottom: 56px;
 }
 .benchmark-hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 8vw;
-  min-height: 260px;
-  padding: 24px 0 40px;
+  gap: 64px;
+  padding: 40px 0 32px;
   border-bottom: 1px solid var(--line);
 }
 .benchmark-hero h1 {
   margin: 8px 0 0;
   font-family: var(--display);
-  font-size: clamp(46px, 7vw, 92px);
+  font-size: clamp(36px, 4.5vw, 60px);
   font-weight: 700;
-  font-variation-settings: "wdth" 80;
-  line-height: 0.88;
-  letter-spacing: -0.05em;
+  font-variation-settings: "wdth" 86;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 .benchmark-meta {
   margin: 0 0 8px;
@@ -39,54 +38,15 @@
   text-underline-offset: 3px;
 }
 .benchmark-section {
-  padding-top: 40px;
+  padding-top: 24px;
 }
 
-/* Category picker */
-
-.cohort-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 26px 0 18px;
-}
-.cohort-picker button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--muted-foreground);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    color var(--dur-hover) var(--ease-hover),
-    border-color var(--dur-hover) var(--ease-hover),
-    transform var(--dur-press) var(--ease-out);
-}
-.cohort-picker button small {
-  color: var(--faint);
-  font-variant-numeric: tabular-nums;
-}
-.cohort-picker button:active {
-  transform: scale(0.97);
-}
-.cohort-picker button[aria-pressed="true"] {
-  border-color: var(--hot);
-  color: var(--hot);
-}
-.cohort-picker button[aria-pressed="true"] small {
-  color: var(--hot);
-}
-@media (hover: hover) and (pointer: fine) {
-  .cohort-picker button:hover {
-    color: var(--paper);
-    border-color: var(--line-strong);
-  }
+/* Category and question controls share one row on wide screens. */
+.comparison-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 24px 0;
 }
 
 /* One line of provenance, in place of three paragraphs of it. */
@@ -100,9 +60,8 @@
   border-top: 1px solid var(--line-soft);
   color: var(--muted-foreground);
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0;
 }
 .cohort-summary strong {
   color: var(--paper);
@@ -196,7 +155,7 @@
 .chart-footnote {
   margin: 14px 0 0;
   color: var(--faint);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 .chart-detail {
@@ -222,10 +181,8 @@
   width: max-content;
   padding: 6px 0;
   color: var(--muted-foreground);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 14px;
   cursor: pointer;
   transition: color var(--dur-hover) var(--ease-hover);
 }
@@ -328,6 +285,17 @@
 }
 
 @media (max-width: 760px) {
+  .benchmark-hero,
+  .comparison-controls {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .benchmark-hero {
+    padding: 28px 0;
+  }
+  .benchmark-hero .hero-copy {
+    margin: 0;
+  }
   .chart-row {
     grid-template-columns: minmax(0, 1fr) 62px;
     gap: 10px 14px;
@@ -461,11 +429,6 @@
 }
 
 @media (max-width: 760px) {
-  .benchmark-hero {
-    grid-template-columns: 1fr;
-    gap: 26px;
-    padding: 50px 0;
-  }
   .share-row {
     grid-template-columns: minmax(0, 92px) 1fr auto;
     gap: 9px;

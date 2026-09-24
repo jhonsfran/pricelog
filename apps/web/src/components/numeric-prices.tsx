@@ -46,8 +46,8 @@ export function NumericPricesPanel({
       ) : (
         <>
           <p className="benchmark-meta">
-            Lowest verified paid flat fee and per-seat rate for each billing commitment. These are
-            distinct offers, not a total cost estimate.
+            All accepted paid flat fees and per-seat rates, with their billing commitments. These
+            prices do not estimate a total bill.
           </p>
           <div className="price-table-scroll">
             <table className="price-table">
@@ -163,11 +163,13 @@ export function NumericBenchmarkPanel({
   category,
   examples,
   pageCount,
+  cohort,
 }: {
   prices?: NumericPriceBenchmark | null;
   category: boolean;
   examples: PriceExample[];
   pageCount: number;
+  cohort: string;
 }) {
   return (
     <section className="benchmark-section numeric-prices" aria-label="Price benchmarks">
@@ -255,7 +257,7 @@ export function NumericBenchmarkPanel({
                     )
                     .join("; ")}
                 </summary>
-                <Link to="/pages/$slug" params={{ slug: page.slug }}>
+                <Link to="/pages/$slug" params={{ slug: page.slug }} search={{ cohort }}>
                   Open product record
                 </Link>
                 <NumericPricesPanel

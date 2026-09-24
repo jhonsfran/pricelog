@@ -1,3 +1,5 @@
+import { unavailablePricingFacts } from "@my-better-t-app/db/pricing-facts";
+import { factFixtures } from "./fixtures/pricing-facts";
 import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { URL } from "node:url";
@@ -92,7 +94,25 @@ describe("D1 publication delivery", () => {
           },
         ],
       };
+      input.pricingFacts = {
+        ...unavailablePricingFacts(""),
+        status: "collected",
+        model: "jev-1.13.0",
+        facts: [
+          {
+            ...factFixtures[0]!.expected[0]!,
+            confidence: 0.99,
+            evidence: { text: "Pro USD $20 per month", start: 0, end: 21 },
+          },
+        ],
+      };
       await publishPageProjection(db, input);
+      expect(
+        JSON.parse(
+          sqlite.prepare("SELECT pricing_facts_json FROM page_public_summary").get()
+            ?.pricing_facts_json as string,
+        ),
+      ).toEqual(input.pricingFacts);
       expect(
         JSON.parse(
           sqlite.prepare("SELECT numeric_prices_json FROM page_public_summary").get()

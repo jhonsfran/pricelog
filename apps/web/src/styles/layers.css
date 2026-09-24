@@ -489,7 +489,7 @@
 
 .site-footer {
   flex: none;
-  margin-top: 80px;
+  margin-top: 32px;
   border-top: 1px solid var(--line);
   background: var(--sheet-back);
 }
@@ -656,6 +656,8 @@
   text-decoration: none;
 }
 a.chart-row-inner .chart-label {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
   text-underline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {

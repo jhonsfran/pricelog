@@ -1,5 +1,11 @@
+import { LayerTitle } from "@/components/layer-title";
 import { COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import { PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
+import {
+  EXPECTED_JEV_MODEL,
+  FACT_CONFIDENCE,
+  FACT_EVIDENCE_PROBABILITY,
+} from "@my-better-t-app/api/pricing-facts";
 import {
   CHOICE_CONFIDENCE_THRESHOLD,
   PRICING_CHOICE_CATALOG,
@@ -12,21 +18,23 @@ import {
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { formatToken } from "@/components/intelligence-profile";
-import { LayerTitle } from "@/components/layer-title";
+import { parseCategorySearch } from "@/lib/comparison-search";
 
-export const Route = createFileRoute("/methodology")({ component: MethodologyPage });
+export const Route = createFileRoute("/methodology")({
+  component: MethodologyPage,
+  validateSearch: parseCategorySearch,
+});
 
 /**
- * Rendered from the same catalog the evaluation prompt is built from, so the
- * published question and the asked question are the same string. If they could
- * differ, this page would be marketing rather than methodology.
+ * The published questions use the same catalog as the evaluation prompt.
  */
 function MethodologyPage() {
+  const search = Route.useSearch();
   return (
     <main className="profile-shell methodology-shell">
-      <Link className="back-link" to="/benchmarks">
+      <Link className="back-link" to="/benchmarks" search={search}>
         <ArrowLeft size={15} />
-        The index
+        Compare pricing
       </Link>
 
       <section className="profile-heading">
@@ -41,19 +49,28 @@ function MethodologyPage() {
       <section className="methodology-note">
         <h2>What these numbers measure</h2>
         <p>
-          Pricelog measures <strong>what a pricing page states</strong>, not what a product does. A
-          missing signal means the page does not establish it. It does not mean the feature is
-          absent. Every aggregate on this site is a claim about public disclosure.
+          Pricelog records <strong>what a captured pricing page states</strong>. A missing
+          disclosure does not establish that a feature is absent. The sample consists of submitted
+          pricing pages. It does not represent the whole market or measure buyer sentiment,
+          willingness to pay, margins, conversion performance, or pricing quality.
         </p>
         <p>
-          Each page is captured with Chromium, converted to Markdown, and evaluated with typed
-          questions against the full source. A page is published only after a successful capture and
-          a complete practice evaluation. Numeric collection has a separate availability status.
-          Failed captures and bot challenges are never published.
+          Chromium captures each page. The rendered Markdown is the evidence source for typed Jev
+          questions. HTML and screenshots remain archived for capture checks. Jev is the only model.
+          Failed captures and bot challenges are not published. Offer fact collection has its own
+          availability status, so a page profile can remain available when fact collection fails.
+        </p>
+        <h2>Current comparison sample</h2>
+        <p>
+          Current comparisons include only active pages evaluated with the current rubric and
+          exactly {EXPECTED_JEV_MODEL}. Captures must be within the last 14 days and cannot have a
+          future timestamp. Charts and their linked directory lists use these same rules. Older or
+          incompatible records remain available on their profile pages with an exclusion notice.
         </p>
         <ul>
           <li>
-            A classification is published only at {CHOICE_CONFIDENCE_THRESHOLD} confidence or above.
+            Page-level choices require at least {CHOICE_CONFIDENCE_THRESHOLD} confidence. Unknown
+            answers remain uncertain.
           </li>
           <li>A tag is published only at {TAG_PROBABILITY_THRESHOLD} probability or above.</li>
           <li>
@@ -62,29 +79,31 @@ function MethodologyPage() {
             uncertain.
           </li>
           <li>
-            Not disclosed is an accepted statement about this source. Unknown means the
-            classification remains ambiguous.
+            Not disclosed means the captured source does not state the policy. Not applicable
+            requires explicit evidence that the policy cannot apply. Unknown means the evidence is
+            ambiguous.
           </li>
           <li>
             Charging components can overlap. A page can state subscription, seat, and credit charges
             together.
           </li>
           <li>
-            Policy comparisons exclude not applicable answers. Every metric shows classified,
-            uncertain, and excluded counts.
+            Charging and policy percentages use all eligible pages in the selected sample as their
+            denominator. Not applicable, not disclosed, and uncertain counts remain visible.
           </li>
           <li>
             Practice groups and metric denominators below {COHORT_MINIMUM} show counts only. This
             display rule does not establish statistical significance or representative sampling.
           </li>
           <li>
-            Raw probabilities remain stored. Publication thresholds are rules, not measured accuracy
-            claims. Model accuracy has not yet been established on a held-out human-labeled dataset.
+            Raw probabilities remain stored. Acceptance thresholds are rules, not measured accuracy
+            claims. Synthetic evaluation fixtures do not establish accuracy on production pages.
           </li>
         </ul>
         <p className="methodology-correction">
-          If a record is wrong, the capture it was derived from is archived and the evaluation can
-          be re-run. Contact us and we will re-scan the page.
+          Each rubric has an immutable content fingerprint and a pinned model version. Changes
+          require a new rubric and new evaluation. Archived captures allow each published record to
+          be checked against its source.
         </p>
       </section>
 
@@ -94,30 +113,38 @@ function MethodologyPage() {
         <h2>Weekly comparisons</h2>
         <p>
           We compare the latest successful captures from adjacent completed UTC weeks. Both captures
-          must use compatible rubric and model versions. A different model answer alone is not a
-          commercial change. Changed source content and accepted evidence checks must support each
-          published item. Comparisons that exceed the evaluator request limit remain uncertain.
+          must use the same rubric and exactly {EXPECTED_JEV_MODEL}. Code compares accepted numeric
+          facts for the same named offer, currency, unit, and billing commitment. Independent Jev
+          evidence checks must support each published change. Renamed offers, duplicate matches,
+          missing attribution, and comparisons beyond request limits remain unresolved.
         </p>
         <p>
-          Each item includes literal evidence and links to both archived captures. A newly explicit
-          term is a disclosure change. The commercial change rate counts distinct pages with a
-          verified commercial change divided by eligible paired pages. New and missing pages appear
-          separately.
+          Each item includes literal evidence and links to both archived captures. A newly stated
+          term is a disclosure change. A missing term does not prove a product change. The
+          commercial change rate counts distinct pages with a verified commercial change divided by
+          eligible paired pages. New and missing pages appear separately.
         </p>
         <h2>Prices and interpretation</h2>
         <p>
-          Code copies exact numeric literals from the archived source. Jev Choice questions select
-          candidates and classify billing terms, currency and charging units. Separate Noul checks
-          must validate the base offer's eligibility, billing and charging terms at 0.90 or above.
-          Required Choice classifications need at least 0.90 confidence. Code checks exact numeric
-          literals and bare dollar markers. These thresholds are publication rules, not measured
-          accuracy. Jev scores are never used as money amounts.
+          Code finds numeric literals and offer names in the archived source. Jev Choice questions
+          classify bounded candidates. Code copies the selected values and checks their units. Fact
+          choices require at least {FACT_CONFIDENCE} confidence. Independent Noul evidence checks
+          require at least {FACT_EVIDENCE_PROBABILITY}. Jev scores never become money amounts.
+          Missing disclosure is checked against the full captured source, not a local excerpt.
         </p>
         <p>
-          We collect the lowest verified paid flat fee and per-seat rate for monthly and annual
-          commitments. Free, promotional, crossed-out, competitor, add-on and one-time prices do not
-          qualify. A bare dollar sign is shown with an unspecified currency and excluded from
-          comparisons. Unsupported or ambiguous number formats remain uncollected. Captures may not
+          Offer facts include base and seat prices, usage and outcome rates, overage, credit packs,
+          AI add-ons, allowances, credit conversion, minimum seats, purchased credit expiry, and
+          included credit rollover limits. Each accepted fact retains literal evidence. Policies are
+          also collected for each accepted offer. Unresolved numeric and policy counts remain
+          visible. Not collected, unavailable, and collected with no accepted facts are distinct
+          states.
+        </p>
+        <p>
+          The published-price table shows all accepted paid recurring flat and seat offers.
+          Promotional, crossed-out, competitor, add-on, and one-time prices are excluded from
+          baseline comparisons. A bare dollar sign has unspecified currency and cannot enter price
+          statistics. Unsupported or ambiguous number formats remain uncollected. A capture may not
           expose all billing-toggle variants.
         </p>
         <p>
@@ -128,12 +155,10 @@ function MethodologyPage() {
           unrelated categories. These are sample statistics, not representative market estimates.
         </p>
         <p>
-          Included usage and overage rates must pass a separate attribution check at 0.95 or above
-          and belong to the same offer. Missing values do not mean zero, unlimited usage or free
-          overage. Credits from different vendors are not equivalent. Exact spend can also depend on
-          minimum seats, taxes, model choice and additional charges. Published terms cannot
-          establish willingness to pay, margins, conversion performance or pricing quality. Numeric
-          price changes are not yet included in the weekly change report.
+          Included usage and overage rates must belong to the same offer and billing commitment.
+          Missing values do not mean zero, unlimited usage, or free overage. Credits from different
+          vendors are not equivalent. Exact spend can also depend on minimum seats, taxes, model
+          choice, and additional charges. The facts do not estimate a workload bill.
         </p>
         <p>
           Pricelog is by{" "}

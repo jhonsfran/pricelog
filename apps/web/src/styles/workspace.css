@@ -342,7 +342,26 @@
     grid-template-columns: 1fr auto;
     padding: 0 16px;
   }
-  .site-header nav {
+  .site-header .desktop-navigation {
+    display: none;
+  }
+  .mobile-navigation {
+    display: block;
+  }
+  .header-actions {
+    gap: 8px;
+  }
+  .header-actions button,
+  .header-actions > a {
+    min-height: 44px;
+  }
+  .header-actions > button {
+    max-width: 112px;
+  }
+  .mobile-account-icon {
+    display: block;
+  }
+  .account-name {
     display: none;
   }
   .directory-shell,
@@ -354,17 +373,16 @@
   .dashboard-heading {
     grid-template-columns: 1fr;
     gap: 30px;
-    min-height: 420px;
-    padding: 60px 0;
+    padding: 32px 0;
   }
   .directory-hero h1 {
-    font-size: 21vw;
+    font-size: 42px;
   }
   .directory-head {
     display: none;
   }
   .directory-row {
-    grid-template-columns: 1fr 84px 24px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
   }
   .directory-row::before,

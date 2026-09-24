@@ -10,6 +10,7 @@ import {
 } from "@my-better-t-app/db/pricing-intelligence";
 import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
 import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
+import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
 
 import type { JevAnswer } from "./types";
 
@@ -18,6 +19,7 @@ export type PublicEvaluation = {
   signals: PageSignal[];
   tags: string[];
   numericPrices?: NumericPrices;
+  pricingFacts?: PricingFacts;
 };
 
 export function buildPublicEvaluation(answers: JevAnswer[]): PublicEvaluation {

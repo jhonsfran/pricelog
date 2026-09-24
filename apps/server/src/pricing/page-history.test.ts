@@ -1,3 +1,4 @@
+import { unavailablePricingFacts } from "@my-better-t-app/db/pricing-facts";
 import { URL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -133,6 +134,23 @@ async function capture(
 }
 
 describe("page-local pricing history", () => {
+  it("seeds an immutable rubric and rejects changed content under the same identity", async () => {
+    const { store, sqlite } = storeFor("one");
+    const seed = () => (store as unknown as { seedRubric(): Promise<void> }).seedRubric();
+    try {
+      await seed();
+      await seed();
+      sqlite.exec("UPDATE question SET instructions = 'changed' WHERE key = 'buying_motion'");
+      await expect(seed()).rejects.toThrow("immutable");
+      expect(
+        sqlite.prepare("SELECT instructions FROM question WHERE key = 'buying_motion'").get()
+          ?.instructions,
+      ).toBe("changed");
+    } finally {
+      sqlite.close();
+    }
+  });
+
   it("keeps numeric observations with their version and ignores later replacement", async () => {
     const { store, sqlite } = storeFor("one");
     try {
@@ -143,6 +161,11 @@ describe("page-local pricing history", () => {
         choices: [],
         signals: [],
         tags: [],
+        pricingFacts: {
+          ...unavailablePricingFacts("test record"),
+          status: "collected" as const,
+          model: "jev-1.13.0",
+        },
         numericPrices: {
           version: "numeric-prices-v1" as const,
           status: "collected" as const,
@@ -163,6 +186,10 @@ describe("page-local pricing history", () => {
             .get()?.evaluation_json as string,
         ).numericPrices,
       ).toEqual(evaluation.numericPrices);
+      expect(
+        (await store.getWeeklyHistory("one", Date.parse("2026-09-28"))).observations[0]
+          ?.pricingFacts,
+      ).toEqual(evaluation.pricingFacts);
     } finally {
       sqlite.close();
     }

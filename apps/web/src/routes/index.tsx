@@ -1,3 +1,15 @@
+import { CategoryPicker } from "@/components/category-picker";
+import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
+import { LayerTitle } from "@/components/layer-title";
+import { RelativeTime } from "@/components/relative-time";
+import { staggerDelay } from "@/lib/animation";
+import { parseComparisonSearch } from "@/lib/comparison-search";
+import {
+  describeDirectoryFilter,
+  hasDirectoryFilter,
+  parseDirectoryFilter,
+} from "@/lib/directory-filter";
+import { orpc } from "@/utils/orpc";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { Button } from "@my-better-t-app/ui/components/button";
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
@@ -9,19 +21,8 @@ import {
 import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Search, X } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import { type CSSProperties, useDeferredValue, useEffect, useRef, useState } from "react";
-import { formatToken, prioritizeTags } from "@/components/intelligence-profile";
-import { LatestWire } from "@/components/latest-wire";
-import { LayerTitle } from "@/components/layer-title";
-import { RelativeTime } from "@/components/relative-time";
-import { staggerDelay } from "@/lib/animation";
-import {
-  describeDirectoryFilter,
-  hasDirectoryFilter,
-  parseDirectoryFilter,
-} from "@/lib/directory-filter";
-import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({
   component: DirectoryPage,
@@ -30,7 +31,10 @@ export const Route = createFileRoute("/")({
 
 function DirectoryPage() {
   const filter = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const comparisonCategory = filter.cohort ?? AI_APPLICATIONS_COHORT;
   const filtered = hasDirectoryFilter(filter);
+  const showingExamples = Boolean(filter.signal || filter.choiceKey);
   const [search, setSearch] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const deferredSearch = useDeferredValue(search);
@@ -73,40 +77,58 @@ function DirectoryPage() {
   const items = directory.data?.pages.flatMap((result) => result.items) ?? [];
   // The server counts the whole filter; items is only what has been paged in.
   const total = directory.data?.pages[0]?.total ?? 0;
-  // The wire reports the freshest captures, which is not the order the
-  // directory is paged in — that one is newest indexed first.
-  const wire = items.map((item) => ({
-    slug: item.slug,
-    name: item.displayName ?? item.normalizedDomain,
-    scannedAt: item.scannedAt,
-  }));
-
   return (
     <main className="directory-shell">
-      <div className="wire-slot">
-        <LatestWire items={wire} total={filtered ? undefined : total} />
-      </div>
-      <section className="directory-hero">
-        <div>
-          <p className="eyebrow">The open pricing index</p>
+      {showingExamples ? (
+        <section className="directory-results-heading">
+          <Link
+            className="back-link"
+            to="/benchmarks"
+            search={parseComparisonSearch({ cohort: filter.cohort, topic: filter.choiceKey })}
+          >
+            Compare pricing
+          </Link>
           <h1>
-            <LayerTitle depth={3}>PRICELOG</LayerTitle>
+            <LayerTitle>Pricing page examples</LayerTitle>
           </h1>
-        </div>
-        <p className="hero-copy">
-          Every pricing page here is captured on a schedule and kept as a stack of dated versions.
-          Compare how AI products charge today, and see what moved this week.
-        </p>
-      </section>
-      <p className="benchmark-meta">
-        <Link to="/benchmarks">Compare pricing practices by category</Link> · By{" "}
-        <a href="https://unprice.dev" target="_blank" rel="noreferrer">
-          Unprice
-        </a>
-      </p>
+        </section>
+      ) : (
+        <section className="directory-hero">
+          <div>
+            <p className="eyebrow">Pricing research for AI product teams</p>
+            <h1>
+              <LayerTitle depth={3}>See how AI pricing changes.</LayerTitle>
+            </h1>
+            <p className="hero-copy">
+              Compare how AI products charge. Dated versions of their pricing pages show what
+              changed over time.
+            </p>
+          </div>
+          <form
+            className="comparison-start"
+            onSubmit={(event) => {
+              event.preventDefault();
+              navigate({ to: "/benchmarks", search: { cohort: comparisonCategory } });
+            }}
+          >
+            <CategoryPicker
+              value={comparisonCategory}
+              onChange={(cohort) => navigate({ search: { ...filter, cohort }, resetScroll: false })}
+            />
+            <Button type="submit">
+              Compare pricing practices <ArrowRight data-icon="inline-end" />
+            </Button>
+            <Link to="/changes" search={{ cohort: comparisonCategory }}>
+              See weekly changes
+            </Link>
+          </form>
+        </section>
+      )}
       <section className="directory-section" aria-labelledby="directory-title">
         <div className="section-kicker">
-          <span id="directory-title">{filtered ? "FILTERED" : "ON RECORD"}</span>
+          <span id="directory-title">
+            {filtered ? "MATCHING PRICING PAGES" : "BROWSE PRICING PAGES"}
+          </span>
           <span>{directory.isLoading ? "—" : `${total} PAGES`}</span>
         </div>
         {filtered ? (
@@ -176,6 +198,7 @@ function DirectoryPage() {
                 key={item.id}
                 to="/pages/$slug"
                 params={{ slug: item.slug }}
+                search={filter}
                 style={{ "--enter-delay": staggerDelay(index) } as CSSProperties}
               >
                 <span className="page-identity">
@@ -237,3 +260,4 @@ function DirectorySkeleton() {
 function DirectoryMessage({ text }: { text: string }) {
   return <div className="directory-message">{text}</div>;
 }
+import { AI_APPLICATIONS_COHORT } from "@my-better-t-app/api/benchmark";

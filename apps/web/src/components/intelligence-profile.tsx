@@ -9,6 +9,7 @@ import {
   TAG_PROBABILITY_THRESHOLD,
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
+import type { ReactNode } from "react";
 
 type DisplayChoice = {
   key: string;
@@ -26,11 +27,13 @@ export function IntelligenceProfile({
   signals,
   tags,
   rubricId,
+  children,
 }: {
   choices: DisplayChoice[];
   signals: DisplaySignal[];
   tags: string[];
   rubricId?: string;
+  children?: ReactNode;
 }) {
   const positiveSignals = signals.flatMap((signal) => {
     const metadata = getPricingSignalMetadata(signal.key);
@@ -96,11 +99,6 @@ export function IntelligenceProfile({
               <div key={item.key}>
                 <span>{getPricingChoiceLabel(item.key)}</span>
                 <strong>{formatToken(item.choice)}</strong>
-                {item.choice !== "uncertain" ? (
-                  <small>{Math.round(item.confidence * 100)}% confidence</small>
-                ) : (
-                  <small>No accepted classification</small>
-                )}
               </div>
             ))}
           </div>
@@ -122,6 +120,27 @@ export function IntelligenceProfile({
           ))}
         </div>
       )}
+      <details className="chart-detail collection-details">
+        <summary>Collection details</summary>
+        <div>
+          {children}
+          <h3>Classification confidence</h3>
+          <dl className="definition-list">
+            {groups
+              .flatMap((group) => group.items)
+              .map((item) => (
+                <div key={item.key}>
+                  <dt>{getPricingChoiceLabel(item.key)}</dt>
+                  <dd>
+                    {item.choice === "uncertain"
+                      ? "No accepted classification"
+                      : `${Math.round(item.confidence * 100)}% confidence`}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+      </details>
     </section>
   );
 }

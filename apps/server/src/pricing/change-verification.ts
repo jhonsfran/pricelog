@@ -10,6 +10,8 @@ import type { VerifiedPricingChange } from "@my-better-t-app/api/pricing-history
 import type { ObservationPair } from "@my-better-t-app/api/pricing-history";
 import { parseJevAnswers } from "./scan-workflow-logic";
 import type { JevAnswer, PersistedQuestion } from "./types";
+import { factChangeCandidates, type ChangeCandidate } from "./fact-changes";
+import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 export const CHANGE_CONFIDENCE = 0.9;
 export const EVIDENCE_PROBABILITY = 0.95;
@@ -27,23 +29,16 @@ export function jevRequestWithinBudget(input: DecisionRequest): boolean {
     stateBytes + Math.max(0, ...questionSizes) <= 30_000 && bytes(JSON.stringify(input)) <= 60_000
   );
 }
-type Candidate = {
-  key: string;
-  label: string;
-  question: string;
-  beforeLabel: string;
-  afterLabel: string;
-  disclosureOnly: boolean;
-};
 
 function uncertainValue(value: string | undefined) {
   return value === undefined || value === "unknown";
 }
 
 export function changeCandidates(pair: ObservationPair) {
-  const candidates: Candidate[] = [];
-  let uncertain = false;
-  for (const key of PRACTICE_CHOICE_KEYS) {
+  const facts = factChangeCandidates(pair.before.pricingFacts, pair.after.pricingFacts);
+  const candidates: ChangeCandidate[] = [...facts.candidates];
+  let uncertain = facts.uncertain;
+  for (const key of facts.available ? [] : PRACTICE_CHOICE_KEYS) {
     const before = pair.before.choices.find((item) => item.key === key)?.choice;
     const after = pair.after.choices.find((item) => item.key === key)?.choice;
     if (uncertainValue(before) || uncertainValue(after)) {
@@ -152,6 +147,8 @@ export function jevModelVersion(response: unknown): string | null {
 export function requireJevModelVersion(response: unknown): string {
   const model = jevModelVersion(response);
   if (!model) throw new Error("Jev returned no exact provider model version");
+  if (model !== EXPECTED_JEV_MODEL)
+    throw new Error(`Unapproved Jev model ${model}; expected ${EXPECTED_JEV_MODEL}`);
   return model;
 }
 
@@ -213,7 +210,7 @@ export async function verifyChanges(
   if (!jevRequestWithinBudget(request)) return { ...empty, status: "uncertain" as const };
   const response = await decide(request);
   const model = jevModelVersion(response);
-  if (!model) return { ...empty, status: "uncertain" as const };
+  if (model !== EXPECTED_JEV_MODEL) return { ...empty, status: "uncertain" as const };
   const answers = parseJevAnswers(response, questions);
   let unresolved = uncertain;
   const proposals: VerifiedPricingChange[] = [];

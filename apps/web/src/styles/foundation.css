@@ -23,7 +23,7 @@
   /* Text */
   --paper: #f0f0ec;
   --paper-dim: #a8a8a3;
-  --faint: #6a6a66;
+  --faint: #92928c;
 
   /* Signal. Acid marks what is live or what changed, and nothing
      else. The moment it decorates a link it stops meaning anything. */
@@ -183,10 +183,8 @@ h4 {
 .site-header nav {
   display: flex;
   gap: 28px;
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-family: var(--sans);
+  font-size: 14px;
 }
 .site-header nav a {
   position: relative;
@@ -213,6 +211,70 @@ h4 {
 }
 .site-header > :last-child {
   justify-self: end;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.header-actions > button {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-navigation,
+.mobile-account-icon {
+  display: none;
+}
+.comparison-start {
+  display: grid;
+  gap: 16px;
+  align-content: center;
+}
+.comparison-start > button {
+  width: 100%;
+  min-height: 44px;
+}
+.comparison-start > a {
+  width: fit-content;
+  color: var(--paper-dim);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.select-field {
+  min-width: 0;
+  gap: 8px;
+}
+.select-field [data-slot="field-label"] {
+  font-size: 13px;
+  color: var(--paper-dim);
+}
+.select-control {
+  position: relative;
+}
+.select-control select {
+  appearance: none;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 40px 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--paper);
+  color-scheme: dark;
+  font: 15px/1.5 var(--sans);
+  cursor: pointer;
+}
+.select-control > svg {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted-foreground);
 }
 
 /* ============================================================
@@ -249,8 +311,8 @@ h4 {
   gap: 16px;
   min-height: 38px;
   color: var(--paper-dim);
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0.08em;
 }
 
 /* ============================================================
@@ -258,23 +320,22 @@ h4 {
    ============================================================ */
 
 .directory-hero {
-  min-height: 300px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 8vw;
-  padding: 8px 0 44px;
+  gap: 64px;
+  padding: 48px 0;
   border-bottom: 1px solid var(--line);
 }
 .directory-hero h1 {
   margin: 14px 0 0;
   font-family: var(--display);
-  font-size: clamp(64px, 10vw, 132px);
-  font-weight: 800;
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 700;
   /* A real width axis, so the masthead is condensed by design rather
      than by squashing a font that was never drawn narrow. */
-  font-variation-settings: "wdth" 76;
-  line-height: 0.86;
+  font-variation-settings: "wdth" 86;
+  line-height: 1;
   letter-spacing: -0.035em;
 }
 .hero-copy {
@@ -284,13 +345,24 @@ h4 {
   line-height: 1.5;
   letter-spacing: -0.005em;
 }
+.directory-hero .hero-copy {
+  margin: 18px 0 0;
+}
+.directory-results-heading {
+  padding: 32px 0 0;
+}
+.directory-results-heading h1 {
+  margin: 18px 0 0;
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.1;
+}
 
 /* ============================================================
    6. Search
    ============================================================ */
 
 .directory-section {
-  padding: 62px 0 100px;
+  padding: 32px 0 64px;
 }
 .search-box {
   position: relative;

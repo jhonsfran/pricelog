@@ -1,3 +1,7 @@
+import { URL } from "node:url";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { FACT_EXTRACTION_FINGERPRINT } from "@my-better-t-app/db/pricing-facts";
 import { describe, expect, it } from "vitest";
 import {
   AI_APPLICATION_CATEGORY_OPTIONS,
@@ -6,20 +10,38 @@ import {
   CHARGING_SIGNAL_KEYS,
   PRACTICE_CHOICE_KEYS,
   PRICING_PAGE_SCOPE,
+  PRICING_INTELLIGENCE_RUBRIC_ID,
+  PRICING_RUBRIC_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-intelligence";
-import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
+import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "./rubric";
 
 describe("pricing practices rubric", () => {
   const rubric = PRICING_INTELLIGENCE_RUBRIC;
-  it("asks only Choice and Noul questions in v5", () => {
-    expect(rubric.id).toBe("pricing-intelligence-v5");
-    expect(rubric.version).toBe(5);
+  it("asks only Choice and Noul questions in v6", () => {
+    expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
+    expect(rubric.version).toBe(6);
     expect(new Set(Object.values(rubric.questions).map((q) => q.type))).toEqual(
       new Set(["choice", "noul"]),
     );
     expect(rubric.questions).not.toHaveProperty("plan_count");
     expect(rubric.questions).not.toHaveProperty("annual_commitment_discount");
     expect(rubric.questions).not.toHaveProperty("cost_predictability");
+    for (const key of [
+      "primary_pricing_model",
+      "value_metric",
+      "expansion_path",
+      "ai_cost_passthrough",
+    ])
+      expect(rubric.questions).not.toHaveProperty(key);
+  });
+  it("requires a new fingerprint when the measurement contract changes", async () => {
+    expect(await rubricFingerprint()).toBe(PRICING_RUBRIC_FINGERPRINT);
+    expect(await rubricFingerprint({ ...rubricContract(), model: "changed" })).not.toBe(
+      PRICING_RUBRIC_FINGERPRINT,
+    );
+    expect(await rubricFingerprint(rubricContract({ changed: true }))).not.toBe(
+      PRICING_RUBRIC_FINGERPRINT,
+    );
   });
   it("offers eight distinct application tasks and a separate model API category", () => {
     expect(Object.keys(AI_APPLICATION_CATEGORY_OPTIONS)).toEqual([
@@ -75,4 +97,16 @@ describe("pricing practices rubric", () => {
       expect(question.criteria).toEqual({ true: entry.whenTrue, false: entry.whenFalse });
     }
   });
+});
+
+it("requires a new extraction fingerprint when parsing, prompts, validation or projection changes", () => {
+  const files = [
+    "pricing-facts.ts",
+    "source-candidates.ts",
+    "fact-projection.ts",
+    "jev-decisions.ts",
+  ];
+  const hash = createHash("sha256");
+  for (const file of files) hash.update(readFileSync(new URL(file, import.meta.url)));
+  expect(hash.digest("hex")).toBe(FACT_EXTRACTION_FINGERPRINT);
 });

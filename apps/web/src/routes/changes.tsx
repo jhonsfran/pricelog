@@ -1,14 +1,14 @@
-import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
-import { AI_APPLICATION_CATEGORY_OPTIONS } from "@my-better-t-app/api/pricing-intelligence";
-import { ToggleGroup, ToggleGroupItem } from "@my-better-t-app/ui/components/toggle-group";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { formatToken } from "@/components/intelligence-profile";
 import { LayerTitle } from "@/components/layer-title";
+import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { CategoryPicker } from "@/components/category-picker";
+import { parseCategorySearch } from "@/lib/comparison-search";
 import { WeeklyChangesReport } from "@/components/weekly-changes-report";
 
-export const Route = createFileRoute("/changes")({ component: ChangesPage });
-const categories = Object.keys(AI_APPLICATION_CATEGORY_OPTIONS);
+export const Route = createFileRoute("/changes")({
+  component: ChangesPage,
+  validateSearch: parseCategorySearch,
+});
 
 /**
  * Weekly changes used to be the last section of the practices page, where
@@ -16,44 +16,34 @@ const categories = Object.keys(AI_APPLICATION_CATEGORY_OPTIONS);
  * that is news, so it gets its own address.
  */
 function ChangesPage() {
-  const [cohort, setCohort] = useState(AI_APPLICATIONS_COHORT);
-  const options = [
-    { cohort: AI_APPLICATIONS_COHORT, label: "AI applications" },
-    ...categories.map((key) => ({ cohort: `category:${key}`, label: formatToken(key) })),
-    { cohort: "category:model_apis", label: "Model APIs" },
-  ];
+  const { cohort = AI_APPLICATIONS_COHORT } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   return (
     <main className="directory-shell benchmark-shell">
       <section className="benchmark-hero">
         <div>
-          <p className="eyebrow">What moved</p>
+          <p className="eyebrow">Published pricing terms</p>
           <h1>
-            <LayerTitle>WEEKLY CHANGES</LayerTitle>
+            <LayerTitle>Weekly changes</LayerTitle>
           </h1>
         </div>
         <p className="hero-copy">
-          Two adjacent completed UTC weeks, compared capture against capture. Every item links to
-          both archived sources and quotes the line it turned on.
+          See which pricing terms changed between the last two complete weeks. Each change includes
+          dated sources and before-and-after text.
         </p>
       </section>
-      <ToggleGroup
-        className="cohort-picker"
-        aria-label="Product category"
-        variant="outline"
-        spacing={0}
-        value={[cohort]}
-        onValueChange={(value) => setCohort(value[0] ?? cohort)}
-      >
-        {options.map((option) => (
-          <ToggleGroupItem key={option.cohort} value={option.cohort}>
-            {option.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      <div className="comparison-controls">
+        <CategoryPicker
+          value={cohort}
+          onChange={(value) => navigate({ search: { cohort: value }, resetScroll: false })}
+        />
+      </div>
       <p className="cohort-summary">
-        <span>A different model answer alone is not a change</span>
-        <Link to="/methodology">How comparisons are verified</Link>
+        <span>Verified against archived pricing pages</span>
+        <Link to="/methodology" search={{ cohort }}>
+          How comparisons are verified
+        </Link>
       </p>
       <WeeklyChangesReport cohort={cohort} minimum={COHORT_MINIMUM} />
     </main>

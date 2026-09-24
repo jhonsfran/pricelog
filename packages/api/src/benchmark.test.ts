@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { pricingSignalCoverage } from "./pricing-intelligence";
 import {
   ALL_COHORT,
   AI_NATIVE_COHORT,
@@ -16,6 +17,26 @@ function makePage(overrides: Partial<BenchmarkPage> = {}): BenchmarkPage {
   };
 }
 describe("pricing practice aggregation", () => {
+  it("keeps 40 of 100 pages at 40% when the other observations become not established", () => {
+    const before = Array.from({ length: 100 }, (_, index) =>
+      makePage({
+        signals: [{ key: "charges_direct_usage", probability: index < 40 ? 0.99 : 0.5 }],
+      }),
+    );
+    const after = before.map((page, index) =>
+      index < 40
+        ? page
+        : makePage({ signals: [{ key: "charges_direct_usage", probability: 0.1 }] }),
+    );
+    const coverage = [before, after].map((pages) => {
+      const snapshot = buildBenchmarkSnapshots(pages).find((row) => row.cohort === ALL_COHORT)!;
+      return pricingSignalCoverage(snapshot.pageCount, snapshot.signalShares.charges_direct_usage);
+    });
+    expect(coverage).toEqual([
+      { stated: 40, notEstablished: 0, uncertain: 60, fraction: 0.4 },
+      { stated: 40, notEstablished: 60, uncertain: 0, fraction: 0.4 },
+    ]);
+  });
   it("keeps overlapping charges and reconstructs every signal denominator", () => {
     const pages = [0.8, 0.2, 0.21, undefined].map((probability) =>
       makePage({

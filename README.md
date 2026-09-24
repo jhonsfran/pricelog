@@ -1,6 +1,8 @@
 # Pricelog
 
-Pricelog is a public directory and private monitor for software pricing pages. It captures each page with Chromium, archives HTML, Markdown, and a full-page screenshot, and evaluates five pricing-quality dimensions with TypeSafe AI Jev.
+Pricelog is a public directory and private monitor for software pricing pages. It captures each page with Chromium and archives rendered Markdown, HTML, and a full-page screenshot. Jev classifies facts stated on the captured pricing page. Code copies numeric values, computes sample statistics, and compares captures.
+
+The records describe published terms. They do not measure pricing quality, buyer sentiment, willingness to pay, or the whole market. See [the pricing methodology](docs/pricing-methodology.md) for the acceptance rules and limits.
 
 ## Architecture
 
@@ -12,7 +14,7 @@ Pricelog is a public directory and private monitor for software pricing pages. I
 - **Cloudflare Workflows** coordinate capture, archive, evaluation, projection, and terminal state.
 - **Cloudflare Browser Run** captures one Chromium snapshot.
 - **Cloudflare R2** stores private artifacts.
-- **Workers AI `typesafe/jev`** scores transparency, clarity, completeness, comparability, and actionability.
+- **Workers AI `typesafe/jev`** answers bounded Choice and Noul questions. The accepted model is pinned to `jev-1.13.0`. No other model extracts or verifies facts.
 - **Alchemy** provisions D1, Durable Objects, Workflows, R2, Browser Run, Workers AI, and both Workers.
 
 ## Local setup
@@ -65,7 +67,9 @@ pnpm test
 pnpm run build
 ```
 
-Tests cover central and Durable Object schemas, URL safety, score normalization, alarm intervals, artifact keys, Jev response validation, and the owner lookup constraint.
+Tests cover schemas, URL safety, alarm intervals, artifact keys, Jev response validation, source literals, offer attribution, numeric comparisons, benchmark population rules, and ownership checks.
+
+Unit tests use scripted Jev answers to verify application rules. They do not measure model accuracy on real pricing pages.
 
 ## Deployment
 
@@ -88,14 +92,19 @@ After the first deployment, add the exact deployed web origin to `CORS_ORIGIN` a
 - A successful scan schedules the next alarm seven days later.
 - A failed scan schedules one retry for the next day.
 - A later manual success resets the seven-day schedule.
-- Public routes show only the latest successful summary.
-- Only the owner can view run history or download artifacts.
+- The public directory and current comparisons use active pages with the current rubric, exact accepted model, and a capture from the last 14 days. Future timestamps are excluded.
+- Public profiles retain the latest successful summary and show when it is excluded from current comparisons.
+- Profiles show accepted facts and policies by offer, unresolved counts, and literal evidence linked to the archived Markdown source.
+- Weekly reports compare compatible captures from adjacent completed UTC weeks. Numeric changes require the same named offer and compatible terms, followed by independent Jev evidence checks.
+- Owners can view run history and download capture artifacts. Published records expose their archived Markdown source.
 
 ## Current limits
 
 - No domain ownership verification.
 - No teams, roles, quotas, or billing integration.
 - No pause, delete, or URL-change flow.
-- No content-diff view between versions.
-- The rubric is fixed and versioned as `pricing-quality-v1`.
+- No general content-diff view between versions.
+- The rubric has an immutable content fingerprint. A rubric or model change requires new evaluation; old records do not enter current comparisons.
+- Unsupported number formats and ambiguous offer matches remain unresolved.
+- No linked-document crawling or workload-cost estimate.
 - Chromium is the only browser engine.

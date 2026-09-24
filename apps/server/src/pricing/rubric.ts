@@ -4,7 +4,19 @@ import {
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
   PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
+  PRICING_RUBRIC_FINGERPRINT,
+  CHOICE_CONFIDENCE_THRESHOLD,
+  TAG_PROBABILITY_THRESHOLD,
+  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
+import {
+  FACT_EXTRACTION_FINGERPRINT,
+  FACT_CONFIDENCE,
+  FACT_EVIDENCE_PROBABILITY,
+  PRICING_FACTS_VERSION,
+  NUMERIC_FACT_ROLES,
+} from "@my-better-t-app/db/pricing-facts";
+import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 type ChoiceQuestion = {
   type: "choice";
@@ -57,3 +69,37 @@ export const PRICING_INTELLIGENCE_RUBRIC = {
     ...noulQuestions,
   },
 } as const;
+
+/** The identifier covers questions, thresholds, model, and fact schema version. */
+export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.questions) {
+  return {
+    version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
+    model: EXPECTED_JEV_MODEL,
+    scope: PRICING_PAGE_SCOPE,
+    questions,
+    facts: {
+      implementation: FACT_EXTRACTION_FINGERPRINT,
+      version: PRICING_FACTS_VERSION,
+      roles: NUMERIC_FACT_ROLES,
+      confidence: FACT_CONFIDENCE,
+      evidence: FACT_EVIDENCE_PROBABILITY,
+    },
+    publication: {
+      choice: CHOICE_CONFIDENCE_THRESHOLD,
+      stated: TAG_PROBABILITY_THRESHOLD,
+      notEstablished: NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
+    },
+  };
+}
+export async function rubricFingerprint(contract: unknown = rubricContract()) {
+  const bytes = new TextEncoder().encode(JSON.stringify(contract));
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+export async function assertCurrentRubricFingerprint() {
+  if ((await rubricFingerprint()) !== PRICING_RUBRIC_FINGERPRINT)
+    throw new Error(
+      "Pricing rubric contract changed. Update its fingerprint and re-evaluate captures before publication.",
+    );
+}

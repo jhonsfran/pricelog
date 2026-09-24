@@ -1,3 +1,4 @@
+import { LayerTitle } from "@/components/layer-title";
 import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
 import {
   InputGroup,
@@ -11,7 +12,6 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Plus } from "lucide-react";
 import { type CSSProperties, useState } from "react";
 import { toast } from "sonner";
-import { LayerTitle } from "@/components/layer-title";
 import { RunStatus } from "@/components/run-status";
 import { staggerDelay } from "@/lib/animation";
 import { orpc } from "@/utils/orpc";
@@ -36,15 +36,12 @@ function DashboardPage() {
     <main className="dashboard-shell">
       <section className="dashboard-heading">
         <div>
-          <p className="eyebrow">Owner console</p>
+          <p className="eyebrow">Pricing page monitoring</p>
           <h1>
             <LayerTitle>Your pages</LayerTitle>
           </h1>
         </div>
-        <p>
-          Each successful scan schedules the next scan seven days later. A failed scan retries the
-          next day.
-        </p>
+        <p>Add a pricing page to capture its published terms each week.</p>
       </section>
       <form
         className="add-page-form"
@@ -75,7 +72,7 @@ function DashboardPage() {
       </form>
       <section className="owner-list">
         <div className="section-kicker">
-          <span>ON RECORD</span>
+          <span>PRICING PAGES</span>
           <span>{pages.data?.length ?? 0}</span>
         </div>
         {pages.isLoading ? (

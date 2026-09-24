@@ -18,7 +18,7 @@ import {
 } from "./pricing-intelligence";
 
 /**
- * Minimum classified pages for a headline percentage. Smaller cohorts show counts.
+ * Minimum eligible pages for a headline percentage. Smaller cohorts show counts.
  */
 export const COHORT_MINIMUM = 10;
 
@@ -52,7 +52,7 @@ function marketCohort(signalKey: string) {
 
 export function cohortLabel(cohort: string): string {
   if (cohort === AI_APPLICATIONS_COHORT) return "AI applications";
-  if (cohort === ALL_COHORT) return "All indexed pages";
+  if (cohort === ALL_COHORT) return "All current pages";
   if (cohort === AI_NATIVE_COHORT) return "AI-native products";
   if (cohort.startsWith("category:")) {
     return cohort

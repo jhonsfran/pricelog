@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
+import { parseCategorySearch } from "@/lib/comparison-search";
 import { LayerMark } from "./layer-mark";
 
 /**
@@ -7,6 +8,7 @@ import { LayerMark } from "./layer-mark";
  * read: everything is a dated capture, and every date is UTC.
  */
 export function SiteFooter() {
+  const search = parseCategorySearch(useSearch({ strict: false }));
   return (
     <footer className="site-footer">
       <div className="footer-top">
@@ -15,21 +17,26 @@ export function SiteFooter() {
             <LayerMark size={22} />
             <b>PRICELOG</b>
           </span>
-          <p>
-            Pricing pages captured on a schedule and kept as a stack of dated versions, so a claim
-            about what a page said can always be checked against the capture it came from.
-          </p>
+          <p>A weekly record of how AI products charge, with dated sources for every comparison.</p>
         </div>
         <nav className="footer-nav" aria-label="Footer">
           <div>
             <h2>The record</h2>
-            <Link to="/">Directory</Link>
-            <Link to="/changes">Weekly changes</Link>
-            <Link to="/benchmarks">Pricing practices</Link>
+            <Link to="/benchmarks" search={search}>
+              Compare pricing
+            </Link>
+            <Link to="/changes" search={search}>
+              Weekly changes
+            </Link>
+            <Link to="/" search={search}>
+              Directory
+            </Link>
           </div>
           <div>
             <h2>How it works</h2>
-            <Link to="/methodology">Methodology</Link>
+            <Link to="/methodology" search={search}>
+              Methodology
+            </Link>
             <Link to="/dashboard">Track a page</Link>
           </div>
           <div>

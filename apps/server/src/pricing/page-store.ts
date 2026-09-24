@@ -27,7 +27,7 @@ import {
   scanRun,
   schedulerState,
 } from "./do-schema";
-import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
+import { PRICING_INTELLIGENCE_RUBRIC, assertCurrentRubricFingerprint } from "./rubric";
 import type {
   ArtifactKind,
   ArtifactManifest,
@@ -304,6 +304,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           contentSha256: row.version.contentSha256,
           choices: row.evaluated.evaluation.choices,
           signals: row.evaluated.evaluation.signals,
+          pricingFacts: row.evaluated.evaluation.pricingFacts,
         });
     }
     const before = observations[0];
@@ -442,40 +443,41 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   private async seedRubric(): Promise<void> {
-    await this.db.update(questionSet).set({ active: false });
-    await this.db
-      .insert(questionSet)
-      .values({
-        id: PRICING_INTELLIGENCE_RUBRIC.id,
-        model: PRICING_INTELLIGENCE_RUBRIC.model,
-        version: PRICING_INTELLIGENCE_RUBRIC.version,
-        active: true,
-      })
-      .onConflictDoUpdate({
-        target: questionSet.id,
-        set: {
-          model: PRICING_INTELLIGENCE_RUBRIC.model,
-          version: PRICING_INTELLIGENCE_RUBRIC.version,
-          active: true,
-        },
-      });
-
-    let position = 0;
-    for (const [key, value] of Object.entries(PRICING_INTELLIGENCE_RUBRIC.questions)) {
-      const row = {
-        type: value.type,
-        instructions: value.instructions,
-        criteria: { ...value.criteria },
-        position: position++,
-      };
-      // Upsert rather than ignore: the shared catalog is the source of truth for
-      // question text, and a store seeded before an edit must not keep asking the
-      // old question while the site publishes the new one as its methodology.
-      await this.db
-        .insert(question)
-        .values({ questionSetId: PRICING_INTELLIGENCE_RUBRIC.id, key, ...row })
-        .onConflictDoUpdate({ target: [question.questionSetId, question.key], set: row });
-    }
+    await assertCurrentRubricFingerprint();
+    const rubric = PRICING_INTELLIGENCE_RUBRIC;
+    const rows = Object.entries(rubric.questions).map(([key, value], position) => ({
+      questionSetId: rubric.id,
+      key,
+      type: value.type,
+      instructions: value.instructions,
+      criteria: { ...value.criteria },
+      position,
+    }));
+    this.db.transaction((tx) => {
+      const existing = tx.select().from(questionSet).where(eq(questionSet.id, rubric.id)).get();
+      if (existing) {
+        const stored = tx
+          .select()
+          .from(question)
+          .where(eq(question.questionSetId, rubric.id))
+          .orderBy(question.position)
+          .all();
+        if (
+          existing.version !== rubric.version ||
+          existing.model !== rubric.model ||
+          JSON.stringify(stored) !== JSON.stringify(rows)
+        ) {
+          throw new Error("Stored pricing rubric is immutable; use a new rubric identity");
+        }
+      } else {
+        tx.insert(questionSet)
+          .values({ id: rubric.id, model: rubric.model, version: rubric.version, active: false })
+          .run();
+        for (const row of rows) tx.insert(question).values(row).run();
+      }
+      tx.update(questionSet).set({ active: false }).run();
+      tx.update(questionSet).set({ active: true }).where(eq(questionSet.id, rubric.id)).run();
+    });
   }
 
   private async startRun(

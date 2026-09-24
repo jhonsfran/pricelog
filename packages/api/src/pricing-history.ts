@@ -1,7 +1,9 @@
+import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
+import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
 import { cohortsForPage } from "./benchmark";
 
-export const COMPARISON_VERSION = "pricing-practices-v1";
+export const COMPARISON_VERSION = "pricing-facts-v2";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export type VerifiedPricingChange = {
@@ -24,6 +26,7 @@ export type StoredObservation = {
   contentSha256: string;
   choices: PageChoice[];
   signals: PageSignal[];
+  pricingFacts?: PricingFacts;
 };
 export type Observation = StoredObservation & { slug: string; name: string };
 export type Comparison = {
@@ -101,7 +104,7 @@ export function pairWeeklyObservations(
     if (
       previous.rubricId !== current.rubricId ||
       previous.model !== current.model ||
-      current.model === "typesafe/jev"
+      current.model !== EXPECTED_JEV_MODEL
     ) {
       incompatiblePages++;
       continue;

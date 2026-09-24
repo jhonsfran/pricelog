@@ -28,6 +28,8 @@ async function seed() {
     {
       id: "subscription-only",
       signals: [
+        { key: "is_ai_native", probability: 0.99 },
+        { key: "market_developer_tools", probability: 0.9 },
         { key: "fixed_subscription", probability: 0.95 },
         { key: "credit_wallet", probability: 0.05 },
       ],
@@ -121,9 +123,13 @@ describe("directory filters", () => {
     ]);
   });
 
-  it("adds no condition for a cohort it cannot express as categories", async () => {
+  it("matches discovery cohorts and returns no pages for unknown cohorts", async () => {
+    const db = await seed();
     expect(inCohort("all")).toBeUndefined();
-    expect(inCohort("market:developer_tools")).toBeUndefined();
-    expect(inCohort("category:not_a_real_category")).toBeUndefined();
+    expect(await ids(db, inCohort("market:developer_tools")!)).toEqual(["subscription-only"]);
+    expect(await ids(db, inCohort("ai_native")!)).toEqual(["subscription-only"]);
+    expect(await ids(db, inCohort("market:unknown")!)).toEqual([]);
+    expect(await ids(db, inCohort("category:not_a_real_category")!)).toEqual([]);
+    expect(await ids(db, inCohort("category:not_disclosed")!)).toEqual([]);
   });
 });

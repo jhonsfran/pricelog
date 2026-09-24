@@ -42,11 +42,14 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
         {formatDay(report.previousPeriodStart)} – {formatDay(report.periodStart)} compared with{" "}
         {formatDay(report.periodStart)} – {formatDay(report.periodEnd)}, end dates excluded.
       </p>
-      <p className="chart-footnote">
-        {report.pairedPages} paired · {report.reviewedPages} reviewed · {report.uncertainPages}{" "}
-        uncertain · {report.newPages} new · {report.missingPages} missing ·{" "}
-        {report.incompatiblePages} incompatible
-      </p>
+      <details className="chart-detail">
+        <summary>Comparison coverage</summary>
+        <div>
+          {report.pairedPages} paired · {report.reviewedPages} reviewed · {report.uncertainPages}{" "}
+          uncertain · {report.newPages} new · {report.missingPages} missing ·{" "}
+          {report.incompatiblePages} incompatible
+        </div>
+      </details>
       {report.pairedPages === 0 ? (
         <p className="directory-message">
           Collecting history. This category needs compatible captures in two adjacent completed
@@ -60,7 +63,7 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
         report.items.map((item) => (
           <article className="weekly-change" key={`${item.pageId}:${item.key}`}>
             <div className="section-kicker">
-              <Link to="/pages/$slug" params={{ slug: item.slug }}>
+              <Link to="/pages/$slug" params={{ slug: item.slug }} search={{ cohort }}>
                 {item.name}
               </Link>
               <span>{item.kind === "disclosure" ? "DISCLOSURE CHANGE" : "COMMERCIAL CHANGE"}</span>

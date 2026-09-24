@@ -111,7 +111,7 @@ describe("pricing change evidence", () => {
   it("publishes literal evidence only after the second verification", async () => {
     const decide = responder();
     const result = await verifyChanges(pair(), before, after, decide);
-    expect(result.status).toBe("reviewed");
+    expect(result.status).toBe("uncertain");
     expect(result.changes).toHaveLength(1);
     expect(result.changes[0]).toMatchObject({
       kind: "commercial",

@@ -3,11 +3,8 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 
 import { user } from "./auth";
 import type { NumericPrices } from "../numeric-prices";
-import {
-  PRICING_INTELLIGENCE_RUBRIC_ID,
-  type PricingChoiceKey,
-  type PricingSignalKey,
-} from "../pricing-intelligence";
+import type { PricingFacts } from "../pricing-facts";
+import { type PricingChoiceKey, type PricingSignalKey } from "../pricing-intelligence";
 
 export type PageChoice = {
   key: PricingChoiceKey;
@@ -61,6 +58,7 @@ export const pagePublicSummary = sqliteTable(
     rubricId: text("rubric_id").notNull(),
     model: text("model").notNull(),
     numericPrices: text("numeric_prices_json", { mode: "json" }).$type<NumericPrices>(),
+    pricingFacts: text("pricing_facts_json", { mode: "json" }).$type<PricingFacts>(),
     choices: text("choices_json", { mode: "json" })
       .$type<PageChoice[]>()
       .default(sql`'[]'`)
@@ -139,7 +137,7 @@ export const benchmarkSnapshot = sqliteTable(
   "benchmark_snapshot",
   {
     id: text("id").primaryKey(),
-    rubricId: text("rubric_id").default(PRICING_INTELLIGENCE_RUBRIC_ID).notNull(),
+    rubricId: text("rubric_id").notNull(),
     cohort: text("cohort").notNull(),
     computedAt: integer("computed_at", { mode: "timestamp_ms" }).notNull(),
     pageCount: integer("page_count").notNull(),

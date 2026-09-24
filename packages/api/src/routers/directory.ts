@@ -1,22 +1,17 @@
 import { page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
-import { and, asc, count, desc, eq, gt, like, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 
-import {
-  AI_APPLICATIONS_COHORT,
-  ALL_COHORT,
-  cohortLabel,
-  cohortsForPage,
-  COHORT_MINIMUM,
-} from "../benchmark";
-import {
-  isPricingChoiceKey,
-  isPricingSignalKey,
-  PRICING_INTELLIGENCE_RUBRIC_ID,
-} from "../pricing-intelligence";
+import { AI_APPLICATIONS_COHORT, ALL_COHORT, cohortLabel, cohortsForPage } from "../benchmark";
+
+import { isPricingChoiceKey, isPricingSignalKey } from "../pricing-intelligence";
 import { buildWeeklyReport, sourceUrl } from "../pricing-history";
 import { readWeeklyHistory } from "../pricing-history-store";
-import { loadBenchmarks } from "../benchmark-store";
+import {
+  benchmarkCorpusCondition,
+  loadBenchmarks,
+  readBenchmarkCoverage,
+} from "../benchmark-store";
 import { publicProcedure } from "../index";
 import { hasChoice, inCohort, statesSignal } from "../directory-filters";
 import { descendingCursorCondition } from "../pagination";
@@ -28,7 +23,7 @@ export const directoryRouter = {
       z
         .object({
           search: z.string().trim().max(100).optional(),
-          /** A charging signal the page states, e.g. `fixed_subscription`. */
+          /** A charging signal the page states, e.g. `charges_fixed_subscription`. */
           signal: z.string().trim().max(64).refine(isPricingSignalKey).optional(),
           /** A published classification, e.g. `credit_conversion` = `not_disclosed`. */
           choiceKey: z.string().trim().max(64).refine(isPricingChoiceKey).optional(),
@@ -42,7 +37,7 @@ export const directoryRouter = {
     )
     .handler(async ({ context, input }) => {
       const search = input?.search;
-      const conditions = [eq(page.state, "active")];
+      const conditions = [benchmarkCorpusCondition()];
       if (search) {
         const pattern = `%${search}%`;
         conditions.push(
@@ -124,6 +119,7 @@ export const directoryRouter = {
           rubricId: pagePublicSummary.rubricId,
           model: pagePublicSummary.model,
           numericPrices: pagePublicSummary.numericPrices,
+          pricingFacts: pagePublicSummary.pricingFacts,
           browserEngine: pagePublicSummary.browserEngine,
           runId: pagePublicSummary.runId,
           scannedAt: pagePublicSummary.scannedAt,
@@ -144,16 +140,17 @@ export const directoryRouter = {
 
   benchmarks: publicProcedure
     .input(
-      z.object({ cohort: z.string().min(1).max(64).default(AI_APPLICATIONS_COHORT) }).optional(),
+      z
+        .object({
+          cohort: z.string().min(1).max(64).default(AI_APPLICATIONS_COHORT),
+        })
+        .optional(),
     )
     .handler(async ({ context, input }) => {
-      const [{ snapshots, computedAt, live }, [directoryCount]] = await Promise.all([
-        loadBenchmarks(context.db),
-        context.db
-          .select({ value: count() })
-          .from(page)
-          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-          .where(eq(page.state, "active")),
+      const now = new Date();
+      const [{ snapshots, computedAt, live }, coverage] = await Promise.all([
+        loadBenchmarks(context.db, now),
+        readBenchmarkCoverage(context.db, now),
       ]);
       const available = snapshots.map((snapshot) => ({
         cohort: snapshot.cohort,
@@ -164,16 +161,16 @@ export const directoryRouter = {
       const requested = input?.cohort ?? AI_APPLICATIONS_COHORT;
       const selected = snapshots.find((snapshot) => snapshot.cohort === requested) ?? null;
       const [examples, priceExamples] = await Promise.all([
-        readExamples(context.db, requested),
-        readExamples(context.db, requested, true),
+        readExamples(context.db, requested, false, now),
+        readExamples(context.db, requested, true, now),
       ]);
 
       return {
         computedAt,
         live,
-        minimumCohortSize: COHORT_MINIMUM,
         indexedPages: snapshots.find((s) => s.cohort === ALL_COHORT)?.pageCount ?? 0,
-        totalIndexedPages: directoryCount?.value ?? 0,
+        totalIndexedPages: coverage.total,
+        coverage,
         available,
         examples,
         priceExamples,
@@ -205,6 +202,7 @@ export async function readExamples(
   db: import("@my-better-t-app/db").Database,
   cohort: string,
   numericOnly = false,
+  now = new Date(),
 ) {
   const examples = [];
   let cursor: string | undefined;
@@ -223,13 +221,7 @@ export async function readExamples(
       })
       .from(page)
       .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-      .where(
-        and(
-          eq(page.state, "active"),
-          eq(pagePublicSummary.rubricId, PRICING_INTELLIGENCE_RUBRIC_ID),
-          cursor ? gt(page.id, cursor) : undefined,
-        ),
-      )
+      .where(benchmarkCorpusCondition(now, cursor))
       .orderBy(asc(page.id))
       .limit(100);
     for (const row of rows) {

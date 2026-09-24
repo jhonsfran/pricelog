@@ -1,3 +1,4 @@
+import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 import {
   BASE_PRICE_CONFIDENCE,
   type NumericOffer,
@@ -42,7 +43,7 @@ export function buildNumericBenchmark(
       result.notCollected++;
       continue;
     }
-    if (prices.status !== "collected") {
+    if (prices.status !== "collected" || prices.model !== EXPECTED_JEV_MODEL) {
       result.unavailable++;
       continue;
     }
