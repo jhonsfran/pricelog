@@ -117,7 +117,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         >
           {({ canSubmit, isSubmitting }) => (
             <Button
-              className="mt-1.5 h-11 w-full text-sm"
+              className="mt-1.5 w-full"
               size="lg"
               type="submit"
               disabled={!canSubmit || isSubmitting}

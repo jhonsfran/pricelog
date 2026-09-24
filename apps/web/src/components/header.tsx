@@ -46,9 +46,7 @@ export default function Header() {
       </nav>
       <div className="flex min-w-0 items-center justify-self-end gap-2.5">
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="lg" className="h-11 md:hidden" />}
-          >
+          <DropdownMenuTrigger render={<Button variant="outline" className="h-11 md:hidden" />}>
             <Menu data-icon="inline-start" /> Menu
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-44">

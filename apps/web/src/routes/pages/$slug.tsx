@@ -3,7 +3,6 @@ import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/api/pricing-int
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
-import { ENV } from "@/env.public";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { NumericPricesPanel } from "@/components/numeric-prices";
 import {
@@ -18,6 +17,7 @@ import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { formatStamp, isFresh, toDate } from "@/lib/time";
 import { parseDirectoryFilter } from "@/lib/directory-filter";
+import { serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({
@@ -50,10 +50,10 @@ function PublicPageProfile() {
         eyebrow="Pricing page record"
         title={item.displayName ?? item.normalizedDomain}
         aside={
-          <p className="kicker flex w-fit items-center gap-2.5 border bg-card px-3 py-2 text-muted-foreground md:justify-self-end">
+          <p className="flex w-fit items-center gap-2.5 border bg-card px-3 py-2 text-muted-foreground md:justify-self-end">
             <LiveDot live={isFresh(item.scannedAt)} />
             Latest capture
-            <RelativeTime className="text-foreground" value={item.scannedAt} />
+            <RelativeTime className="font-mono text-xs text-foreground" value={item.scannedAt} />
           </p>
         }
       >
@@ -78,7 +78,7 @@ function PublicPageProfile() {
           </Link>
           {item.sourceUrl ? (
             <a
-              href={`${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${item.sourceUrl}`}
+              href={serverUrl(item.sourceUrl)}
               target="_blank"
               rel="noreferrer"
               title={formatStamp(item.scannedAt)}

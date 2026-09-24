@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@my-better-t-app/ui/components/card";
 import { cn } from "@my-better-t-app/ui/lib/utils";
-import type { ComponentProps, ReactNode } from "react";
+import { Children, type ComponentProps, type ReactNode } from "react";
 
 /**
  * One block of a record. `layered` shows the edges of older captures behind
@@ -45,7 +45,10 @@ export function Panel({
           ) : null}
         </CardHeader>
       ) : null}
-      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-5">{children}</CardContent>
+      {/* A panel that only states why it is empty has no body to pad. */}
+      {Children.toArray(children).length > 0 ? (
+        <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-5">{children}</CardContent>
+      ) : null}
     </Card>
   );
 }

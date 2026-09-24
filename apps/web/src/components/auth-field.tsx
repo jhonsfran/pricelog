@@ -27,11 +27,10 @@ export function AuthField({
   const invalid = errors.length > 0;
   return (
     <Field data-invalid={invalid}>
-      <FieldLabel htmlFor={field.name} className="kicker text-muted-foreground">
+      <FieldLabel htmlFor={field.name} className="text-muted-foreground">
         {label}
       </FieldLabel>
       <Input
-        className="h-11 bg-card px-3.5 text-sm md:text-sm dark:bg-card"
         id={field.name}
         name={field.name}
         type={type}
@@ -61,8 +60,8 @@ export function AuthShell({
 }) {
   return (
     <main className="mx-auto w-full max-w-md px-6 pt-22 pb-30 max-sm:pt-14">
-      <p className="kicker text-muted-foreground">Owner console</p>
-      <h1 className="mt-2.5 mb-2 text-5xl leading-[0.95] tracking-[-0.04em] sm:text-6xl">
+      <p className="text-sm font-medium text-muted-foreground">Owner console</p>
+      <h1 className="mt-2.5 mb-3 text-5xl leading-[1.02] font-[650] tracking-[-0.032em]">
         {title}
       </h1>
       <p className="mb-9 leading-relaxed text-muted-foreground">{intro}</p>

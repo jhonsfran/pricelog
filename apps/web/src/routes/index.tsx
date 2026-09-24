@@ -106,7 +106,6 @@ function DirectoryPage() {
         <PageHeader
           eyebrow="Pricing research for AI product teams"
           title="See how AI pricing changes."
-          depth={3}
           className="md:items-center"
           aside={
             <form
@@ -122,7 +121,7 @@ function DirectoryPage() {
                   navigate({ search: { ...filter, cohort }, resetScroll: false })
                 }
               />
-              <Button type="submit" size="lg" className="h-11 text-sm">
+              <Button type="submit" size="lg">
                 Compare pricing practices <ArrowRight data-icon="inline-end" />
               </Button>
               <p>
@@ -153,7 +152,7 @@ function DirectoryPage() {
                 variant="outline"
                 size="sm"
                 nativeButton={false}
-                className="h-8 gap-2 text-sm dark:border-brand-7 dark:bg-transparent dark:hover:bg-brand-3"
+                className="gap-2 border-brand-7 bg-transparent hover:border-brand-8 hover:bg-brand-3"
                 render={
                   <Link
                     to="/"
@@ -171,7 +170,7 @@ function DirectoryPage() {
               variant="ghost"
               size="sm"
               nativeButton={false}
-              className="kicker h-8 text-2xs text-muted-foreground"
+              className="text-muted-foreground"
               render={<Link to="/" search={{}} />}
             >
               Clear all
@@ -182,7 +181,8 @@ function DirectoryPage() {
           <FieldLabel className="sr-only" htmlFor="directory-search">
             Search pricing pages
           </FieldLabel>
-          <InputGroup className="h-14 border-0 border-b border-input bg-transparent shadow-none transition-colors dark:bg-transparent has-[[data-slot=input-group-control]:focus-visible]:border-foreground has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+          {/* A rule, not a box: the search belongs to the list under it. */}
+          <InputGroup className="h-14 border-0 border-b border-input bg-transparent has-[[data-slot=input-group-control]:focus-visible]:border-foreground has-[[data-slot=input-group-control]:focus-visible]:ring-0">
             <InputGroupAddon className="pl-0">
               <Search aria-hidden="true" />
             </InputGroupAddon>
@@ -241,7 +241,7 @@ function DirectoryPage() {
                     </span>
                   ) : null}
                 </RecordIdentity>
-                <span className="font-mono text-xs text-gray-11 max-md:hidden">
+                <span className="text-gray-11 max-md:hidden">
                   {formatToken(
                     item.choices.find((choice) => choice.key === "product_category")?.choice ??
                       "unclassified",
@@ -258,9 +258,8 @@ function DirectoryPage() {
         </div>
         {directory.hasNextPage ? (
           <Button
-            className="kicker mx-auto mt-6 flex text-2xs"
+            className="mx-auto mt-6 flex"
             variant="outline"
-            size="lg"
             disabled={directory.isFetchingNextPage}
             onClick={() => directory.fetchNextPage()}
           >

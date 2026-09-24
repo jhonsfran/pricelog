@@ -69,7 +69,7 @@ export function SiteFooter() {
 function FooterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col items-start gap-3">
-      <h2 className="kicker mb-1 font-normal text-muted-foreground">{title}</h2>
+      <h2 className="mb-1 text-sm font-medium tracking-normal">{title}</h2>
       {children}
     </div>
   );

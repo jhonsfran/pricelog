@@ -2,8 +2,8 @@ import { Badge } from "@my-better-t-app/ui/components/badge";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ENV } from "@/env.public";
 import { formatDay } from "@/lib/time";
+import { serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 import { Disclosure, Evidence, Notice, StatRow } from "./page";
 import { Panel } from "./panel";
@@ -29,16 +29,16 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
           {/* A zero is a result; a number above zero is the news. */}
           <strong
             className={cn(
-              "font-display text-7xl leading-[0.85] font-bold font-stretch-[84%] tabular-nums sm:text-8xl",
+              "text-7xl leading-[0.9] font-[650] tracking-[-0.045em] tabular-nums sm:text-8xl",
               found ? "text-primary" : "text-foreground",
             )}
           >
             {report.verifiedPages}
           </strong>
-          <span className="font-display text-lg font-medium">
+          <span className="text-lg font-medium">
             {report.verifiedPages === 1 ? "page has" : "pages have"} a verified commercial change
           </span>
-          <small className="kicker text-muted-foreground">
+          <small className="text-sm text-muted-foreground">
             {comparable
               ? `${Math.round((report.verifiedPages / report.pairedPages) * 100)}% of ${report.pairedPages} paired pages`
               : report.uncertainPages > 0
@@ -77,7 +77,7 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
           <Panel layered role="article" key={`${item.pageId}:${item.key}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
-                className="font-display text-base font-semibold hover:underline"
+                className="text-base font-semibold hover:underline"
                 to="/pages/$slug"
                 params={{ slug: item.slug }}
                 search={{ cohort }}
@@ -105,13 +105,13 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
               <EvidenceSource
                 label="Before"
                 capturedAt={item.beforeCapturedAt}
-                href={sourceUrl(item.beforeSourceUrl)}
+                href={serverUrl(item.beforeSourceUrl)}
                 text={item.beforeEvidence}
               />
               <EvidenceSource
                 label="After"
                 capturedAt={item.afterCapturedAt}
-                href={sourceUrl(item.afterSourceUrl)}
+                href={serverUrl(item.afterSourceUrl)}
                 text={item.afterEvidence}
               />
             </div>
@@ -146,8 +146,4 @@ function EvidenceSource({
       <Evidence>{text}</Evidence>
     </div>
   );
-}
-
-function sourceUrl(path: string) {
-  return `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${path}`;
 }

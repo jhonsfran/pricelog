@@ -1,11 +1,11 @@
 import { monthlyEquivalent, PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
+import { serverUrl } from "@/lib/url";
 import type {
   NumericOffer,
   NumericPrices,
   NumericPriceBenchmark,
 } from "@my-better-t-app/api/numeric-prices";
 import { Link } from "@tanstack/react-router";
-import { ENV } from "@/env.public";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { Disclosure, Evidence, Notice, SectionHeading, StatRow } from "./page";
 import { Panel } from "./panel";
@@ -116,11 +116,7 @@ export function NumericPricesPanel({
             </p>
             {sourceUrl ? (
               <p>
-                <a
-                  href={`${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${sourceUrl}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={serverUrl(sourceUrl)} target="_blank" rel="noreferrer">
                   Read the archived source
                 </a>
               </p>

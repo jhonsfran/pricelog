@@ -56,10 +56,10 @@ function DashboardPage() {
         }}
       >
         <Field>
-          <FieldLabel htmlFor="pricing-url" className="kicker text-muted-foreground">
+          <FieldLabel htmlFor="pricing-url" className="text-muted-foreground">
             Pricing page URL
           </FieldLabel>
-          <InputGroup className="h-14 bg-card dark:bg-card">
+          <InputGroup className="h-14">
             <InputGroupInput
               id="pricing-url"
               type="url"

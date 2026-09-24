@@ -51,7 +51,7 @@ export function RowHeader({ className, ...props }: ComponentProps<typeof TableHe
     <TableHead
       scope="row"
       className={cn(
-        "h-auto py-3.5 pr-4 pl-0 align-top font-display text-sm font-semibold whitespace-normal",
+        "h-auto py-3.5 pr-4 pl-0 align-top text-sm font-semibold whitespace-normal",
         className,
       )}
       {...props}

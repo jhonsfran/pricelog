@@ -168,7 +168,7 @@ function MethodologyPage() {
         />
         {PRICING_CHOICE_GROUPS.map((group) => (
           <div key={group.key} className="pt-6">
-            <h4 className="kicker font-medium text-gray-11">{group.label}</h4>
+            <h4 className="text-sm tracking-normal">{group.label}</h4>
             {Object.entries(PRICING_CHOICE_CATALOG)
               .filter(([, entry]) => entry.group === group.key)
               .map(([key, entry]) => (

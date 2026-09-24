@@ -12,7 +12,7 @@ import { BackLink, PageHeader, PageShell, SectionHeading, StatePage } from "@/co
 import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { RunStatus } from "@/components/run-status";
-import { ENV } from "@/env.public";
+import { serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/pages/$pageId")({
@@ -67,7 +67,7 @@ function OwnerPageDetail() {
         aside={
           <Button
             size="lg"
-            className="h-11 w-fit px-5 md:justify-self-end"
+            className="w-fit md:justify-self-end"
             disabled={trigger.isPending}
             onClick={() => trigger.mutate({ pageId })}
           >
@@ -142,7 +142,7 @@ function OwnerPageDetail() {
                 <span className="kicker text-muted-foreground">{run.trigger}</span>
               </div>
               <div className="flex flex-col gap-1.5">
-                <strong className="font-display text-base font-medium">
+                <strong className="text-base font-medium">
                   <RelativeTime value={run.createdAt} />
                 </strong>
                 <small className="text-xs text-muted-foreground">
@@ -173,9 +173,8 @@ function OwnerPageDetail() {
         </div>
         {detail.hasNextPage ? (
           <Button
-            className="kicker mx-auto mt-6 flex text-2xs"
+            className="mx-auto mt-6 flex"
             variant="outline"
-            size="lg"
             disabled={detail.isFetchingNextPage}
             onClick={() => detail.fetchNextPage()}
           >
@@ -188,5 +187,5 @@ function OwnerPageDetail() {
 }
 
 function artifactUrl(pageId: string, runId: string, kind: string) {
-  return `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}/api/pages/${pageId}/runs/${runId}/artifacts/${kind}`;
+  return serverUrl(`/api/pages/${pageId}/runs/${runId}/artifacts/${kind}`);
 }

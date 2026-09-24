@@ -37,7 +37,8 @@
   --border: var(--sand-6);
   --input: var(--sand-7);
   --ring: var(--crimson-8);
-  --radius: 0.125rem;
+  /* Square on purpose: every record is a sheet of paper. */
+  --radius: 0;
 }
 
 @theme inline {
@@ -135,17 +136,11 @@
   --color-danger-11: var(--tomato-11);
   --color-danger-12: var(--tomato-12);
 
+  /* One sans. Inter's optical-size axis switches to the Display cut at
+     heading sizes, so headings and text are one family drawn for each. */
   --font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: "Archivo Variable", "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 @theme {
@@ -171,7 +166,7 @@
   h2,
   h3,
   h4 {
-    @apply font-display font-semibold tracking-tight text-balance;
+    @apply font-display font-semibold tracking-[-0.011em] text-balance;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;

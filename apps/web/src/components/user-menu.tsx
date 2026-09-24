@@ -15,14 +15,14 @@ import { UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 // 44px targets on touch screens, the standard control height elsewhere.
-const trigger = "max-md:h-11";
+const trigger = "max-md:h-11 max-md:px-4";
 
 export default function UserMenu() {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
+    return <Skeleton className="h-10 w-24" />;
   }
 
   if (!session) {
@@ -31,10 +31,9 @@ export default function UserMenu() {
         render={<Link to="/login" />}
         nativeButton={false}
         variant="outline"
-        size="lg"
         className={trigger}
       >
-        Sign In
+        Sign in
       </Button>
     );
   }
@@ -45,7 +44,6 @@ export default function UserMenu() {
         render={
           <Button
             variant="outline"
-            size="lg"
             className={trigger}
             aria-label={`Account for ${session.user.name}`}
           />

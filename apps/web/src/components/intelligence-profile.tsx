@@ -145,7 +145,7 @@ function ChoiceGroup({
   return (
     <div className="grid gap-3">
       <div>
-        <h3 className="kicker font-medium text-gray-11">{label}</h3>
+        <h3 className="text-sm tracking-normal">{label}</h3>
         {note ? <p className="mt-1.5 text-xs text-muted-foreground">{note}</p> : null}
       </div>
       {/* Cells overlap their neighbours' borders, so a part-filled last row
@@ -154,7 +154,7 @@ function ChoiceGroup({
         {items.map((item) => (
           <div key={item.key} className="-mt-px -ml-px flex min-h-24 flex-col gap-2 border p-4">
             <span className="text-xs text-muted-foreground">{item.label}</span>
-            <strong className={cn("font-display text-base font-medium", answerTone(item.choice))}>
+            <strong className={cn("text-base font-medium", answerTone(item.choice))}>
               {formatToken(item.choice)}
             </strong>
           </div>
@@ -172,11 +172,16 @@ export function answerTone(choice: string) {
   return "text-foreground";
 }
 
+const ACRONYMS: Record<string, string> = { ai: "AI", api: "API", apis: "APIs", hr: "HR", gb: "GB" };
+
+/** "ai_native" → "AI native": sentence case, with acronyms kept whole. */
 export function formatToken(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const words = value
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((word) => ACRONYMS[word.toLowerCase()] ?? word.toLowerCase());
+  const [first = "", ...rest] = words;
+  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(" ");
 }
 
 export function prioritizeTags(tags: string[]) {

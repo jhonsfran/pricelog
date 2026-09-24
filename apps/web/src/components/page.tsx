@@ -4,7 +4,6 @@ import { cn } from "@my-better-t-app/ui/lib/utils";
 import { Link, createLink } from "@tanstack/react-router";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { LayerTitle } from "./layer-title";
 
 export function PageShell({
   narrow,
@@ -24,20 +23,18 @@ export function PageShell({
 }
 
 /**
- * Every page opens the same way: what kind of record this is, its name
- * printed as a stack of captures, then whatever the reader needs beside it.
+ * Every page opens the same way: what kind of record this is, its name,
+ * then whatever the reader needs beside it.
  */
 export function PageHeader({
   eyebrow,
   title,
-  depth,
   children,
   aside,
   className,
 }: {
   eyebrow: string;
   title: string;
-  depth?: number;
   children?: ReactNode;
   aside?: ReactNode;
   className?: string;
@@ -50,9 +47,10 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
-        <p className="kicker text-muted-foreground">{eyebrow}</p>
-        <h1 className="mt-3 text-4xl leading-none font-bold tracking-[-0.035em] font-stretch-[86%] sm:text-5xl lg:text-6xl">
-          <LayerTitle depth={depth}>{title}</LayerTitle>
+        <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
+        {/* Inter's Display cut takes tight tracking; the text cut would not. */}
+        <h1 className="mt-2.5 text-4xl leading-[1.02] font-[650] tracking-[-0.032em] wrap-break-word sm:text-5xl lg:text-6xl">
+          {title}
         </h1>
         {children}
       </div>
@@ -82,14 +80,13 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        "kicker flex min-h-10 items-center justify-between gap-4 text-muted-foreground",
-        className,
+    <div className={cn("flex min-h-10 items-center justify-between gap-4", className)}>
+      <h2 id={id} className="text-sm font-medium tracking-normal">
+        {title}
+      </h2>
+      {meta === undefined ? null : (
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">{meta}</span>
       )}
-    >
-      <span id={id}>{title}</span>
-      {meta === undefined ? null : <span className="tabular-nums">{meta}</span>}
     </div>
   );
 }
@@ -102,7 +99,7 @@ export const BackLink = createLink(function BackAnchor({
   return (
     <a
       className={cn(
-        "group kicker mt-7 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground",
+        "group mt-7 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
       {...props}
@@ -124,7 +121,7 @@ export const RowLink = createLink(function RowAnchor({ className, ...props }: Co
   return (
     <a
       className={cn(
-        "group relative isolate grid min-h-20 items-center gap-6 border-b border-gray-4 motion-safe:animate-enter max-md:gap-3.5",
+        "group relative isolate grid min-h-20 items-center gap-6 border-b border-gray-4 py-4 motion-safe:animate-enter max-md:gap-3.5",
         "before:absolute before:inset-y-0 before:-inset-x-3.5 before:-z-10 before:bg-gray-2 before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:before:opacity-100 active:before:bg-gray-3 active:before:opacity-100",
         "after:absolute after:inset-y-0 after:-left-3.5 after:w-0.5 after:origin-center after:scale-y-0 after:bg-foreground after:transition-transform after:duration-200 after:ease-out hover:after:scale-y-100",
         className,
@@ -148,22 +145,30 @@ export function RowArrow({ className }: { className?: string }) {
   );
 }
 
-/** A record's name, its address, and up to three labels under them. */
+/**
+ * A record in a list: its domain, then what the page says it is (or the
+ * exact address it was captured from), then its labels.
+ */
 export function RecordIdentity({
   name,
+  description,
   address,
   children,
 }: {
   name: string;
-  address: string;
+  description?: string | null;
+  address?: string;
   children?: ReactNode;
 }) {
   return (
     <span className="flex min-w-0 flex-col gap-1.5">
-      <strong className="truncate font-display text-base leading-tight font-semibold tracking-tight">
-        {name}
-      </strong>
-      <small className="truncate font-mono text-2xs text-muted-foreground">{address}</small>
+      <strong className="truncate text-base leading-tight font-semibold">{name}</strong>
+      {description ? (
+        <span className="line-clamp-1 text-muted-foreground">{description}</span>
+      ) : null}
+      {address ? (
+        <small className="truncate font-mono text-xs text-muted-foreground">{address}</small>
+      ) : null}
       {children}
     </span>
   );
@@ -287,7 +292,7 @@ export function StatRow({
           className="-mt-px -ml-px flex flex-col-reverse gap-1 border px-4 py-3"
         >
           <dt className="kicker text-muted-foreground">{item.label}</dt>
-          <dd className="font-display text-2xl font-semibold tabular-nums">{item.value}</dd>
+          <dd className="text-2xl font-semibold tracking-[-0.02em] tabular-nums">{item.value}</dd>
         </div>
       ))}
     </dl>
@@ -310,7 +315,7 @@ export function LiveDot({ live }: { live?: boolean }) {
 /** A published label on a record. Quiet by design: it classifies, it does not signal. */
 export function Tag({ children }: { children: ReactNode }) {
   return (
-    <Badge variant="outline" className="kicker h-auto px-1.5 py-0.5 text-2xs text-gray-11">
+    <Badge variant="secondary" className="h-auto px-1.5 py-0.5 font-normal text-gray-11">
       {children}
     </Badge>
   );

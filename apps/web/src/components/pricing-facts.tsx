@@ -1,6 +1,6 @@
 import type { FactUnit, NumericFact, PricingFacts } from "@my-better-t-app/api/pricing-facts";
+import { serverUrl } from "@/lib/url";
 import { getPricingChoiceLabel } from "@my-better-t-app/api/pricing-intelligence";
-import { ENV } from "@/env.public";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { answerTone, formatToken } from "./intelligence-profile";
 import { Disclosure, Evidence, StatRow } from "./page";
@@ -162,11 +162,7 @@ export function PricingFactsPanel({
       ) : null}
       {sourceUrl ? (
         <p>
-          <a
-            href={`${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${sourceUrl}`}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a href={serverUrl(sourceUrl)} target="_blank" rel="noreferrer">
             Read the archived source
           </a>
         </p>

@@ -32,15 +32,12 @@ export function SelectField({
           if (typeof next === "string") onChange(next);
         }}
       >
-        <SelectTrigger
-          id={id}
-          className="w-full bg-card px-3.5 text-sm data-[size=default]:h-11 dark:bg-card dark:hover:bg-gray-3"
-        >
+        <SelectTrigger id={id} className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.value} value={option.value} className="text-sm">
+            <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
           ))}
