@@ -12,7 +12,7 @@ import { BackLink, PageHeader, PageShell, SectionHeading, StatePage } from "@/co
 import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { RunStatus } from "@/components/run-status";
-import { serverUrl } from "@/lib/url";
+import { displayUrl, serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/pages/$pageId")({
@@ -63,7 +63,7 @@ function OwnerPageDetail() {
       <BackLink to="/dashboard">Your pages</BackLink>
       <PageHeader
         eyebrow="Owner record"
-        title={data.page.displayName ?? data.page.normalizedDomain}
+        title={data.page.normalizedDomain}
         aside={
           <Button
             size="lg"
@@ -77,7 +77,7 @@ function OwnerPageDetail() {
         }
       >
         <p className="mt-4 font-mono text-xs text-muted-foreground wrap-anywhere">
-          {data.page.canonicalUrl}
+          {displayUrl(data.page.canonicalUrl)}
         </p>
       </PageHeader>
       {active ? (

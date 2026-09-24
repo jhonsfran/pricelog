@@ -220,7 +220,7 @@ export function NumericBenchmarkPanel({
               .map((page) => (
                 <Disclosure
                   key={page.id}
-                  summary={`${page.displayName ?? page.normalizedDomain}: ${page.numericPrices?.offers
+                  summary={`${page.normalizedDomain}: ${page.numericPrices?.offers
                     .map(
                       (offer) =>
                         `${amountLabel(offer)} · ${offer.billing} commitment${offer.currency === "DOLLAR_UNSPECIFIED" ? " · currency unspecified" : ""}`,

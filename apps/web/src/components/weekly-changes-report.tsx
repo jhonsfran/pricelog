@@ -82,7 +82,7 @@ export function WeeklyChangesReport({ cohort, minimum }: { cohort: string; minim
                 params={{ slug: item.slug }}
                 search={{ cohort }}
               >
-                {item.name}
+                {item.slug}
               </Link>
               <Badge
                 variant={item.kind === "disclosure" ? "outline" : "default"}

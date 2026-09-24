@@ -227,10 +227,7 @@ function DirectoryPage() {
                 search={filter}
                 style={{ animationDelay: staggerDelay(index) }}
               >
-                <RecordIdentity
-                  name={item.displayName ?? item.normalizedDomain}
-                  address={item.normalizedDomain}
-                >
+                <RecordIdentity name={item.normalizedDomain} description={item.description}>
                   {item.tags.length > 0 ? (
                     <span className="flex flex-wrap gap-1.5">
                       {prioritizeTags(item.tags)

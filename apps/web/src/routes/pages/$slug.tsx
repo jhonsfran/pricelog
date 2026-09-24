@@ -8,6 +8,7 @@ import { NumericPricesPanel } from "@/components/numeric-prices";
 import {
   BackLink,
   Definitions,
+  Lede,
   LiveDot,
   PageHeader,
   PageShell,
@@ -17,7 +18,7 @@ import { PricingFactsPanel } from "@/components/pricing-facts";
 import { RelativeTime } from "@/components/relative-time";
 import { formatStamp, isFresh, toDate } from "@/lib/time";
 import { parseDirectoryFilter } from "@/lib/directory-filter";
-import { serverUrl } from "@/lib/url";
+import { displayUrl, serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/pages/$slug")({
@@ -48,7 +49,7 @@ function PublicPageProfile() {
       </BackLink>
       <PageHeader
         eyebrow="Pricing page record"
-        title={item.displayName ?? item.normalizedDomain}
+        title={item.normalizedDomain}
         aside={
           <p className="flex w-fit items-center gap-2.5 border bg-card px-3 py-2 text-muted-foreground md:justify-self-end">
             <LiveDot live={isFresh(item.scannedAt)} />
@@ -57,13 +58,15 @@ function PublicPageProfile() {
           </p>
         }
       >
+        {/* What the page says about itself, from its own HTML description. */}
+        {item.description ? <Lede className="mt-4">{item.description}</Lede> : null}
         <a
           className="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
           href={item.canonicalUrl}
           target="_blank"
           rel="noreferrer"
         >
-          {item.normalizedDomain}
+          {displayUrl(item.canonicalUrl)}
           <ExternalLink className="size-3.5" aria-hidden="true" />
         </a>
       </PageHeader>

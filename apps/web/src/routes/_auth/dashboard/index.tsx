@@ -23,6 +23,7 @@ import {
 } from "@/components/page";
 import { RunStatus } from "@/components/run-status";
 import { staggerDelay } from "@/lib/animation";
+import { displayUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/dashboard/")({ component: DashboardPage });
@@ -98,8 +99,8 @@ function DashboardPage() {
               style={{ animationDelay: staggerDelay(index) }}
             >
               <RecordIdentity
-                name={item.displayName ?? item.normalizedDomain}
-                address={item.canonicalUrl}
+                name={item.normalizedDomain}
+                address={displayUrl(item.canonicalUrl)}
               />
               <RunStatus status={item.lastRunStatus} />
               <span className="kicker text-muted-foreground max-md:hidden">

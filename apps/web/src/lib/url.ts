@@ -4,3 +4,8 @@ import { ENV } from "@/env.public";
 export function serverUrl(path: string) {
   return `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}${path}`;
 }
+
+/** An address as a reader says it: no scheme, no trailing slash. */
+export function displayUrl(url: string) {
+  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
