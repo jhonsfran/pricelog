@@ -25,3 +25,18 @@ export const current = engineVariant(
   },
   settings,
 );
+
+/**
+ * names-v16a with request size limits, so pages with 100+ prices or very long Markdown lines
+ * fit Jev's input limits. Pages that already fit send the same requests unless a context line
+ * or a price's terms exceed 300 characters.
+ */
+export const sized = engineVariant(
+  {
+    id: "names-v17a",
+    parent: "names-v16a",
+    hypothesis:
+      "Capping context lines at 300 characters and splitting requests at 90 KB (60 KB of state) lets every registered page run, without changing results on pages that already fit.",
+  },
+  { ...settings, maxLineChars: 300, maxRequestBytes: 90_000, maxStateBytes: 60_000 },
+);

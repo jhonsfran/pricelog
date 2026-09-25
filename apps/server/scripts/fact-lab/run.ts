@@ -19,7 +19,7 @@ import type { Gold, LabResult } from "./schema";
 import { diffResults, scoreResult, type Score } from "./score";
 import { VARIANTS } from "./variants";
 
-const variantId = flag("variant") ?? "names-v16a";
+const variantId = flag("variant") ?? "names-v17a";
 const domain = flag("domain") ?? "cursor.com";
 const useCache = flag("no-cache") !== "true";
 const note = flag("note") ?? "";
