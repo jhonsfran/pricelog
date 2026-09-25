@@ -27,6 +27,7 @@ export const server = Cloudflare.Worker("server", {
     SCAN_WORKFLOW: Cloudflare.Workflow("ScanWorkflow", { className: "ScanWorkflow" }),
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
+    PAGE_OPERATOR_EMAILS: Config.String("PAGE_OPERATOR_EMAILS").pipe(Config.withDefault("")),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
     LOG_FORMAT: process.env.ALCHEMY_DEV === "true" ? "pretty" : "json",
   },

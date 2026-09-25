@@ -1,8 +1,9 @@
 import { SQLiteDialect } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 
+import { isPageOperator, parseOperatorEmails } from "../operators";
 import { appRouter } from "./index";
-import { ownedPageCondition, provisionOwnedPage } from "./pages";
+import { ownedPageCondition, pageAccessCondition, provisionOwnedPage } from "./pages";
 
 describe("owner authorization", () => {
   it("constrains page access by both page and owner", () => {
@@ -12,6 +13,34 @@ describe("owner authorization", () => {
     expect(query.sql).toContain('"page"."id" = ?');
     expect(query.sql).toContain('"page"."owner_user_id" = ?');
     expect(query.params).toEqual(["page-a", "user-b"]);
+  });
+
+  it("lets page operators reach any page by id and keeps owners scoped", () => {
+    const dialect = new SQLiteDialect();
+    const owner = dialect.sqlToQuery(
+      pageAccessCondition("page-a", { userId: "user-b", operator: false })!,
+    );
+    const operator = dialect.sqlToQuery(
+      pageAccessCondition("page-a", { userId: "user-b", operator: true })!,
+    );
+
+    expect(owner.sql).toContain('"page"."owner_user_id" = ?');
+    expect(owner.params).toEqual(["page-a", "user-b"]);
+    expect(operator.sql).not.toContain("owner_user_id");
+    expect(operator.params).toEqual(["page-a"]);
+  });
+
+  it("recognizes page operators by configured email only", () => {
+    const operatorEmails = parseOperatorEmails(" Tester@Example.com, ,ops@example.com ");
+    const session = (email: string) =>
+      ({ user: { email } }) as unknown as Parameters<typeof isPageOperator>[0]["session"];
+
+    expect(operatorEmails).toEqual(["tester@example.com", "ops@example.com"]);
+    expect(isPageOperator({ session: session("tester@example.com"), operatorEmails })).toBe(true);
+    expect(isPageOperator({ session: session("TESTER@example.com"), operatorEmails })).toBe(true);
+    expect(isPageOperator({ session: session("other@example.com"), operatorEmails })).toBe(false);
+    expect(isPageOperator({ session: null, operatorEmails })).toBe(false);
+    expect(isPageOperator({ session: session("tester@example.com") })).toBe(false);
   });
 
   it("exposes owner run operations only inside the protected pages router", () => {

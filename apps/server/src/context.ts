@@ -1,6 +1,8 @@
 import type { Context as ApiContext } from "@my-better-t-app/api/context";
+import { parseOperatorEmails } from "@my-better-t-app/api/operators";
 import type { Context as HonoContext } from "hono";
 
+import { ENV } from "./env.server";
 import { getDb } from "./services";
 import { createAuth } from "./services";
 import { pageMonitorService } from "./pricing/service";
@@ -20,6 +22,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     db,
     session,
     pageMonitor: pageMonitorService,
+    operatorEmails: parseOperatorEmails(ENV.PAGE_OPERATOR_EMAILS),
   };
 }
 

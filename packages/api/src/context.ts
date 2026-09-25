@@ -55,4 +55,6 @@ export type Context = {
   session: Session | null;
   db: Database;
   pageMonitor: PageMonitorService;
+  /** Lowercase account emails that may open and scan every page, not only their own. */
+  operatorEmails?: readonly string[];
 };

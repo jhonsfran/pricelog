@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { Context } from "../context";
 import { protectedProcedure } from "../index";
+import { isPageOperator } from "../operators";
 import { descendingTimestampCursorSchema } from "../pagination-schema";
 
 const pageIdInput = z.object({ pageId: z.string().min(1) });
@@ -72,8 +73,24 @@ export function ownedPageCondition(pageId: string, ownerUserId: string) {
   return and(eq(page.id, pageId), eq(page.ownerUserId, ownerUserId));
 }
 
-async function requireOwnedPage(context: Context, pageId: string, ownerUserId: string) {
-  const result = await findOwnedPage(context, pageId, ownerUserId);
+/** Owners reach their own pages; page operators reach every page. */
+export function pageAccessCondition(pageId: string, viewer: { userId: string; operator: boolean }) {
+  return viewer.operator ? eq(page.id, pageId) : ownedPageCondition(pageId, viewer.userId);
+}
+
+type SessionContext = Context & { session: NonNullable<Context["session"]> };
+
+async function requirePageAccess(context: SessionContext, pageId: string) {
+  const [result] = await context.db
+    .select()
+    .from(page)
+    .where(
+      pageAccessCondition(pageId, {
+        userId: context.session.user.id,
+        operator: isPageOperator(context),
+      }),
+    )
+    .limit(1);
   if (!result) throw new ORPCError("NOT_FOUND");
   return result;
 }
@@ -97,7 +114,7 @@ export const pagesRouter = {
       .from(page)
       .leftJoin(pageOwnerState, eq(pageOwnerState.pageId, page.id))
       .leftJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-      .where(eq(page.ownerUserId, context.session.user.id))
+      .where(isPageOperator(context) ? undefined : eq(page.ownerUserId, context.session.user.id))
       .orderBy(desc(page.createdAt));
   }),
 
@@ -145,7 +162,7 @@ export const pagesRouter = {
   getOwned: protectedProcedure
     .input(pageIdInput.extend({ cursor: descendingTimestampCursorSchema.optional() }))
     .handler(async ({ context, input }) => {
-      const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
+      const owned = await requirePageAccess(context, input.pageId);
       const [state] = await context.db
         .select()
         .from(pageOwnerState)
@@ -165,14 +182,14 @@ export const pagesRouter = {
     }),
 
   triggerRun: protectedProcedure.input(pageIdInput).handler(async ({ context, input }) => {
-    const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
+    const owned = await requirePageAccess(context, input.pageId);
     return context.pageMonitor.triggerManual(owned.normalizedDomain, context.session.user.id);
   }),
 
   getRun: protectedProcedure
     .input(pageIdInput.extend({ runId: z.string().min(1) }))
     .handler(async ({ context, input }) => {
-      const owned = await requireOwnedPage(context, input.pageId, context.session.user.id);
+      const owned = await requirePageAccess(context, input.pageId);
       const run = await context.pageMonitor.getRun(owned.normalizedDomain, input.runId);
       if (!run) throw new ORPCError("NOT_FOUND");
       return run;
