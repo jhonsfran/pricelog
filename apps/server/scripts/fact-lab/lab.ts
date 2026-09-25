@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Shared paths and helpers for the dev-only fact lab. Nothing here ships in the Worker. */
@@ -35,11 +35,14 @@ export function appendJsonl(path: string, value: unknown) {
   appendFileSync(path, `${JSON.stringify(value)}\n`);
 }
 
-/** A fingerprint over source files and settings; any change yields a new variant identity. */
+/**
+ * A fingerprint over source files and settings; any change yields a new variant identity.
+ * Paths are hashed relative to the repository so the identity is the same in every checkout.
+ */
 export function fingerprint(files: string[], settings: unknown): string {
   const hash = createHash("sha256");
   for (const file of [...files].sort()) {
-    hash.update(file);
+    hash.update(relative(REPO_ROOT, file));
     hash.update(readFileSync(file));
   }
   hash.update(JSON.stringify(settings));

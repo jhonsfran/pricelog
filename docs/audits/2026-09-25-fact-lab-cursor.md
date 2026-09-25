@@ -1,6 +1,6 @@
 # Fact lab: turning pricing pages into facts with Jev
 
-Dates: 2026-09-24 to 2026-09-25. Harness: `apps/server/scripts/fact-lab/`. Model: `typesafe/jev`, `jev-1.13.0`, through a local Workers AI proxy.
+Dates: 2026-09-24 to 2026-09-25. Harness: `apps/server/scripts/fact-lab/`. Every iteration and the full run log are in commit `70fd614`; the tree after it keeps only the baseline and the current best version. Model: `typesafe/jev`, `jev-1.13.0`, through a local Workers AI proxy.
 
 ## Summary
 
@@ -167,7 +167,7 @@ Example state excerpt (cursor.com, current version):
 ## Promotion plan (requires approval)
 
 1. **Coordinate first.** Another session has uncommitted edits in `apps/server/src/pricing/` (for example `pricing-facts.ts` and `source-candidates.ts`), and `docs/audits/2026-09-24-uncommitted-pricing-facts-review.md` reviews them.
-2. **Port the code.** Move `state/page-context.ts`, `state/windows5.ts`, `state/names5.ts` and the `names-engine-v16.ts` rules into `apps/server/src/pricing/` behind `collectPricingFacts`. It must also take the archived HTML, which the scan already stores in R2.
+2. **Port the code.** Move the lab's `state/` modules (`page-context.ts`, `sections.ts`, `windows.ts`, `names.ts`, `derive.ts`) and the rules in `variants/engine.ts` into `apps/server/src/pricing/` behind `collectPricingFacts`. It must also take the archived HTML, which the scan already stores in R2.
 3. **Extend the fact schema:** `free_plan` and `custom_price` roles, promotional and third-party exclusions, and review items with their reason. Bump `PRICING_FACTS_VERSION` to `pricing-facts-v2`.
 4. **Add a decision cache:** store Jev answers by request hash per domain, in the PageStore Durable Object or R2, and reuse them for identical requests.
 5. **Follow the fingerprint procedure** in `docs/pricing-methodology.md`:
