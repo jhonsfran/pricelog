@@ -1,0 +1,92 @@
+{
+  "capture": "d47471529a9e55047d8e33c1292243570e1535b6f5565f3f452fcd460cb7dab6",
+  "domain": "lovable.dev",
+  "status": "draft",
+  "uiState": {
+    "billing toggle": "MonthlyYearly (selected state not in markup)"
+  },
+  "facts": [
+    {
+      "id": "free",
+      "status": "in_capture",
+      "plan": "Free",
+      "role": "free_plan",
+      "amount": null,
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "€0",
+      "alsoAccept": [
+        {
+          "role": "base_price",
+          "amount": "0"
+        }
+      ]
+    },
+    {
+      "id": "pro",
+      "status": "in_capture",
+      "plan": "Pro",
+      "role": "base_price",
+      "amount": "25",
+      "unit": "flat",
+      "currency": "EUR",
+      "period": "month",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "€25",
+      "optional": ["billing"]
+    },
+    {
+      "id": "business",
+      "status": "in_capture",
+      "plan": "Business",
+      "role": "base_price",
+      "amount": "50",
+      "unit": "flat",
+      "currency": "EUR",
+      "period": "month",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "€50",
+      "optional": ["billing"]
+    },
+    {
+      "id": "credits",
+      "status": "out_of_schema",
+      "plan": null,
+      "role": "included_allowance",
+      "amount": "100",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "100 monthly credits"
+    },
+    {
+      "id": "yearly-discount",
+      "status": "out_of_schema",
+      "plan": null,
+      "role": "promotion",
+      "amount": null,
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "2 months free"
+    }
+  ],
+  "notes": [
+    "Last fresh holdout, labeled before any variant ran on it. Pending owner approval.",
+    "Prices shown incl. VAT in EUR."
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "capture": "731a14eab9c1ab4690fcc32246b8ce39e10da363a3831fa59c8ab7ecfc5d44e6",
+  "domain": "otter.ai",
+  "status": "draft",
+  "uiState": {
+    "billing tabs": "Annual active (w--current); the Monthly pane is also in the Markdown"
+  },
+  "facts": [
+    {
+      "id": "basic-free",
+      "status": "in_capture",
+      "plan": "Basic",
+      "role": "free_plan",
+      "amount": null,
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "Free",
+      "alsoAccept": [
+        {
+          "role": "base_price",
+          "amount": "0"
+        }
+      ]
+    },
+    {
+      "id": "pro-monthly",
+      "status": "in_capture",
+      "plan": "Pro",
+      "role": "seat_price",
+      "amount": "16.99",
+      "unit": "seat",
+      "currency": "USD",
+      "period": "month",
+      "billing": "monthly",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$16.99",
+      "note": "Monthly pane (h=month). The page states Prices in USD."
+    },
+    {
+      "id": "business-monthly",
+      "status": "in_capture",
+      "plan": "Business",
+      "role": "seat_price",
+      "amount": "30",
+      "unit": "seat",
+      "currency": "USD",
+      "period": "month",
+      "billing": "monthly",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$30",
+      "note": "Regular monthly price, shown as the old price beside a 3-month promotion."
+    },
+    {
+      "id": "pro-annual",
+      "status": "in_capture",
+      "plan": "Pro",
+      "role": "seat_price",
+      "amount": "8.33",
+      "unit": "seat",
+      "currency": "USD",
+      "period": "month",
+      "billing": "annual",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$8.33",
+      "note": "Annual pane, the active tab. Per user per month, billed annually."
+    },
+    {
+      "id": "business-annual",
+      "status": "in_capture",
+      "plan": "Business",
+      "role": "seat_price",
+      "amount": "19.99",
+      "unit": "seat",
+      "currency": "USD",
+      "period": "month",
+      "billing": "annual",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$19.99",
+      "note": "Annual pane, the active tab."
+    },
+    {
+      "id": "pro-promo",
+      "status": "out_of_schema",
+      "plan": "Pro",
+      "role": "promotion",
+      "amount": "8.49",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$8.49",
+      "note": "Asterisked promotional price; must not become a regular price."
+    },
+    {
+      "id": "pro-promo-annual",
+      "status": "out_of_schema",
+      "plan": "Pro",
+      "role": "promotion",
+      "amount": "4.17",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$4.17"
+    },
+    {
+      "id": "business-promo",
+      "status": "out_of_schema",
+      "plan": "Business",
+      "role": "promotion",
+      "amount": "24",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$24",
+      "note": "20% off for 3 months."
+    },
+    {
+      "id": "allowances",
+      "status": "out_of_schema",
+      "plan": null,
+      "role": "included_allowance",
+      "amount": "300",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "300 monthly transcription minutes",
+      "note": "Allowances are not implemented in engines v4–v8."
+    },
+    {
+      "id": "student-discounts",
+      "status": "out_of_schema",
+      "plan": "Pro",
+      "role": "promotion",
+      "amount": "6.67",
+      "unit": null,
+      "currency": "USD",
+      "period": "month",
+      "billing": "annual",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$6.67",
+      "note": "FAQ student discount prices ($6.67, $79.99, $13.59); must not become regular prices."
+    }
+  ],
+  "notes": [
+    "Fresh holdout, labeled before any variant ran on it. Pending owner approval.",
+    "Both billing panes are in the archived Markdown. Both are stated terms, labeled monthly or annual.",
+    "Added after the first holdout run: the FAQ student-discount block was missed while labeling. Scoring is unchanged because unlabeled prices already count as wrong."
+  ]
+}

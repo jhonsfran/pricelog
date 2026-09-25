@@ -1,0 +1,169 @@
+{
+  "capture": "e0b8c37e949239fc3b34305221567d80b66305ae2b080eb083d72afaaebdf9f3",
+  "domain": "chatbase.co",
+  "status": "draft",
+  "uiState": {
+    "billing toggle": "MonthlyYearly (selected state not in markup)"
+  },
+  "facts": [
+    {
+      "id": "free",
+      "status": "in_capture",
+      "plan": "Free",
+      "role": "free_plan",
+      "amount": null,
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$0",
+      "alsoAccept": [
+        {
+          "role": "base_price",
+          "amount": "0"
+        }
+      ]
+    },
+    {
+      "id": "hobby",
+      "status": "in_capture",
+      "plan": "Hobby",
+      "role": "base_price",
+      "amount": "40",
+      "unit": "flat",
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "month",
+      "billing": "monthly",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$40",
+      "optional": ["billing"]
+    },
+    {
+      "id": "standard",
+      "status": "in_capture",
+      "plan": "Standard",
+      "role": "base_price",
+      "amount": "150",
+      "unit": "flat",
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "month",
+      "billing": "monthly",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$150",
+      "aliases": ["StandardPopular"],
+      "optional": ["billing"]
+    },
+    {
+      "id": "pro",
+      "status": "in_capture",
+      "plan": "Pro",
+      "role": "base_price",
+      "amount": "500",
+      "unit": "flat",
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "month",
+      "billing": "monthly",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$500",
+      "optional": ["billing"]
+    },
+    {
+      "id": "enterprise",
+      "status": "in_capture",
+      "plan": "Enterprise",
+      "role": "custom_price",
+      "amount": null,
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "Let's Talk"
+    },
+    {
+      "id": "auto-recharge",
+      "status": "in_capture",
+      "plan": "Auto recharge credits",
+      "role": "credit_pack_price",
+      "amount": "40",
+      "unit": "credit",
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": "1000",
+      "quantityUnit": "credit",
+      "literal": "$ 40",
+      "optional": ["billing"],
+      "note": "$40 per 1000 message credits, bought automatically."
+    },
+    {
+      "id": "extra-agents",
+      "status": "in_capture",
+      "plan": "Extra agents",
+      "role": "addon_price",
+      "amount": "25",
+      "unit": null,
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "month",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$ 25",
+      "optional": ["billing", "unit"],
+      "note": "Per AI agent per month."
+    },
+    {
+      "id": "remove-branding",
+      "status": "in_capture",
+      "plan": "Remove 'Powered By Chatbase'",
+      "role": "addon_price",
+      "amount": "99",
+      "unit": "flat",
+      "currency": "DOLLAR_UNSPECIFIED",
+      "period": "month",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "$ 99",
+      "optional": ["billing", "unit"]
+    },
+    {
+      "id": "allowances",
+      "status": "out_of_schema",
+      "plan": null,
+      "role": "included_allowance",
+      "amount": "50",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "50 message credits/month"
+    },
+    {
+      "id": "yearly-discount",
+      "status": "out_of_schema",
+      "plan": null,
+      "role": "annual_discount_percent",
+      "amount": "20",
+      "unit": null,
+      "currency": null,
+      "period": "unknown",
+      "billing": "unknown",
+      "quantity": null,
+      "quantityUnit": null,
+      "literal": "20% off yearly plans"
+    }
+  ],
+  "notes": [
+    "Final fresh holdout, labeled before any variant ran on it. Pending owner approval.",
+    "JSON-LD lists Hobby 40, Standard 150 and Pro 500 in USD; a bare $ stays DOLLAR_UNSPECIFIED under the methodology."
+  ]
+}
