@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDb } from "@my-better-t-app/db";
-import { ScanWorkflow } from "./scan-workflow";
+import { ScanWorkflow, factCollectionFailureReason } from "./scan-workflow";
 import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
 import type { PersistedQuestion } from "./types";
 
@@ -16,6 +16,8 @@ vi.mock("./url", () => ({
 
 function setup(
   failure?: "start" | "capture" | "complete" | "projection" | "evaluation" | "numeric",
+  sourceMarkdown?: string,
+  accessibilityTree?: unknown,
 ) {
   let status = "running";
   let prepared = false;
@@ -85,7 +87,10 @@ function setup(
   } as unknown as ReturnType<typeof createDb>);
   let aiCalls = 0;
   const ai = vi.fn(
-    async (_model: string, input: { questions: Record<string, PersistedQuestion> }) => {
+    async (
+      _model: string,
+      input: { state: string; questions: Record<string, PersistedQuestion> },
+    ) => {
       aiCalls++;
       if (failure === "evaluation") throw new Error("Evaluation failed");
       if (failure === "numeric" && aiCalls > 1) throw new Error("Numeric provider failed");
@@ -111,20 +116,24 @@ function setup(
       };
     },
   );
+  const artifacts = new Map<string, string>();
+  const markdownKey = "pages/example.com/runs/run/page.md";
   const workflow: ScanWorkflow = Object.assign(Object.create(ScanWorkflow.prototype), {
     env: {
       DB: {},
       PAGE_STORE: { getByName: () => store },
       AI: { run: ai },
       ARTIFACTS: {
-        put: async () => undefined,
-        get: async () => ({
-          text: async () =>
-            failure === "evaluation"
-              ? "x".repeat(24_000)
-              : failure === "numeric"
-                ? "Pro USD 20 per month."
-                : "Free plan. Paid plan available.",
+        put: async (key: string, content: string | Uint8Array) => {
+          if (typeof content === "string") artifacts.set(key, content);
+        },
+        get: async (key: string) => ({
+          text: async () => {
+            if (sourceMarkdown !== undefined) return artifacts.get(key) ?? "";
+            if (failure === "evaluation") return "x".repeat(24_000);
+            if (failure === "numeric") return "Pro USD 20 per month.";
+            return "Free plan. Paid plan available.";
+          },
         }),
       },
       BROWSER: {
@@ -134,8 +143,9 @@ function setup(
             success: true,
             result: {
               content: "<h1>Pricing</h1>",
-              markdown: "Free plan. Paid plan available.",
+              markdown: sourceMarkdown ?? "Free plan. Paid plan available.",
               screenshot: "eA==",
+              accessibilityTree,
             },
             meta: { status: 200, title: "Pricing" },
           });
@@ -155,10 +165,56 @@ function setup(
   const step = {
     do: async (...args: unknown[]) => (args.at(-1) as () => unknown)(),
   } as unknown as Parameters<ScanWorkflow["run"]>[1];
-  return { run: () => workflow.run(event, step), ai, store, status: () => status };
+  return {
+    run: () => workflow.run(event, step),
+    ai,
+    store,
+    status: () => status,
+    archivedMarkdown: () => artifacts.get(markdownKey),
+  };
 }
 
 describe("scan publication boundaries", () => {
+  it("records a useful public reason without exposing provider error text", () => {
+    expect(factCollectionFailureReason(new Error("7003: User Input Error"))).toBe(
+      "The fact model rejected this capture's request.",
+    );
+    expect(factCollectionFailureReason(new Error("Offer-name candidate limit exceeded"))).toBe(
+      "This capture has more candidate facts than the collector can process.",
+    );
+  });
+  it("archives cleaned Markdown and evaluates that same source", async () => {
+    const scan = setup(
+      undefined,
+      "# Pricing\nPro: $20 per month\nThis website uses cookies\nAccept all\nDecline all\nCookie report\n| Name | Provider / Domain | Expiration | Description |\n| --- | --- | --- | --- |\n| _ga | Example | 1 year | Analytics |",
+    );
+    await scan.run();
+    const expectedMarkdown = "# Pricing\nPro: $20 per month";
+    expect(scan.archivedMarkdown()).toBe(expectedMarkdown);
+    expect(scan.store.persistVersion).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({ contentBytes: new TextEncoder().encode(expectedMarkdown).length }),
+    );
+    expect(scan.ai.mock.calls[0]?.[1].state).toContain("Pro: $20 per month");
+    expect(scan.ai.mock.calls[0]?.[1].state).not.toContain("Cookie report");
+  });
+  it("archives accessible price labels that rendered Markdown omitted", async () => {
+    const scan = setup(undefined, "# Pricing\n\n### Business\n\nper month", {
+      role: "RootWebArea",
+      children: [
+        {
+          role: "group",
+          children: [
+            { role: "heading", name: "Business" },
+            { role: "img", name: "$90" },
+          ],
+        },
+      ],
+    });
+    await scan.run();
+    expect(scan.archivedMarkdown()).toContain("### Business\n\n$90\n\nper month");
+    expect(scan.ai.mock.calls[0]?.[1].state).toContain("$90");
+  });
   it("preserves practice results and records unavailable numeric collection on provider failure", async () => {
     const scan = setup("numeric");
     await scan.run();

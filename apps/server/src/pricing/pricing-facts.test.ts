@@ -10,51 +10,55 @@ function fixtureDecide(
   fixture: FactFixture,
   overrides: Record<string, string | number> = {},
 ): Decide {
+  const numbers = extractNumericCandidates(fixture.source);
   return vi.fn(async ({ state, questions }) => {
     const data = JSON.parse(state);
-    const expected = fixture.expected.find((fact) => fact.amount === data.selected?.amount);
     return {
       model: "jev-1.13.0",
       answers: Object.fromEntries(
         Object.entries(questions).map(([key, raw]) => {
           const question = raw as { type: string; criteria: Record<string, string> };
+          const numberId = /_(n\d+)$/.exec(key)?.[1];
+          const number = numbers.find((item) => item.id === numberId);
+          const expected = fixture.expected.find((fact) => fact.amount === number?.amount);
+          const field = numberId ? key.slice(0, -numberId.length - 1) : key;
           if (question.type === "noul") {
-            const name = data.candidates?.find(
-              (item: { id: string }) => `name_${item.id}` === key,
-            )?.text;
+            const name =
+              Array.isArray(data.candidates) &&
+              data.candidates.find((item: { id: string }) => `name_${item.id}` === key)?.text;
             return [
               key,
               {
                 noul:
                   overrides[key] ??
+                  overrides[field] ??
                   (key.startsWith("name_") ? (fixture.offers.includes(name) ? 1 : 0) : 1),
               },
             ];
           }
           let value = "unknown";
-          const policy = fixture.policies?.find(
-            (item) => item.offer === data.offer && item.key === key,
-          );
-          if (policy) value = policy.choice;
-          else if (key === "evidence") value = data.passages[0].id;
-          else if (key.startsWith("role_")) {
-            const number = data.candidates.find(
-              (item: { id: string }) => `role_${item.id}` === key,
+          const policyKey = /^policy_(o\d+)_(.+)$/.exec(key);
+          if (policyKey) {
+            const policy = fixture.policies?.find(
+              (item) => item.offer === data.offers[policyKey[1]!] && item.key === policyKey[2],
             );
-            value = fixture.expected.find((fact) => fact.amount === number.amount)?.key ?? "other";
-          } else if (key === "offer")
+            value = policy?.choice ?? "not_disclosed";
+          } else if (key.startsWith("evidence_")) value = Object.keys(data.passages)[0]!;
+          else if (field === "role") value = expected?.key ?? "other";
+          else if (field === "offer")
             value =
               data.offers.find((item: { text: string }) => item.text === expected?.offer)?.id ??
               "unknown";
-          else if (key === "quantity")
+          else if (field === "quantity_scope") value = Object.keys(data.passages)[0]!;
+          else if (field === "quantity")
             value =
-              extractNumericCandidates(fixture.source).find(
-                (item) => item.amount === expected?.quantity,
+              data.targets[numberId!].candidates.find(
+                (item: { amount: string; id: string }) => item.amount === expected?.quantity,
               )?.id ?? "one";
-          else if (key === "quantity_unit") value = expected?.quantityUnit ?? "unknown";
-          else if (expected) value = String(expected[key as keyof typeof expected] ?? "unknown");
+          else if (field === "quantity_unit") value = expected?.quantityUnit ?? "unknown";
+          else if (expected) value = String(expected[field as keyof typeof expected] ?? "unknown");
           else if ("not_disclosed" in question.criteria) value = "not_disclosed";
-          value = String(overrides[key] ?? value);
+          value = String(overrides[key] ?? overrides[field] ?? value);
           const confidence = Number(overrides.confidence ?? 1);
           return [key, { choice: value, confidence, probabilities: { [value]: confidence } }];
         }),
@@ -89,6 +93,59 @@ describe("Jev source fact collection", () => {
       ["Team", "50", "500"],
     ]);
   });
+  it("asks independent facts and policies against shared state", async () => {
+    const fixture = factFixtures[0]!;
+    const decide = fixtureDecide(fixture);
+    await collectPricingFacts(fixture.source, decide);
+    expect(decide).toHaveBeenCalledTimes(5);
+  });
+  it("skips offer policy calls when the page-wide evaluation found no positive policy", async () => {
+    const fixture = factFixtures[0]!;
+    const decide = fixtureDecide(fixture);
+    const result = await collectPricingFacts(fixture.source, decide, []);
+    expect(result.facts).toHaveLength(fixture.expected.length);
+    expect(result.policies).toEqual([]);
+    expect(
+      vi
+        .mocked(decide)
+        .mock.calls.some(([request]) =>
+          Object.keys(request.questions).some((key) => key.startsWith("policy_")),
+        ),
+    ).toBe(false);
+  });
+  it("sends only relevant source passages for candidate decisions", async () => {
+    const fixture = factFixtures[0]!;
+    const source = `${fixture.source}\n\n${"Unrelated section text. ".repeat(150)}\nLAST_FOOTER_MARKER`;
+    const decide = fixtureDecide({ ...fixture, source });
+    const result = await collectPricingFacts(source, decide, []);
+    expect(result.facts).toHaveLength(fixture.expected.length);
+    const candidateCalls = vi
+      .mocked(decide)
+      .mock.calls.filter(([request]) =>
+        Object.keys(request.questions).some((key) => key.startsWith("role_")),
+      );
+    expect(candidateCalls.length).toBeGreaterThan(0);
+    for (const [request] of candidateCalls) {
+      const state = JSON.parse(request.state) as { source: string };
+      expect(state.source).not.toContain("LAST_FOOTER_MARKER");
+    }
+  });
+  it("collects prices when a long feature table has more than 128 distinct labels", async () => {
+    const fixture = factFixtures[0]!;
+    const featureLines = Array.from({ length: 130 }, (_, index) => {
+      const first = String.fromCharCode(65 + Math.floor(index / 26));
+      const second = String.fromCharCode(65 + (index % 26));
+      return `Feature ${first}${second}`;
+    });
+    const source = `${fixture.source}\n\n${featureLines.join("\n")}`;
+    const prices = numericPricesFromFacts(
+      await collectPricingFacts(source, fixtureDecide({ ...fixture, source })),
+    );
+    expect(prices.offers.map((offer) => [offer.plan, offer.amount])).toEqual([
+      ["Pro", "20"],
+      ["Team", "50"],
+    ]);
+  });
   it("retains free prices as facts but excludes them from paid baseline prices", async () => {
     const fixture = factFixtures.find((item) => item.id === "free-is-explicit")!;
     expect(
@@ -110,7 +167,9 @@ describe("Jev source fact collection", () => {
     const baseline = fixtureDecide(fixture);
     const result = await collectPricingFacts(fixture.source, async (request) => {
       const answer = (await baseline(request)) as { answers: Record<string, unknown> };
-      if (JSON.parse(request.state).proposal) answer.answers.offer = { noul: 0.94 };
+      if (JSON.parse(request.state).proposals)
+        for (const key of Object.keys(answer.answers))
+          if (key.startsWith("offer_")) answer.answers[key] = { noul: 0.94 };
       return answer;
     });
     expect(result.facts).toEqual([]);
@@ -153,12 +212,12 @@ describe("Jev source fact collection", () => {
     await expect(collectPricingFacts("x".repeat(100_000), decide)).rejects.toThrow(
       "transport byte limit",
     );
-    await expect(
-      collectPricingFacts(
-        Array.from({ length: 254 }, (_, i) => `${i} requests`).join("\n"),
-        decide,
-      ),
-    ).rejects.toThrow("candidate limit");
     expect(decide).not.toHaveBeenCalled();
+  });
+  it("classifies more than 253 numeric candidates without one global Choice menu", async () => {
+    const source = Array.from({ length: 254 }, (_, i) => `${i} requests`).join("\n");
+    const fixture = { id: "many-numbers", source, offers: [], expected: [] };
+    const facts = await collectPricingFacts(source, fixtureDecide(fixture));
+    expect(facts.coverage.ignored).toBe(254);
   });
 });

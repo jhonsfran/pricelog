@@ -5,6 +5,7 @@ export type NumericCandidate = {
   end: number;
   evidence: string;
 };
+const MAX_NUMERIC_CANDIDATES = 2048;
 /** Parse complete numeric tokens, never fragments of percentages, exponents or malformed grouping. */
 export function extractNumericCandidates(source: string): NumericCandidate[] {
   const candidates: NumericCandidate[] = [];
@@ -59,7 +60,8 @@ export function extractNumericCandidates(source: string): NumericCandidate[] {
       end,
       evidence: source.slice(Math.max(lineStart, start - 250), Math.min(lineEnd, end + 250)),
     });
-    if (candidates.length > 512) throw new Error("Numeric source exceeds candidate limit");
+    if (candidates.length > MAX_NUMERIC_CANDIDATES)
+      throw new Error("Numeric source exceeds candidate limit");
   }
   // Explicit "per million" denominators have no digit token. Normalize in code.
   for (const match of source.matchAll(/(?:\bper\s+|\/\s*)(thousand|million|billion)\b/gi)) {
@@ -72,7 +74,8 @@ export function extractNumericCandidates(source: string): NumericCandidate[] {
       end: start + word.length,
       evidence: source.slice(Math.max(0, start - 100), start + word.length + 100),
     });
-    if (candidates.length > 512) throw new Error("Numeric source exceeds candidate limit");
+    if (candidates.length > MAX_NUMERIC_CANDIDATES)
+      throw new Error("Numeric source exceeds candidate limit");
   }
   return candidates
     .sort((a, b) => a.start - b.start)
@@ -108,45 +111,53 @@ export function offerNameCandidates(source: string): TextCandidate[] {
       end: start + offset + text.length,
     });
   };
-  for (const match of source.matchAll(/[^\n]+/g)) {
+  const lines = [...source.matchAll(/[^\n]+/g)];
+  for (const [index, match] of lines.entries()) {
     const line = match[0];
+    const next = lines[index + 1]?.[0] ?? "";
     const heading = /^(?:#{1,6}\s+)(.+?)\s*#*\s*$/.exec(line);
     if (heading) add(heading[1]!, match.index + line.indexOf(heading[1]!));
-    else if (line.includes("|")) {
+    else if (line.includes("|") && /^\s*\|?[\s|:-]+\|[\s|:-]*$/.test(next)) {
       for (const cell of line.matchAll(/[^|]+/g)) add(cell[0], match.index + cell.index);
+    } else if (line.includes("|") && /(?:[$€£]|\b(?:USD|EUR|GBP)\b)\s*\d/.test(line)) {
+      const first = /[^|]+/.exec(line);
+      if (first) add(first[0], match.index + first.index);
     } else {
-      add(line, match.index);
       const prefix = /^\s*([A-Za-z][A-Za-z -]{0,60}?)\s+(?:(?:USD|EUR|GBP)\s*)?[$€£]\s*\d/.exec(
         line,
       );
       if (prefix) add(prefix[1]!, match.index + line.indexOf(prefix[1]!));
+      else if (
+        line.trim().split(/\s+/).length <= 4 &&
+        /(?:[$€£]|\b(?:USD|EUR|GBP)\b)\s*\d/.test(next)
+      )
+        add(line, match.index);
     }
   }
-  if (candidates.length > 128) throw new Error("Offer-name candidate limit exceeded");
+  if (candidates.length > 512) throw new Error("Offer-name candidate limit exceeded");
   return candidates;
 }
 
-/** Paragraphs retain heading and table context through the complete source in state. */
+/** Bounded source passages retain nearby heading and table context. */
 export function evidenceCandidates(source: string): TextCandidate[] {
   const result: TextCandidate[] = [];
-  for (const match of source.matchAll(/\S(?:[^\n]|\n(?!\s*\n))*/g)) {
-    const text = match[0].trimEnd();
-    // Long paragraphs are divided at line boundaries, never silently discarded.
-    let start = match.index;
-    const end = start + text.length;
-    while (start < end) {
-      let next = Math.min(end, start + 1800);
-      if (next < end) {
-        const newline = source.lastIndexOf("\n", next);
-        if (newline > start) next = newline;
+  let start = 0;
+  while (start < source.length) {
+    let end = Math.min(source.length, start + 1200);
+    if (end < source.length) {
+      const newline = source.lastIndexOf("\n", end);
+      if (newline > start) end = newline;
+      else {
+        const nextSpace = source.slice(end, end + 256).search(/\s/);
+        if (nextSpace >= 0) end += nextSpace;
       }
-      const part = source.slice(start, next);
-      if (part.trim()) result.push({ id: `e${result.length}`, text: part, start, end: next });
-      start = next;
-      if (source[start] === "\n") start++;
     }
+    const text = source.slice(start, end);
+    if (text.trim()) result.push({ id: `e${result.length}`, text, start, end });
+    start = end;
+    if (source[start] === "\n") start++;
   }
-  if (result.length > 254) throw new Error("Evidence candidate limit exceeded");
+  if (result.length > 253) throw new Error("Evidence candidate limit exceeded");
   return result;
 }
 

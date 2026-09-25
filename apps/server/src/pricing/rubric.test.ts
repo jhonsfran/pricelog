@@ -17,9 +17,9 @@ import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "
 
 describe("pricing practices rubric", () => {
   const rubric = PRICING_INTELLIGENCE_RUBRIC;
-  it("asks only Choice and Noul questions in v6", () => {
+  it("asks only Choice and Noul questions in v8", () => {
     expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
-    expect(rubric.version).toBe(6);
+    expect(rubric.version).toBe(8);
     expect(new Set(Object.values(rubric.questions).map((q) => q.type))).toEqual(
       new Set(["choice", "noul"]),
     );
@@ -102,9 +102,11 @@ describe("pricing practices rubric", () => {
 it("requires a new extraction fingerprint when parsing, prompts, validation or projection changes", () => {
   const files = [
     "pricing-facts.ts",
+    "fact-role-spec.ts",
     "source-candidates.ts",
     "fact-projection.ts",
     "jev-decisions.ts",
+    "source-cleanup.ts",
   ];
   const hash = createHash("sha256");
   for (const file of files) hash.update(readFileSync(new URL(file, import.meta.url)));

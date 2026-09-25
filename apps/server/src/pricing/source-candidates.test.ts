@@ -28,12 +28,46 @@ describe("literal source candidates", () => {
     for (const item of [...offerNameCandidates(source), ...evidenceCandidates(source)])
       expect(source.slice(item.start, item.end)).toBe(item.text);
   });
+  it("keeps long pages with many short paragraphs inside the evidence choice limit", () => {
+    const source = Array.from({ length: 300 }, (_, index) =>
+      index === 250 ? "## Business\n£572/mo, billed annually" : "Feature description",
+    ).join("\n\n");
+    const price = extractNumericCandidates(source).find((item) => item.amount === "572")!;
+    const passages = evidenceCandidates(source);
+    expect(passages.length).toBeLessThanOrEqual(254);
+    expect(passages.some((item) => item.start <= price.start && item.end >= price.end)).toBe(true);
+    for (const item of passages) expect(source.slice(item.start, item.end)).toBe(item.text);
+  });
+  it("does not split a price in a long line across evidence passages", () => {
+    const source = `${"x".repeat(1197)} £572/mo, billed annually`;
+    const price = extractNumericCandidates(source)[0]!;
+    expect(price.amount).toBe("572");
+    expect(
+      evidenceCandidates(source).some((item) => item.start <= price.start && item.end >= price.end),
+    ).toBe(true);
+  });
+  it("bounds evidence passages when a line has no nearby whitespace", () => {
+    const source = `${"x".repeat(50_000)}\n## Pro\nUSD $20 per month`;
+    const passages = evidenceCandidates(source);
+    const price = extractNumericCandidates(source)[0]!;
+    expect(Math.max(...passages.map((item) => item.text.length))).toBeLessThanOrEqual(1200);
+    expect(passages.some((item) => item.start <= price.start && item.end >= price.end)).toBe(true);
+  });
   it("rejects Unicode negatives and apostrophe grouping without positive fragments", () => {
     expect(extractNumericCandidates("USD −20/month")).toEqual([]);
     expect(extractNumericCandidates("USD $1'234/month; 1’234 credits")).toEqual([]);
   });
-  it("rejects source overflows without truncation", () => {
-    expect(() => extractNumericCandidates("1 ".repeat(513))).toThrow("candidate limit");
+  it("keeps numeric candidates beyond one Jev Choice menu", () => {
+    expect(extractNumericCandidates("1 ".repeat(513))).toHaveLength(513);
+  });
+  it("does not treat every feature sentence as an offer name", () => {
+    const source = [
+      "## Pro",
+      "$20/month",
+      ...Array.from({ length: 513 }, (_, index) => `Feature ${index} details`),
+    ].join("\n");
+    expect(offerNameCandidates(source).map((item) => item.text)).toContain("Pro");
+    expect(offerNameCandidates(source).length).toBeLessThan(20);
   });
   it("distinguishes Markdown price bullets from negative amounts", () => {
     const text =

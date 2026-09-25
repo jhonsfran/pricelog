@@ -4,7 +4,7 @@ Pricelog records facts from submitted public pricing pages. The sample is not a 
 
 ## Capture and source
 
-Chromium captures one rendered page. Rendered Markdown is the evidence source for collection and change checks. HTML and screenshots remain archived for capture debugging. A capture can omit billing-toggle variants or content that requires interaction. Linked documents are outside the source scope.
+Chromium captures one rendered page. Before archiving rendered Markdown, code removes cookie consent panels when their markers and action boundaries are clear. Ambiguous cookie text stays in the source. The same snapshot also provides an accessibility tree. When Markdown omits a price held in an accessible image label, code inserts that literal price under its matching plan heading. The archived Markdown is the evidence source for collection and change checks. HTML and screenshots remain archived for capture debugging. A capture can omit billing-toggle variants or content that requires interaction. Linked documents are outside the source scope.
 
 Only Jev evaluates the source. Navigation, testimonials, competitor references, hypothetical examples, and instructions embedded in the source are excluded. Explicit pricing FAQ terms are eligible.
 
@@ -21,13 +21,13 @@ For each accepted offer, the collector can record:
 - Purchased credit expiry and included credit rollover limits.
 - Minimum paid seats.
 
-The seven policies cover credit conversion, credit use by model, allowance exhaustion, customer spend caps, failed runs, purchased credit expiry, and included credit rollover. The collector keeps offer-specific answers so different offers need not share one policy.
+The seven policies cover credit conversion, credit use by model, allowance exhaustion, customer spend caps, failed runs, purchased credit expiry, and included credit rollover. Offer-specific questions run only for policies that the page-wide evaluation found to be stated. Different offers need not share one policy. The profile shows positive policies with evidence; it does not list repeated `not_disclosed` entries for each offer.
 
 There is no primary pricing-model label, inferred value metric, expansion-path label, or AI cost pass-through classification.
 
 ## Acceptance rules
 
-Code finds bounded numeric and offer-name candidates. Jev Choice questions select or classify candidates. Code copies selected source values and retains their literal evidence spans. Jev does not generate prices, calculate minimums, or supply money amounts through scores.
+Code finds bounded numeric and offer-name candidates. Jev Choice questions select or classify candidates. Independent questions about a batch share one request with the relevant source passages; page-wide policy questions still receive the complete source. Rate denominators are selected from a local evidence passage, not a page-wide number menu. Code copies selected source values and retains their literal evidence spans. Jev does not generate prices, calculate minimums, or supply money amounts through scores.
 
 Offer fact choices require at least `0.90` confidence. Independent Noul checks require at least `0.95` probability. The model must identify itself as exactly `jev-1.13.0`. These are acceptance rules, not calibrated accuracy claims.
 
@@ -47,13 +47,13 @@ The published-price table projects all accepted positive recurring base and seat
 
 ## Current comparisons
 
-Current comparisons and their linked directory lists use the same eligibility rules:
+Current comparisons and lists opened from a benchmark bar use the same eligibility rules:
 
 - The page is active.
 - The capture uses the current rubric and exactly `jev-1.13.0`.
 - The capture is at most 14 days old and is not in the future.
 
-The 14-day window is a collection policy. It is not evidence that a vendor has kept its price unchanged. Older and incompatible records remain on their profile pages with an exclusion notice.
+The 14-day window is a collection policy. It is not evidence that a vendor has kept its price unchanged. The main directory lists all active published captures, including older and incompatible records. Their profile pages show an exclusion notice when they cannot enter current comparisons.
 
 Charging and policy percentages use all eligible pages in the selected sample. Not disclosed, not applicable, and uncertain answers remain visible. Charging components overlap, so their percentages can total more than 100%.
 
@@ -75,10 +75,10 @@ The rubric stores an immutable content fingerprint and pins the accepted model. 
 
 Unit tests use scripted Jev answers to verify parsing, attribution, persistence, and comparison rules. These tests do not measure Jev accuracy on real pricing pages. Measure that separately with human-reviewed examples before making accuracy claims.
 
-The extraction fingerprint covers candidate parsing, Jev prompts and checks, and price projection. The rubric fingerprint also covers page questions, thresholds and the approved model. The rubric test fails after these files change. Update the extraction fingerprint from those source files, then update the rubric fingerprint to the test's computed value. Change comparison versions when verification semantics change. Stored question sets reject in-place edits under an existing identity.
+The extraction fingerprint covers source cleanup, candidate parsing, fact-role rules, Jev prompts and checks, and price projection. The rubric fingerprint also covers page questions, thresholds and the approved model. The rubric test fails after these files change. Update the extraction fingerprint from those source files, then update the rubric fingerprint to the test's computed value. Change comparison versions when verification semantics change. Stored question sets reject in-place edits under an existing identity.
 
-Design references: [TypeSafe pre-parsed value extraction](https://docs.typesafe.ai/cookbooks/pre_parsed_value_extraction_cookbook), [state](https://docs.typesafe.ai/concepts/state), [Jev model limits](https://docs.typesafe.ai/models), and [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13). Keeping rendered Markdown is a project design choice, not a measured claim that Markdown always outperforms HTML.
+Design references: [TypeSafe pre-parsed value extraction](https://docs.typesafe.ai/cookbooks/pre_parsed_value_extraction_cookbook), [state](https://docs.typesafe.ai/concepts/state), [Jev model limits](https://docs.typesafe.ai/models), and [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13). Using rendered Markdown with a bounded supplement of accessible price labels is a project design choice, not a measured claim that it always outperforms HTML.
 
 ## Rollout
 
-Apply the generated D1 migration before deploying the new API, then capture pages with the new rubric. No old classification is relabeled as a new observation. The current index can be empty until these new scans finish. Both weekly observations must use compatible versions, so weekly comparisons also need two compatible captures. The migration has been generated and tested locally; production deployment and rescans are separate operations.
+Apply the generated D1 migration before deploying the new API, then capture pages with the new rubric. No old classification is relabeled as a new observation. Current benchmarks can be empty until new scans finish; the directory still lists earlier published captures. Both weekly observations must use compatible versions, so weekly comparisons also need two compatible captures. The migration has been generated and tested locally; production deployment and rescans are separate operations.

@@ -2,7 +2,7 @@ import type { NumericCurrency, NumericUsageUnit } from "./numeric-prices";
 import type { PRACTICE_CHOICE_CATALOG } from "./pricing-intelligence";
 
 export const FACT_EXTRACTION_FINGERPRINT =
-  "dc8aa0d0fb2160548a5b65574c691850a094797c2797c8a00848aee14065a7fb";
+  "873c9f890a561b9c41384286b7edb559f87ae10c379fff9dcb66bdcdc609fdc8";
 export const PRICING_FACTS_VERSION = "pricing-facts-v1";
 export const FACT_CONFIDENCE = 0.9;
 export const FACT_EVIDENCE_PROBABILITY = 0.95;

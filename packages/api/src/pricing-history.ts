@@ -3,7 +3,7 @@ import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
 import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
 import { cohortsForPage } from "./benchmark";
 
-export const COMPARISON_VERSION = "pricing-facts-v2";
+export const COMPARISON_VERSION = "pricing-facts-v3";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export type VerifiedPricingChange = {

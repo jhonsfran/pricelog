@@ -27,71 +27,176 @@ const BOT_CHALLENGE_PATTERNS = [
   /enable javascript and cookies to continue/i,
 ];
 
+/**
+ * Appended by CONSENT_DISMISS_SCRIPT once it has finished; the capture waits for it. It sits
+ * outside <body> so an app re-rendering its root cannot remove it.
+ */
+export const CAPTURE_READY_SELECTOR = "#pricelog-capture-ready";
+
+/**
+ * Runs in the captured page after load. It dismisses known consent managers, preferring
+ * rejection, then removes their roots so HTML, Markdown and screenshot agree. Banners owned by
+ * the page's own framework are hidden instead: removing a node React still owns crashes the app.
+ * It also scrolls once through the page so scroll-triggered reveals and lazy images render in
+ * the full-page screenshot. The outcome is written to html[data-pricelog-consent].
+ */
 export const CONSENT_DISMISS_SCRIPT = String.raw`
 (() => {
-  const rejectSelectors = [
-    '#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll',
-    '#CybotCookiebotDialogBodyButtonDecline',
-    '#onetrust-reject-all-handler',
-    '[data-testid="uc-deny-all-button"]',
-    '#didomi-notice-disagree-button',
-    '.truste-button2'
+  const managers = [
+    { name: 'cookiebot', roots: ['#CybotCookiebotDialog'],
+      reject: ['#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll', '#CybotCookiebotDialogBodyButtonDecline'],
+      accept: ['#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll', '#CybotCookiebotDialogBodyButtonAccept'] },
+    { name: 'onetrust', roots: ['#onetrust-banner-sdk', '.onetrust-pc-dark-filter', '#onetrust-pc-sdk'],
+      reject: ['#onetrust-reject-all-handler'], accept: ['#onetrust-accept-btn-handler'] },
+    { name: 'usercentrics', roots: ['#usercentrics-root', '#usercentrics-cmp-ui'],
+      reject: ['[data-testid="uc-deny-all-button"]'], accept: ['[data-testid="uc-accept-all-button"]'] },
+    { name: 'didomi', roots: ['#didomi-host'],
+      reject: ['#didomi-notice-disagree-button'], accept: ['#didomi-notice-agree-button'] },
+    { name: 'trustarc', roots: ['.truste_overlay', '.truste_box_overlay', '#truste-consent-track'],
+      reject: ['.truste-button2', '#truste-consent-required'], accept: ['.truste-button1', '#truste-consent-button'] },
+    { name: 'cookiescript', roots: ['#cookiescript_injected_wrapper', '#cookiescript_injected'],
+      reject: ['#cookiescript_reject'], accept: ['#cookiescript_accept'] },
+    { name: 'cookieyes', roots: ['.cky-consent-container', '.cky-overlay', '.cky-modal'],
+      reject: ['.cky-btn-reject'], accept: ['.cky-btn-accept'] },
+    { name: 'osano', roots: ['.osano-cm-window'],
+      reject: ['.osano-cm-denyAll', '.osano-cm-deny'], accept: ['.osano-cm-accept-all', '.osano-cm-accept'] },
+    { name: 'complianz', roots: ['#cmplz-cookiebanner-container', '.cmplz-cookiebanner'],
+      reject: ['.cmplz-btn.cmplz-deny'], accept: ['.cmplz-btn.cmplz-accept'] },
+    { name: 'iubenda', roots: ['#iubenda-cs-banner'],
+      reject: ['.iubenda-cs-reject-btn'], accept: ['.iubenda-cs-accept-btn'] },
+    { name: 'hubspot', roots: ['#hs-eu-cookie-confirmation'],
+      reject: ['#hs-eu-decline-button'], accept: ['#hs-eu-confirmation-button'] },
+    { name: 'termly', roots: ['#termly-code-snippet-support'],
+      reject: ['[data-tid="banner-decline"]'], accept: ['[data-tid="banner-accept"]'] },
+    { name: 'axeptio', roots: ['#axeptio_overlay'],
+      reject: ['#axeptio_btn_dismiss'], accept: ['#axeptio_btn_acceptAll'] },
+    { name: 'cookie-notice', roots: ['#cookie-notice'],
+      reject: ['#cn-refuse-cookie'], accept: ['#cn-accept-cookie'] },
+    { name: 'quantcast', roots: ['.qc-cmp2-container'], reject: [], accept: [] },
+    { name: 'sourcepoint', roots: ['[id^="sp_message_container"]'], reject: [], accept: [] }
   ];
-  const acceptSelectors = [
-    '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
-    '#CybotCookiebotDialogBodyButtonAccept',
-    '#onetrust-accept-btn-handler',
-    '[data-testid="uc-accept-all-button"]',
-    '#didomi-notice-agree-button',
-    '.truste-button1'
-  ];
-  const bannerSelectors = [
-    '#CybotCookiebotDialog',
-    '#onetrust-banner-sdk',
-    '#usercentrics-root',
-    '#didomi-host',
-    '.truste_overlay',
-    '.truste_box_overlay'
-  ];
-  let dismissed = false;
+  const CONSENT_TEXT = /\bcookies?\b|\bconsent\b|\bgdpr\b|datenschutz/i;
+  const REJECT_TEXT = /^(?:reject|decline|deny|refuse)(?: all)?(?: cookies)?$|^(?:only|use) (?:necessary|essential)|^(?:alle )?ablehnen$|^nur (?:notwendige|essenzielle)/i;
+  const ACCEPT_TEXT = /^(?:accept|allow|agree)(?: all)?(?: cookies)?$|^(?:alle )?(?:akzeptieren|zulassen)$|^zustimmen$/i;
+  const outcome = new Set();
+  const handled = new Set();
+  let found = false;
 
-  const clickFirstVisible = (selectors) => {
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element instanceof HTMLElement && element.getClientRects().length > 0) {
-        element.click();
-        return true;
+  // Consent managers such as Usercentrics render inside open shadow roots.
+  const scopes = () => {
+    const result = [document];
+    const walk = (root) => {
+      for (const element of root.querySelectorAll('*')) {
+        if (element.shadowRoot) { result.push(element.shadowRoot); walk(element.shadowRoot); }
       }
-    }
-    return false;
+    };
+    walk(document);
+    return result;
+  };
+  const queryAll = (selectors, roots) =>
+    roots.flatMap((root) => selectors.flatMap((selector) => [...root.querySelectorAll(selector)]));
+  const visible = (element) => element instanceof HTMLElement && element.getClientRects().length > 0;
+  const clickFirst = (elements) => {
+    const target = elements.find(visible);
+    if (!target) return false;
+    target.click();
+    return true;
   };
 
-  const dismiss = () => {
-    if (dismissed) return;
-    dismissed = clickFirstVisible(rejectSelectors) || clickFirstVisible(acceptSelectors);
-    if (!dismissed) return;
-    document.documentElement.style.removeProperty('overflow');
-    document.body?.style.removeProperty('overflow');
+  const dismissKnown = () => {
+    const roots = scopes();
+    for (const manager of managers) {
+      if (handled.has(manager.name)) continue;
+      if (!queryAll(manager.roots, roots).some(visible)) continue;
+      found = true;
+      if (clickFirst(queryAll(manager.reject, roots))) outcome.add(manager.name + ':rejected');
+      else if (clickFirst(queryAll(manager.accept, roots))) outcome.add(manager.name + ':accepted');
+      else continue;
+      handled.add(manager.name);
+    }
   };
 
-  dismiss();
-  const observer = new MutationObserver(dismiss);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-  setTimeout(dismiss, 250);
-  setTimeout(dismiss, 750);
-  setTimeout(dismiss, 1500);
-  setTimeout(() => {
-    dismiss();
-    observer.disconnect();
-    for (const selector of bannerSelectors) {
-      const element = document.querySelector(selector);
-      if (element instanceof HTMLElement && element.getClientRects().length > 0) {
-        element.style.setProperty('display', 'none', 'important');
-      }
+  // Fallback for unknown managers: a small fixed or sticky panel about cookies with a button.
+  const genericBanners = () =>
+    [...document.body.querySelectorAll('*')].filter((element) => {
+      if (!visible(element)) return false;
+      const position = getComputedStyle(element).position;
+      if (position !== 'fixed' && position !== 'sticky') return false;
+      const text = element.innerText || '';
+      return text.length < 3000 && CONSENT_TEXT.test(text) &&
+        !!element.querySelector('button, [role="button"], input[type="button"], input[type="submit"]');
+    });
+  const buttonText = (element) => (element.innerText || element.value || '').trim().replace(/\s+/g, ' ');
+
+  const hide = (element) => element.style.setProperty('display', 'none', 'important');
+  const frameworkOwned = (element) =>
+    Object.keys(element).some((key) => key.startsWith('__react') || key.startsWith('__vue') || key === '_vnode');
+  const discard = (element) => (frameworkOwned(element) ? hide(element) : element.remove());
+
+  const removeAll = () => {
+    const roots = scopes();
+    for (const manager of managers) {
+      const elements = queryAll(manager.roots, roots);
+      if (!elements.length) continue;
+      if (elements.some(visible)) { found = true; outcome.add(manager.name + ':removed'); }
+      for (const element of elements) discard(element);
     }
-    document.documentElement.style.setProperty('overflow', 'auto', 'important');
-    document.body?.style.setProperty('overflow', 'auto', 'important');
-  }, 2500);
+    for (const banner of genericBanners()) {
+      if (!banner.isConnected) continue;
+      found = true;
+      const buttons = [...banner.querySelectorAll('button, [role="button"], a, input[type="button"], input[type="submit"]')].filter(visible);
+      const reject = buttons.find((button) => REJECT_TEXT.test(buttonText(button)));
+      const accept = buttons.find((button) => ACCEPT_TEXT.test(buttonText(button)));
+      (reject ?? accept)?.click();
+      outcome.add('generic:' + (reject ? 'rejected' : accept ? 'accepted' : 'hidden'));
+      // An unknown banner is usually the site's own component, whatever its framework.
+      hide(banner);
+    }
+    if (!found) return;
+    for (const element of [document.documentElement, document.body]) {
+      element?.style.removeProperty('overflow');
+      element?.style.setProperty('overflow', 'auto', 'important');
+    }
+  };
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // Reveal libraries throttle scroll handlers, so move half a viewport at a time. At most
+  // 24 steps keeps the pass inside the capture wait for any page height. Instant scrolling
+  // overrides CSS smooth scrolling, which would otherwise lag far behind each step.
+  const scrollTo = (top) => window.scrollTo({ top, left: 0, behavior: 'instant' });
+  const revealScrolledContent = async () => {
+    await sleep(250);
+    const height = document.documentElement.scrollHeight;
+    const step = Math.max(window.innerHeight / 2, height / 24);
+    for (let y = step; y < height; y += step) {
+      scrollTo(y);
+      await sleep(120);
+    }
+    scrollTo(0);
+  };
+
+  dismissKnown();
+  const polling = setInterval(dismissKnown, 250);
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearInterval(polling);
+    try {
+      dismissKnown();
+      removeAll();
+      scrollTo(0);
+    } catch (error) {
+      outcome.add('error');
+    } finally {
+      document.documentElement.dataset.pricelogConsent = outcome.size ? [...outcome].join(' ') : 'none';
+      const ready = document.createElement('meta');
+      ready.id = 'pricelog-capture-ready';
+      document.documentElement.appendChild(ready);
+    }
+  };
+  revealScrolledContent().then(() => sleep(600)).then(finish);
+  setTimeout(finish, 4000);
 })();
 `;
 

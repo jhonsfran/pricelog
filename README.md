@@ -90,9 +90,9 @@ After the first deployment, add the exact deployed web origin to `CORS_ORIGIN` a
 - The initial scan starts asynchronously.
 - One scan can be active for a page. A duplicate manual request returns that active run.
 - A successful scan schedules the next alarm seven days later.
-- A failed scan schedules one retry for the next day.
+- A failed scan waits for the next weekly scan, after three capture attempts.
 - A later manual success resets the seven-day schedule.
-- The public directory and current comparisons use active pages with the current rubric, exact accepted model, and a capture from the last 14 days. Future timestamps are excluded.
+- The public directory lists active published captures. Current comparisons and lists opened from benchmark bars require the current rubric, exact accepted model, and a capture from the last 14 days. Future timestamps are excluded.
 - Public profiles retain the latest successful summary and show when it is excluded from current comparisons.
 - Profiles show accepted facts and policies by offer, unresolved counts, and literal evidence linked to the archived Markdown source.
 - Weekly reports compare compatible captures from adjacent completed UTC weeks. Numeric changes require the same named offer and compatible terms, followed by independent Jev evidence checks.

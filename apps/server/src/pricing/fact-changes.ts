@@ -1,11 +1,13 @@
 import {
   numericFactIdentity,
+  type EvidenceSpan,
   type NumericFact,
   type PricingFacts,
   PRICING_FACTS_VERSION,
 } from "@my-better-t-app/db/pricing-facts";
 import { PRACTICE_CHOICE_CATALOG } from "@my-better-t-app/db/pricing-intelligence";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
+import { FACT_ROLE_SPEC } from "./fact-role-spec";
 
 export type ChangeCandidate = {
   key: string;
@@ -14,6 +16,8 @@ export type ChangeCandidate = {
   beforeLabel: string;
   afterLabel: string;
   disclosureOnly: boolean;
+  beforeEvidence?: EvidenceSpan;
+  afterEvidence?: EvidenceSpan;
 };
 const normalize = (value: string) => value.trim().toLowerCase().replace(/\s+/g, " ");
 // Compare the decimal literals without floating-point arithmetic.
@@ -65,18 +69,13 @@ export function factChangeCandidates(before?: PricingFacts, after?: PricingFacts
     }
     const previous = a[0]!,
       current = b[0]!;
+    const spec = FACT_ROLE_SPEC[previous.key];
     const needsPeriod =
-      ["base_price", "seat_price", "included_allowance", "credit_pack_price"].includes(
-        previous.key,
-      ) ||
-      (previous.key === "addon_price" && ["monthly", "annual"].includes(previous.billing));
-    const independentOfCommitment = [
-      "purchased_credit_expiry",
-      "included_credit_rollover_limit",
-      "credit_conversion",
-    ].includes(previous.key);
+      spec.comparePeriod === "always" ||
+      (spec.comparePeriod === "recurring" &&
+        (previous.billing === "monthly" || previous.billing === "annual"));
     if (
-      (!independentOfCommitment && previous.billing === "unknown") ||
+      (spec.compareBilling && previous.billing === "unknown") ||
       (needsPeriod && previous.period === "unknown")
     ) {
       uncertain = true;
@@ -97,6 +96,8 @@ export function factChangeCandidates(before?: PricingFacts, after?: PricingFacts
       beforeLabel: factLabel(previous),
       afterLabel: factLabel(current),
       disclosureOnly: false,
+      beforeEvidence: previous.evidence,
+      afterEvidence: current.evidence,
     });
   }
   const policyKey = (item: PricingFacts["policies"][number]) =>
@@ -127,6 +128,8 @@ export function factChangeCandidates(before?: PricingFacts, after?: PricingFacts
       disclosureOnly: [previous.choice, current.choice].some(
         (value) => value === "not_disclosed" || value === "not_applicable",
       ),
+      beforeEvidence: previous.evidence ?? undefined,
+      afterEvidence: current.evidence ?? undefined,
     });
   }
   return { candidates, uncertain, available: true };

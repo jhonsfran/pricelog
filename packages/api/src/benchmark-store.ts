@@ -8,14 +8,23 @@ import { buildBenchmarkSnapshots, type BenchmarkPage, type BenchmarkSnapshot } f
 
 /** D1 page size for the complete scheduled corpus read. */
 const CORPUS_BATCH_SIZE = 500;
+const MAX_BENCHMARK_PAGES = 20_000;
 
-type BenchmarkCorpusRow = BenchmarkPage & { id: string };
+export type BenchmarkCorpusRow = BenchmarkPage & {
+  id: string;
+  slug: string;
+  displayName: string | null;
+  normalizedDomain: string;
+  scannedAt: Date;
+  runId: string;
+};
 
 export type BenchmarkReading = {
   snapshots: BenchmarkSnapshot[];
   computedAt: Date;
   /** Current comparisons are computed on request so captures expire without a write. */
   live: boolean;
+  corpus: BenchmarkCorpusRow[];
 };
 
 export function benchmarkCorpusCondition(now = new Date(), afterId?: string) {
@@ -38,6 +47,11 @@ async function readCorpusPage(
   return db
     .select({
       id: page.id,
+      slug: page.slug,
+      displayName: page.displayName,
+      normalizedDomain: page.normalizedDomain,
+      scannedAt: pagePublicSummary.scannedAt,
+      runId: pagePublicSummary.runId,
       choices: pagePublicSummary.choices,
       signals: pagePublicSummary.signals,
       numericPrices: pagePublicSummary.numericPrices,
@@ -49,21 +63,20 @@ async function readCorpusPage(
     .limit(limit);
 }
 
-function withoutId({ id: _id, ...benchmarkPage }: BenchmarkCorpusRow): BenchmarkPage {
-  return benchmarkPage;
-}
-
-export async function collectBenchmarkCorpus(
-  readPage: (afterId?: string) => Promise<BenchmarkCorpusRow[]>,
+export async function collectBenchmarkCorpus<Row extends BenchmarkPage & { id: string }>(
+  readPage: (afterId?: string) => Promise<Row[]>,
   batchSize = CORPUS_BATCH_SIZE,
-): Promise<BenchmarkPage[]> {
+  maxRows = MAX_BENCHMARK_PAGES,
+): Promise<Row[]> {
   if (batchSize < 1) throw new Error("Benchmark corpus batch size must be positive");
 
-  const corpus: BenchmarkPage[] = [];
+  const corpus: Row[] = [];
   let afterId: string | undefined;
   for (;;) {
     const rows = await readPage(afterId);
-    corpus.push(...rows.map(withoutId));
+    if (corpus.length + rows.length > maxRows)
+      throw new Error("Benchmark corpus exceeds the current read limit");
+    corpus.push(...rows);
     if (rows.length < batchSize) return corpus;
 
     const nextId = rows.at(-1)?.id;
@@ -78,7 +91,7 @@ export async function readCompleteBenchmarkCorpus(
   db: Database,
   now = new Date(),
   batchSize = CORPUS_BATCH_SIZE,
-): Promise<BenchmarkPage[]> {
+): Promise<BenchmarkCorpusRow[]> {
   return collectBenchmarkCorpus(
     (afterId) => readCorpusPage(db, batchSize, now, afterId),
     batchSize,
@@ -92,7 +105,7 @@ export function computeBenchmarks(pages: BenchmarkPage[]): BenchmarkSnapshot[] {
 /** Historical aggregates remain append-only. Current results always use the current corpus. */
 export async function loadBenchmarks(db: Database, now = new Date()): Promise<BenchmarkReading> {
   const corpus = await readCompleteBenchmarkCorpus(db, now);
-  return { snapshots: computeBenchmarks(corpus), computedAt: now, live: true };
+  return { snapshots: computeBenchmarks(corpus), computedAt: now, live: true, corpus };
 }
 
 export type BenchmarkCoverage = {

@@ -1,10 +1,11 @@
 import type { ArtifactKind, ArtifactManifest, ArtifactReference, RunStatus } from "./types";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function nextAlarmAt(outcome: "success" | "failure", completedAt: number): number {
-  return completedAt + (outcome === "success" ? WEEK_MS : DAY_MS);
+/** Every scan, failed or not, schedules the next one a week later: a page that keeps failing
+ * would otherwise pay for a full capture with retries every day. */
+export function nextAlarmAt(completedAt: number): number {
+  return completedAt + WEEK_MS;
 }
 
 export function resolveRunCompletion(

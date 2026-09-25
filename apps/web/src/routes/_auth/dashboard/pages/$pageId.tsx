@@ -3,7 +3,7 @@ import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Play } from "lucide-react";
+import { Download, ExternalLink, Play } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { LayerDepth } from "@/components/layer-depth";
@@ -146,19 +146,25 @@ function OwnerPageDetail() {
               </div>
               {run.status === "succeeded" ? (
                 <div className="flex flex-wrap gap-2">
-                  {(["screenshot", "html", "content"] as const).map((kind) => (
-                    <a
-                      key={kind}
-                      href={artifactUrl(pageId, run.id, kind)}
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" }),
-                        "kicker text-2xs",
-                      )}
-                    >
-                      <Download data-icon="inline-start" aria-hidden="true" />
-                      {kind}
-                    </a>
-                  ))}
+                  {/* The screenshot and text open in a new tab; captured HTML only downloads. */}
+                  {(["screenshot", "content", "html"] as const).map((kind) => {
+                    const view = kind !== "html";
+                    const Icon = view ? ExternalLink : Download;
+                    return (
+                      <a
+                        key={kind}
+                        href={artifactUrl(pageId, run.id, kind)}
+                        {...(view ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "kicker text-2xs",
+                        )}
+                      >
+                        <Icon data-icon="inline-start" aria-hidden="true" />
+                        {kind}
+                      </a>
+                    );
+                  })}
                 </div>
               ) : (
                 <span />

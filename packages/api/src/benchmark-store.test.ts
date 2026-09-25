@@ -48,4 +48,17 @@ describe("benchmark corpus", () => {
       "did not advance",
     );
   });
+  it("fails rather than returning a partial corpus above the read limit", async () => {
+    const pages = [row("a"), row("b"), row("c")];
+    await expect(
+      collectBenchmarkCorpus(
+        async (afterId) => {
+          const start = afterId ? pages.findIndex((page) => page.id === afterId) + 1 : 0;
+          return pages.slice(start, start + 2);
+        },
+        2,
+        2,
+      ),
+    ).rejects.toThrow("read limit");
+  });
 });

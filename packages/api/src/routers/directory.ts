@@ -1,5 +1,5 @@
 import { page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
-import { and, asc, count, desc, eq, like, or } from "drizzle-orm";
+import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { AI_APPLICATIONS_COHORT, ALL_COHORT, cohortLabel, cohortsForPage } from "../benchmark";
@@ -11,6 +11,8 @@ import {
   benchmarkCorpusCondition,
   loadBenchmarks,
   readBenchmarkCoverage,
+  readCompleteBenchmarkCorpus,
+  type BenchmarkCorpusRow,
 } from "../benchmark-store";
 import { publicProcedure } from "../index";
 import { hasChoice, inCohort, statesSignal } from "../directory-filters";
@@ -37,7 +39,9 @@ export const directoryRouter = {
     )
     .handler(async ({ context, input }) => {
       const search = input?.search;
-      const conditions = [benchmarkCorpusCondition()];
+      // The catalog is an inventory of published captures. Only links from a
+      // benchmark bar need the exact population used to compute that bar.
+      const conditions = [directoryPopulationCondition(input)];
       if (search) {
         const pattern = `%${search}%`;
         conditions.push(
@@ -73,6 +77,7 @@ export const directoryRouter = {
             createdAt: page.createdAt,
             choices: pagePublicSummary.choices,
             tags: pagePublicSummary.tags,
+            numericPrices: pagePublicSummary.numericPrices,
             scannedAt: pagePublicSummary.scannedAt,
           })
           .from(page)
@@ -148,7 +153,7 @@ export const directoryRouter = {
     )
     .handler(async ({ context, input }) => {
       const now = new Date();
-      const [{ snapshots, computedAt, live }, coverage] = await Promise.all([
+      const [{ snapshots, computedAt, live, corpus }, coverage] = await Promise.all([
         loadBenchmarks(context.db, now),
         readBenchmarkCoverage(context.db, now),
       ]);
@@ -160,10 +165,8 @@ export const directoryRouter = {
 
       const requested = input?.cohort ?? AI_APPLICATIONS_COHORT;
       const selected = snapshots.find((snapshot) => snapshot.cohort === requested) ?? null;
-      const [examples, priceExamples] = await Promise.all([
-        readExamples(context.db, requested, false, now),
-        readExamples(context.db, requested, true, now),
-      ]);
+      const examples = examplesFromCorpus(corpus, requested);
+      const priceExamples = examplesFromCorpus(corpus, requested, true);
 
       return {
         computedAt,
@@ -198,42 +201,32 @@ export const directoryRouter = {
     }),
 };
 
+export function directoryPopulationCondition(input?: {
+  signal?: string;
+  choiceKey?: string;
+  choiceValue?: string;
+}) {
+  return input?.signal || (input?.choiceKey && input.choiceValue)
+    ? benchmarkCorpusCondition()
+    : eq(page.state, "active");
+}
+
 export async function readExamples(
   db: import("@my-better-t-app/db").Database,
   cohort: string,
   numericOnly = false,
   now = new Date(),
 ) {
-  const examples = [];
-  let cursor: string | undefined;
-  for (;;) {
-    const rows = await db
-      .select({
-        id: page.id,
-        slug: page.slug,
-        displayName: page.displayName,
-        normalizedDomain: page.normalizedDomain,
-        scannedAt: pagePublicSummary.scannedAt,
-        choices: pagePublicSummary.choices,
-        signals: pagePublicSummary.signals,
-        numericPrices: pagePublicSummary.numericPrices,
-        runId: pagePublicSummary.runId,
-      })
-      .from(page)
-      .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-      .where(benchmarkCorpusCondition(now, cursor))
-      .orderBy(asc(page.id))
-      .limit(100);
-    for (const row of rows) {
-      if (
-        numericOnly &&
-        (row.numericPrices?.status !== "collected" || !row.numericPrices.offers.length)
-      )
-        continue;
-      if (cohortsForPage(row).includes(cohort)) examples.push(row);
-      if (examples.length === 12) return examples;
-    }
-    if (rows.length < 100) return examples;
-    cursor = rows.at(-1)!.id;
-  }
+  return examplesFromCorpus(await readCompleteBenchmarkCorpus(db, now), cohort, numericOnly);
+}
+
+function examplesFromCorpus(corpus: BenchmarkCorpusRow[], cohort: string, numericOnly = false) {
+  return corpus
+    .filter(
+      (row) =>
+        cohortsForPage(row).includes(cohort) &&
+        (!numericOnly ||
+          (row.numericPrices?.status === "collected" && row.numericPrices.offers.length > 0)),
+    )
+    .slice(0, 12);
 }

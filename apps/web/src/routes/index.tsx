@@ -232,6 +232,10 @@ function DirectoryPage() {
                 style={{ animationDelay: staggerDelay(index) }}
               >
                 <RecordIdentity name={item.normalizedDomain} description={item.description}>
+                  {item.numericPrices?.status === "collected" &&
+                  item.numericPrices.offers.length > 0 ? (
+                    <Tag>{item.numericPrices.offers.length} listed prices</Tag>
+                  ) : null}
                   {item.tags.length > 0 ? (
                     <span className="flex flex-wrap gap-1.5">
                       {prioritizeTags(item.tags)

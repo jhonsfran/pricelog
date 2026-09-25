@@ -394,7 +394,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           throw new Error(`Successful run ${run.id} has no completion time`);
         await publishPageProjection(createDb({ DB: this.env.DB }), {
           ...payload,
-          nextScanAt: nextAlarmAt("success", run.completedAt),
+          nextScanAt: nextAlarmAt(run.completedAt),
           runCreatedAt: run.createdAt,
         });
         this.ctx.storage.kv.delete(key);
@@ -587,10 +587,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       if (status === "succeeded" && !this.ctx.storage.kv.get(publicationKey))
         throw new Error(`No prepared publication for run ${runId}`);
       if (status === "failed") this.ctx.storage.kv.delete(publicationKey);
-      const nextScanAt = nextAlarmAt(
-        status === "succeeded" ? "success" : "failure",
-        effectiveCompletedAt,
-      );
+      const nextScanAt = nextAlarmAt(effectiveCompletedAt);
       tx.update(scanRun)
         .set({
           status,
@@ -606,10 +603,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         .where(and(eq(schedulerState.id, 1), eq(schedulerState.activeRunId, runId)))
         .run();
     });
-    const nextScanAt = nextAlarmAt(
-      status === "succeeded" ? "success" : "failure",
-      effectiveCompletedAt,
-    );
+    const nextScanAt = nextAlarmAt(effectiveCompletedAt);
     await this.scheduleNextAlarm();
     return nextScanAt;
   }

@@ -3,16 +3,19 @@ import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloud
 
 import { publishOwnerProjection } from "./publication";
 import { buildPublicEvaluation } from "./evaluation";
-import { evaluatePricing } from "./evaluation-request";
+import { evaluatePricing, MAX_EVALUATION_SOURCE_BYTES } from "./evaluation-request";
 import { collectPricingFacts } from "./pricing-facts";
 import { numericPricesFromFacts } from "./fact-projection";
+import { addAccessiblePriceLabels, trimCookieConsentMarkdown } from "./source-cleanup";
 import { unavailablePricingFacts, type PricingFacts } from "@my-better-t-app/db/pricing-facts";
+import { PRACTICE_CHOICE_CATALOG } from "@my-better-t-app/db/pricing-intelligence";
 import type { PageStore } from "./page-store";
 import type { ArtifactManifest, ScanWorkflowParams } from "./types";
 import { normalizePricingUrl } from "./url";
 import {
   artifactKeys,
   assertUsableCapture,
+  CAPTURE_READY_SELECTOR,
   CONSENT_DISMISS_SCRIPT,
   extractPageDescription,
   jevGatewayOptions,
@@ -21,7 +24,7 @@ import { resolveDnsAddresses } from "./url";
 
 type SnapshotResult = {
   success: true;
-  result: { content?: string; screenshot?: string; markdown?: string };
+  result: { content?: string; screenshot?: string; markdown?: string; accessibilityTree?: unknown };
   meta: { status?: number; title: string; finalUrl?: string };
 };
 
@@ -44,6 +47,8 @@ export interface ScanWorkflowEnv {
 const RETRY = {
   retries: { limit: 3, delay: "5 seconds" as const, backoff: "exponential" as const },
 };
+// Each capture attempt pays for browser time, so a failing page gets three attempts in total.
+const CAPTURE_RETRY = { retries: { ...RETRY.retries, limit: 2 } };
 
 export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkflowParams> {
   async run(event: Readonly<WorkflowEvent<ScanWorkflowParams>>, step: WorkflowStep): Promise<void> {
@@ -64,22 +69,48 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         });
       });
 
-      const capture = await step.do("capture and archive", RETRY, async () => {
-        const response = await this.env.BROWSER.quickAction("snapshot", {
+      const capture = await step.do("capture and archive", CAPTURE_RETRY, async () => {
+        const snapshotOptions = {
           url: params.canonicalUrl,
-          formats: ["content", "markdown", "screenshot"],
+          formats: ["content", "markdown", "screenshot", "accessibilityTree"],
           addScriptTag: [{ content: CONSENT_DISMISS_SCRIPT }],
           screenshotOptions: { fullPage: true, type: "png" },
           gotoOptions: { waitUntil: "networkidle2", timeout: 60_000 },
-          waitForTimeout: 3_000,
+        } satisfies BrowserRunSnapshotOptions;
+        // The injected script signals when consent and scrolling are done, at most ~4s after
+        // load, so short pages are captured sooner than a fixed wait allows.
+        let response = await this.env.BROWSER.quickAction("snapshot", {
+          ...snapshotOptions,
+          waitForSelector: { selector: CAPTURE_READY_SELECTOR, timeout: 10_000 },
         });
-        if (!response.ok) throw new Error(`Browser Run failed with ${response.status}`);
+        let browserMs = Number(response.headers.get("X-Browser-Ms-Used")) || 0;
+        let failure = response.ok ? "" : (await response.text()).slice(0, 300);
+        // A page that navigates away or blocks the script never signals; capture it after a
+        // fixed wait instead of failing the scan.
+        if (!response.ok && /selector|time(?:d )?out/i.test(failure)) {
+          response = await this.env.BROWSER.quickAction("snapshot", {
+            ...snapshotOptions,
+            waitForTimeout: 5_000,
+          });
+          browserMs += Number(response.headers.get("X-Browser-Ms-Used")) || 0;
+          failure = response.ok ? "" : (await response.text()).slice(0, 300);
+        }
+        if (!response.ok) throw new Error(`Browser Run failed with ${response.status}: ${failure}`);
         const snapshot = (await response.json()) as SnapshotResult;
         const html = snapshot.result.content;
-        const markdown = snapshot.result.markdown;
+        const rawMarkdown = snapshot.result.markdown;
         const screenshot = snapshot.result.screenshot;
-        if (!html || !markdown || !screenshot)
+        if (!html || !rawMarkdown || !screenshot)
           throw new Error("Browser Run returned an incomplete snapshot");
+        const cleanedMarkdown = trimCookieConsentMarkdown(rawMarkdown);
+        const enrichedMarkdown = addAccessiblePriceLabels(
+          cleanedMarkdown,
+          snapshot.result.accessibilityTree,
+        );
+        const markdown =
+          new TextEncoder().encode(enrichedMarkdown).byteLength <= MAX_EVALUATION_SOURCE_BYTES
+            ? enrichedMarkdown
+            : cleanedMarkdown;
 
         const httpStatus = assertUsableCapture({
           httpStatus: snapshot.meta.status,
@@ -114,6 +145,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         ]);
         return {
           description: extractPageDescription(html),
+          browserMs: browserMs || null,
           manifest: {
             capturedAt: Date.now(),
             httpStatus,
@@ -158,14 +190,26 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         pricingFacts = await step.do("collect offer facts", RETRY, async () => {
           const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
           if (!artifact) throw new Error("Archived Markdown is missing");
-          return collectPricingFacts(await artifact.text(), (input) =>
-            (this.env.AI as unknown as JevBinding).run("typesafe/jev", input, jevGatewayOptions()),
+          const disclosedPolicies = evaluation.choices
+            .filter(
+              (answer) =>
+                Object.hasOwn(PRACTICE_CHOICE_CATALOG, answer.key) &&
+                !["not_disclosed", "not_applicable", "unknown"].includes(answer.choice),
+            )
+            .map((answer) => answer.key as keyof typeof PRACTICE_CHOICE_CATALOG);
+          return collectPricingFacts(
+            await artifact.text(),
+            (input) =>
+              (this.env.AI as unknown as JevBinding).run(
+                "typesafe/jev",
+                input,
+                jevGatewayOptions(),
+              ),
+            disclosedPolicies,
           );
         });
-      } catch {
-        pricingFacts = unavailablePricingFacts(
-          "Offer fact collection could not be completed for this capture.",
-        );
+      } catch (error) {
+        pricingFacts = unavailablePricingFacts(factCollectionFailureReason(error));
       }
       const completeEvaluation = {
         ...evaluation,
@@ -214,6 +258,17 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
       throw error;
     }
   }
+}
+
+export function factCollectionFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (/candidate limit exceeded|offer limit exceeded/i.test(message))
+    return "This capture has more candidate facts than the collector can process.";
+  if (/source.*(?:limit|blank)|state exceeds transport|request exceeds transport/i.test(message))
+    return "The captured source is too large for fact collection.";
+  if (/7003: User Input Error/i.test(message))
+    return "The fact model rejected this capture's request.";
+  return "Fact collection failed for this capture. Published prices may be missing.";
 }
 
 function decodeBase64(value: string): Uint8Array {

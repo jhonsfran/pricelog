@@ -4,6 +4,7 @@ import { verifyChanges, type Decide } from "./change-verification";
 import { CHARGING_SIGNAL_KEYS } from "@my-better-t-app/db/pricing-intelligence";
 import type { NumericFact, PricingFacts } from "@my-better-t-app/db/pricing-facts";
 import type { ObservationPair } from "@my-better-t-app/api/pricing-history";
+const expiryBefore = "Pro purchased credits expire after 12 months.";
 const fact: NumericFact = {
   key: "purchased_credit_expiry",
   offer: "Pro",
@@ -14,7 +15,7 @@ const fact: NumericFact = {
   period: "unknown",
   quantity: null,
   quantityUnit: null,
-  evidence: { text: "Pro purchased credits expire after 12 months.", start: 0, end: 44 },
+  evidence: { text: expiryBefore, start: 0, end: expiryBefore.length },
   confidence: 1,
 };
 function collection(facts: NumericFact[]): PricingFacts {
@@ -145,7 +146,7 @@ describe("offer fact changes", () => {
     ).toBe(true);
   });
   it("publishes a literal expiry change only after independent evidence verification", async () => {
-    const before = "Pro purchased credits expire after 12 months.";
+    const before = expiryBefore;
     const after = "Pro purchased credits expire after 3 months.";
     const common = {
       pageId: "p",
@@ -164,7 +165,9 @@ describe("offer fact changes", () => {
         ...common,
         runId: "b",
         contentSha256: "b",
-        pricingFacts: collection([{ ...fact, amount: "3" }]),
+        pricingFacts: collection([
+          { ...fact, amount: "3", evidence: { text: after, start: 0, end: after.length } },
+        ]),
       },
     };
     let calls = 0;
@@ -194,5 +197,17 @@ describe("offer fact changes", () => {
       changes: [{ kind: "commercial", beforeEvidence: before, afterEvidence: after }],
     });
     expect(calls).toBe(2);
+    expect(
+      await verifyChanges(
+        pair,
+        `${before}\n${"x".repeat(30_000)}`,
+        `${after}\n${"y".repeat(30_000)}`,
+        decide,
+      ),
+    ).toMatchObject({ status: "reviewed", changes: [{ kind: "commercial" }] });
+    expect(await verifyChanges(pair, `Other offer: ${before}`, after, decide)).toMatchObject({
+      status: "uncertain",
+      changes: [],
+    });
   });
 });

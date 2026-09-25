@@ -45,10 +45,12 @@ export function PricingFactsPanel({
   facts?: PricingFacts | null;
   sourceUrl?: string | null;
 }) {
+  const disclosedPolicies =
+    facts?.policies.filter((policy) => policy.choice !== "not_disclosed") ?? [];
   const offers = [
     ...new Set([
       ...(facts?.facts.map((fact) => fact.offer) ?? []),
-      ...(facts?.policies.map((policy) => policy.offer) ?? []),
+      ...disclosedPolicies.map((policy) => policy.offer),
     ]),
   ];
 
@@ -61,7 +63,7 @@ export function PricingFactsPanel({
         !facts
           ? "Offer facts have not been collected for this capture. A new scan will collect them."
           : facts.status === "unavailable"
-            ? "Offer fact collection is unavailable for this capture. This does not establish that prices or policies are absent."
+            ? `${facts.reason ?? "Offer fact collection is unavailable for this capture."} This does not establish that prices or policies are absent.`
             : undefined
       }
     >
@@ -84,7 +86,7 @@ export function PricingFactsPanel({
           ) : null}
           {offers.map((offer) => {
             const numeric = facts.facts.filter((fact) => fact.offer === offer);
-            const policies = facts.policies.filter((policy) => policy.offer === offer);
+            const policies = disclosedPolicies.filter((policy) => policy.offer === offer);
             return (
               <div
                 className="grid grid-cols-[minmax(0,1fr)] gap-3"

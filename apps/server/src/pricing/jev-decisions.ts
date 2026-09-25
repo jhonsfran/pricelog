@@ -35,6 +35,7 @@ export function chosen(answers: JevAnswer[], key: string, threshold = 0.9) {
 /** Only independent questions share a call. Dependent selections use the next call. */
 export function jevDecisions(decide: Decide) {
   let model: string | null = null;
+  let requests = 0;
   return {
     get model() {
       return model;
@@ -45,7 +46,7 @@ export function jevDecisions(decide: Decide) {
         throw new Error("Jev fact state exceeds transport byte limit");
       const answers: JevAnswer[] = [];
       for (let offset = 0; offset < questions.length;) {
-        let batch = questions.slice(offset, offset + 16);
+        let batch = questions.slice(offset, offset + 64);
         const request = () => ({
           state: serialized,
           questions: Object.fromEntries(
@@ -67,6 +68,7 @@ export function jevDecisions(decide: Decide) {
           new TextEncoder().encode(JSON.stringify(input)).byteLength > MAX_EVALUATION_REQUEST_BYTES
         )
           throw new Error("Jev fact request exceeds transport byte limit");
+        if (++requests > 128) throw new Error("Jev fact request limit exceeded");
         const response = await decide(input);
         const current = requireJevModelVersion(response);
         if (model && current !== model)

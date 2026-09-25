@@ -33,8 +33,18 @@ export async function serveArtifact(context: Context): Promise<Response> {
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set("Content-Type", reference.contentType);
-  headers.set("Content-Disposition", `attachment; filename="${reference.filename}"`);
+  // The screenshot and Markdown open in the browser. Captured HTML is third-party markup, so it
+  // is only ever downloaded; Markdown is served as sandboxed plain text for the same reason.
+  const inline = kind !== "html" && context.req.query("download") === undefined;
+  headers.set(
+    "Content-Type",
+    kind === "content" ? "text/plain; charset=utf-8" : reference.contentType,
+  );
+  headers.set(
+    "Content-Disposition",
+    `${inline ? "inline" : "attachment"}; filename="${reference.filename}"`,
+  );
+  if (kind !== "screenshot") headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Cache-Control", "private, no-store");
   if (object.httpEtag) headers.set("ETag", object.httpEtag);

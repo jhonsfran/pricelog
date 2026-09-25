@@ -112,6 +112,17 @@ describe("consent dismissal", () => {
       CONSENT_DISMISS_SCRIPT.indexOf("onetrust-accept-btn-handler"),
     );
   });
+
+  it("covers CookieScript, as used by n8n, and records the outcome in the archived HTML", () => {
+    expect(CONSENT_DISMISS_SCRIPT.indexOf("#cookiescript_reject")).toBeLessThan(
+      CONSENT_DISMISS_SCRIPT.indexOf("#cookiescript_accept"),
+    );
+    expect(CONSENT_DISMISS_SCRIPT).toContain("dataset.pricelogConsent");
+  });
+
+  it("is valid JavaScript", () => {
+    expect(() => new Function(CONSENT_DISMISS_SCRIPT)).not.toThrow();
+  });
 });
 
 describe("parseJevAnswers", () => {

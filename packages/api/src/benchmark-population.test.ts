@@ -76,7 +76,7 @@ async function seed(rows: Fixture[]) {
 afterEach(() => vi.useRealTimers());
 
 describe("current benchmark measurements", () => {
-  it("uses one model, rubric, state, and capture window for charts, examples, and directory pages", async () => {
+  it("uses one comparable population for charts and examples while the catalog retains published pages", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(now);
     const { db, client } = await seed([
@@ -120,7 +120,7 @@ describe("current benchmark measurements", () => {
       expect(list.total).toBe(benchmark.selected?.signalCounts.charges_fixed_subscription);
       expect(list.items.map((item) => item.id).sort()).toEqual(["current", "cutoff"]);
       const all = await call(directoryRouter.list, {}, { context });
-      expect(all.total).toBe(3);
+      expect(all.total).toBe(7);
     } finally {
       client.close();
     }
