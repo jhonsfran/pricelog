@@ -28,8 +28,9 @@ export const current = engineVariant(
 
 /**
  * names-v16a with request size limits, so pages with 100+ prices or very long Markdown lines
- * fit Jev's input limits. Pages that already fit send the same requests unless a context line
- * or a price's terms exceed 300 characters.
+ * fit Jev's input limits. It also rebuilds requests that already fit: it caps their lines,
+ * drops plan names that no price uses and asks names in order of first use, so Jev answers
+ * those pages afresh. names-v18a keeps the limits for the pages that need them.
  */
 export const sized = engineVariant(
   {
@@ -39,4 +40,24 @@ export const sized = engineVariant(
       "Capping context lines at 300 characters and splitting requests at 90 KB (60 KB of state) lets every registered page run, without changing results on pages that already fit.",
   },
   { ...settings, maxLineChars: 300, maxRequestBytes: 90_000, maxStateBytes: 60_000 },
+);
+
+/**
+ * names-v17a's limits applied only to captures whose single request exceeds them. Every
+ * capture that fits sends names-v16a's request unchanged, so it gets the same answers.
+ */
+export const fitted = engineVariant(
+  {
+    id: "names-v18a",
+    parent: "names-v17a",
+    hypothesis:
+      "Applying names-v17a's line cap and request split only to captures whose single request exceeds 90 KB (or 60 KB of state) runs every registered page and keeps names-v16a's requests and answers on every capture that fits.",
+  },
+  {
+    ...settings,
+    maxLineChars: 300,
+    maxRequestBytes: 90_000,
+    maxStateBytes: 60_000,
+    limitOversizedOnly: true,
+  },
 );

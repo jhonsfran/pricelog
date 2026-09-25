@@ -16,8 +16,8 @@ A dev-only harness that measures how archived pricing-page captures become prici
 | `state/windows.ts`      | One window per price literal: the literal, its unit and period terms, the lines around it, pairs and ranges.        |
 | `state/names.ts`        | Plan-name candidates and, per price, the order in which to try them.                                                |
 | `state/derive.ts`       | Currency from the literal, JSON-LD corroboration, offers hidden behind unselected tabs.                             |
-| `variants/engine.ts`    | The fact engine: builds the one Jev request per capture and makes every decision in code.                           |
-| `variants/current.ts`   | The current best version, `names-v16a`: the engine plus its calibrated thresholds.                                  |
+| `variants/engine.ts`    | The fact engine: builds one Jev request per capture (several for oversized pages) and makes every decision in code. |
+| `variants/current.ts`   | `names-v16a` (the best version on labeled pages) and its size-limited successors `names-v17a` and `names-v18a`.     |
 | `variants/baseline.ts`  | The production collector (`collectPricingFacts`), unchanged, for comparison.                                        |
 | `gold/<sha256>.json`    | Draft labels per capture. **Not yet approved by the owner.**                                                        |
 | `experiments.jsonl`     | Append-only log of runs of the registered variants.                                                                 |
@@ -27,6 +27,10 @@ Data lives in `tmp/fact-lab/` (gitignored): captures, the response cache and per
 ## History
 
 The lab tried 16 engine versions: heading-based cards (v1–v3), price windows (v4) and price windows with plan-name checks (v5–v16). Commit `70fd614` keeps every one of them with the full run log, so any earlier run can be reproduced by checking out that commit. After it, the best version was consolidated into `engine.ts` and `current.ts` without changing a request or a decision: all 29 captures give identical facts from the cache.
+
+## Request size
+
+Jev accepts at most 64k input tokens per request, and 32k for the state plus the longest question. Large pages measure 3.0–3.6 bytes per token. `names-v18a` sends a capture's request unchanged when it is at most 90 KB with at most 60 KB of state, about half of those limits. A larger capture gets its context lines and terms capped at 300 characters, and its prices split over several requests that each stay under the same budget; each plan name is asked once, in the first request whose prices use it. `names-v17a` caps and splits every capture, so it also changes the requests of pages that fit.
 
 ## Jev access
 
@@ -102,7 +106,7 @@ bun apps/server/scripts/fact-lab/run.ts --domain cursor.com --no-cache --note "s
 bun apps/server/scripts/fact-lab/run.ts --variant baseline --domain fin.ai --print
 ```
 
-`--variant` defaults to `names-v16a`. `--no-cache` resamples Jev. Jev is not deterministic, so use it to measure stability. Cached runs are free and reproduce earlier answers exactly.
+`--variant` defaults to `names-v18a`. `--no-cache` resamples Jev. Jev is not deterministic, so use it to measure stability. Cached runs are free and reproduce earlier answers exactly.
 
 ## Rules
 
