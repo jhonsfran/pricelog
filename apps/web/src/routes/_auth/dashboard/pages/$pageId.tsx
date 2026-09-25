@@ -1,10 +1,12 @@
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import { SCAN_STAGE_DETAILS } from "@my-better-t-app/api/scan-stage";
 import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, ExternalLink, Play } from "lucide-react";
 import { toast } from "sonner";
+import { CommercialSnapshot } from "@/components/commercial-snapshot";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { LayerDepth } from "@/components/layer-depth";
 import { NumericPricesPanel } from "@/components/numeric-prices";
@@ -83,20 +85,26 @@ function OwnerPageDetail() {
       {active ? (
         <div className="kicker mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border border-signal-6 bg-signal-2 px-4.5 py-4 text-signal-11">
           <RunStatus status={active.status} />
-          <span>Capturing now · stage {active.stage}</span>
+          <span>{SCAN_STAGE_DETAILS[active.stage].label}</span>
           <span>Run {active.id.slice(0, 8)}</span>
         </div>
       ) : null}
       {data.summary ? (
         <>
-          <NumericPricesPanel
-            prices={data.summary.numericPrices}
-            sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
-          />
-          <PricingFactsPanel
-            facts={data.summary.pricingFacts}
-            sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
-          />
+          {data.summary.snapshot ? (
+            <CommercialSnapshot snapshot={data.summary.snapshot} review={data.summary.review} />
+          ) : (
+            <>
+              <NumericPricesPanel
+                prices={data.summary.numericPrices}
+                sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
+              />
+              <PricingFactsPanel
+                facts={data.summary.pricingFacts}
+                sourceUrl={`/api/public/pages/${pageId}/runs/${data.summary.runId}/source`}
+              />
+            </>
+          )}
           <IntelligenceProfile
             rubricId={data.summary.rubricId}
             choices={data.summary.choices}
@@ -169,6 +177,40 @@ function OwnerPageDetail() {
               ) : (
                 <span />
               )}
+              <details className="col-span-full mb-4 text-xs text-muted-foreground">
+                <summary className="w-fit cursor-pointer font-medium text-foreground">
+                  Pipeline trace · {run.events.length} events
+                </summary>
+                {run.events.length ? (
+                  <ol className="mt-3 space-y-2 border-l border-gray-7 pl-4">
+                    {run.events.map((event, index) => (
+                      <li key={`${event.at}-${index}`} className="flex flex-wrap gap-x-3 gap-y-1">
+                        <time
+                          className="font-mono tabular-nums"
+                          dateTime={new Date(event.at).toISOString()}
+                        >
+                          {new Date(event.at).toLocaleTimeString()}
+                        </time>
+                        <span className="text-foreground">
+                          {SCAN_STAGE_DETAILS[event.stage].label} · {event.kind}
+                        </span>
+                        {event.httpStatus ? <span>HTTP {event.httpStatus}</span> : null}
+                        {event.inputBytes ? (
+                          <span>input {event.inputBytes.toLocaleString()} B</span>
+                        ) : null}
+                        {event.outputBytes ? (
+                          <span>output {event.outputBytes.toLocaleString()} B</span>
+                        ) : null}
+                        {event.message ? (
+                          <span className="basis-full wrap-anywhere">{event.message}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="mt-2">No stage trace was recorded for this run.</p>
+                )}
+              </details>
             </article>
           ))}
         </div>

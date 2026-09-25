@@ -232,6 +232,9 @@ function DirectoryPage() {
                 style={{ animationDelay: staggerDelay(index) }}
               >
                 <RecordIdentity name={item.normalizedDomain} description={item.description}>
+                  {item.snapshot?.status === "collected" && item.snapshot.offers.length > 0 ? (
+                    <Tag>{item.snapshot.offers.length} verified offers</Tag>
+                  ) : null}
                   {item.numericPrices?.status === "collected" &&
                   item.numericPrices.offers.length > 0 ? (
                     <Tag>{item.numericPrices.offers.length} listed prices</Tag>

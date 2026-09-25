@@ -35,6 +35,7 @@ pnpm run dev
 ```
 
 The default web origin is `http://localhost:4100`. The API origin is `http://localhost:4000`.
+For local API URLs, the web dev server forwards browser requests under `/rpc` and `/api` to port 4000. Remote development API URLs are used directly.
 
 For frontend hot reload against a deployed development API, keep `http://localhost:4100` in the API `CORS_ORIGIN` allowlist and run:
 

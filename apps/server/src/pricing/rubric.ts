@@ -10,12 +10,12 @@ import {
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
 import {
-  FACT_EXTRACTION_FINGERPRINT,
-  FACT_CONFIDENCE,
-  FACT_EVIDENCE_PROBABILITY,
-  PRICING_FACTS_VERSION,
-  NUMERIC_FACT_ROLES,
-} from "@my-better-t-app/db/pricing-facts";
+  DRAFT_CHOICE_KEYS,
+  DRAFT_FLAG_KEYS,
+  PRICING_SNAPSHOT_VERSION,
+  SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
+} from "@my-better-t-app/db/pricing-snapshot";
+import { DRAFT_JSON_SCHEMA, DRAFT_PROMPT } from "./draft-snapshot";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 type ChoiceQuestion = {
@@ -47,13 +47,19 @@ function mapCatalog<Key extends string, Entry, Question>(
  * so the text Jev evaluates is byte-identical to the methodology Pricelog
  * publishes. Adding a question to the catalog adds it to the prompt.
  */
-const choiceQuestions = mapCatalog(PRICING_CHOICE_CATALOG, (entry): ChoiceQuestion => ({
+const profileCatalog = Object.fromEntries(
+  DRAFT_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
+) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof DRAFT_CHOICE_KEYS)[number]>;
+const flagCatalog = Object.fromEntries(
+  DRAFT_FLAG_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
+) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof DRAFT_FLAG_KEYS)[number]>;
+const choiceQuestions = mapCatalog(profileCatalog, (entry): ChoiceQuestion => ({
   type: "choice",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: entry.options,
 }));
 
-const noulQuestions = mapCatalog(PRICING_SIGNAL_CATALOG, (entry): NoulQuestion => ({
+const noulQuestions = mapCatalog(flagCatalog, (entry): NoulQuestion => ({
   type: "noul",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: { true: entry.whenTrue, false: entry.whenFalse },
@@ -78,11 +84,10 @@ export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.
     scope: PRICING_PAGE_SCOPE,
     questions,
     facts: {
-      implementation: FACT_EXTRACTION_FINGERPRINT,
-      version: PRICING_FACTS_VERSION,
-      roles: NUMERIC_FACT_ROLES,
-      confidence: FACT_CONFIDENCE,
-      evidence: FACT_EVIDENCE_PROBABILITY,
+      version: PRICING_SNAPSHOT_VERSION,
+      implementation: SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
+      schema: DRAFT_JSON_SCHEMA,
+      prompt: DRAFT_PROMPT,
     },
     publication: {
       choice: CHOICE_CONFIDENCE_THRESHOLD,

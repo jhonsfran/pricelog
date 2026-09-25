@@ -1,6 +1,17 @@
+import type { ScanRunStage } from "@my-better-t-app/db/scan-stage";
+
 export type RunTrigger = "initial" | "scheduled" | "manual";
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
-export type RunStage = "queued" | "capture" | "persist" | "evaluate" | "publish" | "complete";
+export type RunStage = ScanRunStage;
+export type RunEvent = {
+  stage: RunStage;
+  at: number;
+  kind: "entered" | "warning" | "completed" | "failed";
+  message?: string;
+  httpStatus?: number;
+  inputBytes?: number;
+  outputBytes?: number;
+};
 export type ArtifactKind = "html" | "screenshot" | "content";
 
 export type ScanWorkflowParams = {
@@ -23,6 +34,7 @@ export type PageRunDto = {
   createdAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  events: RunEvent[];
 };
 
 export type ArtifactManifest = {

@@ -31,6 +31,7 @@ async function seed(rows: Fixture[]) {
     );
     create table page_public_summary (
       page_id text primary key, run_id text, rubric_id text, model text, numeric_prices_json text,
+      snapshot_json text, review_json text,
       choices_json text, signals_json text, tags_json text, browser_engine text,
       scanned_at integer, updated_at integer
     );

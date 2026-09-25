@@ -1,4 +1,5 @@
 import { createDb } from "@my-better-t-app/db";
+import type { ScanPipelineStage } from "@my-better-t-app/db/scan-stage";
 import { publishPageProjection, type PagePublication } from "./publication";
 import {
   COMPARISON_VERSION,
@@ -11,7 +12,7 @@ import type { PublicEvaluation } from "./evaluation";
 import { DurableObject } from "cloudflare:workers";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
-import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -36,6 +37,7 @@ import type {
   PageRunDto,
   PersistedRubric,
   RunStage,
+  RunEvent,
   RunTrigger,
   ScanWorkflowParams,
 } from "./types";
@@ -155,17 +157,43 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async markRunning(runId: string, stage: RunStage = "capture"): Promise<void> {
-    await this.db
-      .update(scanRun)
-      .set({ status: "running", stage, startedAt: Date.now(), browserEngine: "chromium" })
-      .where(and(eq(scanRun.id, runId), eq(scanRun.status, "queued")));
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (run?.status !== "queued") return;
+      tx.update(scanRun)
+        .set({
+          status: "running",
+          stage,
+          startedAt: now,
+          browserEngine: "chromium",
+          events: [...run.events, { stage, at: now, kind: "entered" }],
+        })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
   }
 
-  async setStage(runId: string, stage: RunStage): Promise<void> {
-    await this.db
-      .update(scanRun)
-      .set({ stage })
-      .where(and(eq(scanRun.id, runId), inArray(scanRun.status, ["queued", "running"])));
+  async setStage(runId: string, stage: ScanPipelineStage): Promise<void> {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || !["queued", "running"].includes(run.status) || run.stage === stage) return;
+      tx.update(scanRun)
+        .set({ stage, events: [...run.events, { stage, at: Date.now(), kind: "entered" }] })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
+  }
+
+  async recordEvent(runId: string, event: Omit<RunEvent, "at">): Promise<void> {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed") return;
+      tx.update(scanRun)
+        .set({ events: [...run.events, { ...event, at: Date.now() }] })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
   }
 
   async persistVersion(runId: string, manifest: ArtifactManifest): Promise<string> {
@@ -500,6 +528,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       workflowInstanceId: runId,
       requestedByUserId,
       createdAt: now,
+      events: [{ stage: "queued", at: now, kind: "entered" }],
     };
 
     let competingRunId: string | null = null;
@@ -595,6 +624,15 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           completedAt,
           errorCode,
           errorMessage,
+          events: [
+            ...run.events,
+            {
+              stage: run.stage,
+              at: completedAt,
+              kind: status === "failed" ? "failed" : "completed",
+              ...(errorMessage ? { message: errorMessage.slice(0, 300) } : {}),
+            },
+          ],
         })
         .where(eq(scanRun.id, runId))
         .run();
@@ -664,5 +702,6 @@ function toRunDto(row: typeof scanRun.$inferSelect | typeof scanRun.$inferInsert
     createdAt: row.createdAt ?? Date.now(),
     startedAt: row.startedAt ?? null,
     completedAt: row.completedAt ?? null,
+    events: row.events ?? [],
   };
 }

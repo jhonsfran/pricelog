@@ -11,6 +11,7 @@ import {
 import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
 import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
 import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
+import type { PublishedSnapshot, SnapshotReview } from "@my-better-t-app/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
 
@@ -20,6 +21,10 @@ export type PublicEvaluation = {
   tags: string[];
   numericPrices?: NumericPrices;
   pricingFacts?: PricingFacts;
+  /** Raw /json result and all review claims stay with the captured version. */
+  draft?: string;
+  snapshot?: PublishedSnapshot;
+  review?: SnapshotReview[];
 };
 
 export function buildPublicEvaluation(answers: JevAnswer[]): PublicEvaluation {

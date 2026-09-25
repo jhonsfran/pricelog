@@ -1,0 +1,1 @@
+ALTER TABLE `scan_run` ADD `events` text DEFAULT '[]' NOT NULL;

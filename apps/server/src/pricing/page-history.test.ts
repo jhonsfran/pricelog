@@ -197,6 +197,8 @@ describe("page-local pricing history", () => {
   it("migrates existing versions and keeps choice/noul answers while removing scores", async () => {
     const { store, sqlite } = storeFor("one", 3);
     try {
+      // Current PageStore reads the run trace while this fixture tests an older answer migration.
+      sqlite.exec("ALTER TABLE scan_run ADD COLUMN events TEXT NOT NULL DEFAULT '[]'");
       await capture(store, sqlite, "existing", "2026-09-17");
       sqlite.exec(
         "INSERT INTO answer (version_id, question_set_id, question_key, type, score) VALUES ('existing', 'old-rubric', 'clarity', 'score', 3)",

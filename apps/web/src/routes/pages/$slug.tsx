@@ -3,6 +3,7 @@ import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/api/pricing-int
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
+import { CommercialSnapshot } from "@/components/commercial-snapshot";
 import { IntelligenceProfile } from "@/components/intelligence-profile";
 import { NumericPricesPanel } from "@/components/numeric-prices";
 import {
@@ -97,8 +98,14 @@ function PublicPageProfile() {
           require the current rubric, {EXPECTED_JEV_MODEL}, and a capture from the last 14 days.
         </p>
       ) : null}
-      <NumericPricesPanel prices={item.numericPrices} sourceUrl={item.sourceUrl} />
-      <PricingFactsPanel facts={item.pricingFacts} sourceUrl={item.sourceUrl} />
+      {item.snapshot ? (
+        <CommercialSnapshot snapshot={item.snapshot} />
+      ) : (
+        <>
+          <NumericPricesPanel prices={item.numericPrices} sourceUrl={item.sourceUrl} />
+          <PricingFactsPanel facts={item.pricingFacts} sourceUrl={item.sourceUrl} />
+        </>
+      )}
       <IntelligenceProfile
         rubricId={item.rubricId}
         choices={item.choices}

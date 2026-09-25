@@ -78,6 +78,7 @@ export const directoryRouter = {
             choices: pagePublicSummary.choices,
             tags: pagePublicSummary.tags,
             numericPrices: pagePublicSummary.numericPrices,
+            snapshot: pagePublicSummary.snapshot,
             scannedAt: pagePublicSummary.scannedAt,
           })
           .from(page)
@@ -125,6 +126,7 @@ export const directoryRouter = {
           model: pagePublicSummary.model,
           numericPrices: pagePublicSummary.numericPrices,
           pricingFacts: pagePublicSummary.pricingFacts,
+          snapshot: pagePublicSummary.snapshot,
           browserEngine: pagePublicSummary.browserEngine,
           runId: pagePublicSummary.runId,
           scannedAt: pagePublicSummary.scannedAt,
