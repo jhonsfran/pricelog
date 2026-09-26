@@ -19,7 +19,29 @@ import {
 import { choiceQuestion } from "./jev-decisions";
 import type { JevAnswer, PersistedQuestion } from "./types";
 
-export const EXTRACTION_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+const QWEN = "@cf/qwen/qwen3-30b-a3b-fp8";
+const LLAMA = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const EXTRACTION_MODELS = [QWEN, LLAMA] as const;
+export type ExtractionModel = (typeof EXTRACTION_MODELS)[number];
+
+export function extractionRequest(
+  model: ExtractionModel,
+  part: (typeof EXTRACTION_PARTS)[number],
+  source: string,
+) {
+  return {
+    messages: [
+      { role: "system" as const, content: part.prompt },
+      // Qwen3 otherwise spends its output budget on reasoning before the JSON.
+      {
+        role: "user" as const,
+        content: model.includes("qwen3") ? `${source}\n\n/no_think` : source,
+      },
+    ],
+    max_tokens: part.maxTokens,
+    response_format: { type: "json_schema" as const, json_schema: part.schema },
+  };
+}
 
 /** Verbatim quotes the extraction model copied from the captured state. */
 export type Extraction = {
@@ -67,6 +89,8 @@ const COPY_RULES =
 export const EXTRACTION_PARTS = [
   {
     name: "offers",
+    // Llama finds more plans; Qwen answers when Llama fails (2026-09-26 bakeoff, 20 pages).
+    models: [LLAMA, QWEN],
     maxTokens: 6144,
     schema: object({
       offers: {
@@ -91,6 +115,8 @@ Skip FAQs, testimonials, calculators, and competitor prices.`,
   },
   {
     name: "features",
+    // Qwen quotes 2-3x more comparison cells than Llama at a fraction of the output price.
+    models: [QWEN, LLAMA],
     maxTokens: 6144,
     schema: object({
       features: {
@@ -102,10 +128,11 @@ Skip FAQs, testimonials, calculators, and competitor prices.`,
       },
     }),
     prompt: `${COPY_RULES}
-List every row of any feature comparison table or grid. name = the row label exactly. cells = one entry per plan column: offer = the plan name, text = the exact cell text ("[✓]", "·", "10", "Unlimited", ...). Return {"features": []} if there is no comparison table.`,
+List every row of any feature comparison table or grid. name = the row label exactly. cells = one entry per plan column: offer = the plan name, text = the exact cell text ("[✓]", "·", "10", "Unlimited", ...), even when it looks incomplete; never add the plan name to it. Return {"features": []} if there is no comparison table.`,
   },
   {
     name: "rates",
+    models: [QWEN, LLAMA],
     maxTokens: 4096,
     schema: object({
       rates: {
@@ -390,8 +417,9 @@ function priceQuestions(prices: GroundedPrice[]): PersistedQuestion[] {
   });
 }
 
-const INCLUDED = /^(?:\[✓\]|\[icon:green\]|✓|✔|yes|included)$/i;
-const EXCLUDED = /^(?:\[✗\]|\[icon:red\]|\[icon:gray\]|✗|✕|×|no|not included|—|–|-)$/i;
+const INCLUDED = /^(?:\[✓\]|\[icon:green\]|✓|✔|yes|included\b.*|available\b.*)$/i;
+const EXCLUDED =
+  /^(?:\[✗\]|\[icon:red\]|\[icon:gray\]|✗|✕|×|no|—|–|-|not (?:included|available)\b.*|unavailable\b.*|excluded\b.*)$/i;
 const EMPTY = /^(?:·|\[icon\])?$/;
 
 export function cellStatus(quote: string): { status: FeatureStatus; limit_raw?: string } {

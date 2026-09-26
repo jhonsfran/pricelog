@@ -2,13 +2,12 @@ import type { Database } from "@my-better-t-app/db";
 import type { PageMonitorService } from "@my-better-t-app/api/context";
 import { COMPARISON_VERSION, pairWeeklyObservations } from "@my-better-t-app/api/pricing-history";
 import { activePageBatches } from "@my-better-t-app/api/pricing-history-store";
-import { verifyChanges, type Decide } from "./change-verification";
+import { confirmChanges, diffSnapshots } from "./snapshot-changes";
 
 export async function runWeeklyComparisons(
   db: Database,
   monitor: Pick<PageMonitorService, "getWeeklyHistory" | "persistComparison">,
-  artifacts: R2Bucket,
-  decide: Decide,
+  readContent: (key: string) => Promise<string | null>,
   now = new Date(),
 ) {
   let processed = 0;
@@ -41,19 +40,26 @@ export async function runWeeklyComparisons(
               )
             )
               continue;
-            const [before, after] = await Promise.all([
-              artifacts.get(pair.before.contentKey),
-              artifacts.get(pair.after.contentKey),
+            const [beforeText, afterText] = await Promise.all([
+              readContent(pair.before.contentKey),
+              readContent(pair.after.contentKey),
             ]);
-            if (!before || !after) throw new Error(`Missing source for weekly comparison ${runId}`);
-            const [beforeText, afterText] = await Promise.all([before.text(), after.text()]);
-            const result = await verifyChanges(pair, beforeText, afterText, decide);
+            if (beforeText === null || afterText === null)
+              throw new Error(`Missing captured page for weekly comparison ${runId}`);
+            // Pairing admits only collected snapshots of the current version.
+            const changes = confirmChanges(
+              diffSnapshots(pair.before.snapshot!, pair.after.snapshot!),
+              beforeText,
+              afterText,
+            );
             await monitor.persistComparison(page.normalizedDomain, page.id, {
               id: `${COMPARISON_VERSION}:${pair.before.runId}:${pair.after.runId}`,
               beforeRunId: pair.before.runId,
               afterRunId: pair.after.runId,
               verifierVersion: COMPARISON_VERSION,
-              ...result,
+              model: null,
+              status: "reviewed",
+              changes,
               createdAt: new Date(),
             });
             processed++;

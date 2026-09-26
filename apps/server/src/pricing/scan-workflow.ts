@@ -8,7 +8,8 @@ import {
   trimCookieConsentMarkdown,
   trimPricingMarkdown,
 } from "./source-cleanup";
-import { unavailableSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import { PRICING_PIPELINE_ID, unavailableSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import { numericPricesFromSnapshot } from "./snapshot-projection";
 import {
   CAPTURE_STATE_SCRIPT,
   captureRegion,
@@ -19,7 +20,8 @@ import {
 import {
   classificationQuestions,
   decideSnapshot,
-  EXTRACTION_MODEL,
+  extractionRequest,
+  type ExtractionModel,
   EXTRACTION_PARTS,
   groundExtraction,
   isClassificationKey,
@@ -55,14 +57,7 @@ type JevBinding = {
 };
 
 type ExtractionAiBinding = {
-  run(
-    model: typeof EXTRACTION_MODEL,
-    input: {
-      messages: { role: "system" | "user"; content: string }[];
-      max_tokens: number;
-      response_format: { type: "json_schema"; json_schema: unknown };
-    },
-  ): Promise<unknown>;
+  run(model: ExtractionModel, input: ReturnType<typeof extractionRequest>): Promise<unknown>;
 };
 
 export interface ScanWorkflowEnv {
@@ -229,6 +224,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           params.runId,
           capture.manifest.contentSha256,
           rubric.id,
+          PRICING_PIPELINE_ID,
         );
         if (!found) return null;
         const { runId, rubricId, model, evaluation, answers } = found;
@@ -254,15 +250,21 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             const ai = this.env.AI as unknown as ExtractionAiBinding;
             const settled = await Promise.allSettled(
               EXTRACTION_PARTS.map(async (part) => {
-                const response = await ai.run(EXTRACTION_MODEL, {
-                  messages: [
-                    { role: "system", content: part.prompt },
-                    { role: "user", content: source },
-                  ],
-                  max_tokens: part.maxTokens,
-                  response_format: { type: "json_schema", json_schema: part.schema },
-                });
-                return { value: parseExtraction(response), usage: readUsage(response) };
+                let failure: unknown;
+                for (const model of part.models) {
+                  try {
+                    const response = await ai.run(model, extractionRequest(model, part, source));
+                    return { value: parseExtraction(response), usage: readUsage(response), model };
+                  } catch (error) {
+                    failure = error;
+                    await store.recordEvent(params.runId, {
+                      stage: "draft",
+                      kind: "warning",
+                      message: `${model} failed on ${part.name}: ${String(error).slice(0, 160)}`,
+                    });
+                  }
+                }
+                throw failure;
               }),
             );
             const [offersResult, ...optionalResults] = settled as [
@@ -296,7 +298,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             await store.recordEvent(params.runId, {
               stage: "draft",
               kind: "completed",
-              message: `${EXTRACTION_MODEL} quoted ${extraction.offers.length} offers, ${extraction.features.length} feature rows and ${extraction.rates.length} usage rates (${tokens.input} input and ${tokens.output} output tokens)`,
+              message: `${[...new Set(parts.map((part) => part.model).filter(Boolean))].join(" + ")} quoted ${extraction.offers.length} offers, ${extraction.features.length} feature rows and ${extraction.rates.length} usage rates (${tokens.input} input and ${tokens.output} output tokens)`,
               inputBytes: new TextEncoder().encode(source).byteLength,
             });
             return {
@@ -376,8 +378,10 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
               draft: extracted.raw,
               ...buildPublicEvaluation(rubricAnswers),
               snapshot: decision.snapshot,
+              numericPrices: numericPricesFromSnapshot(decision.snapshot, verified.model),
               review: decision.review,
               coverage: decision.coverage,
+              pipeline: PRICING_PIPELINE_ID,
             };
           }
           const reason = verified.reason ?? "Pricing verification was unavailable";
@@ -391,13 +395,14 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             snapshot: unavailableSnapshot(reason),
             review: [{ path: "draft", value: reason, reason: "unavailable" as const }],
             coverage: null,
+            pipeline: PRICING_PIPELINE_ID,
           };
         });
 
         return { evaluation, answers: verified.answers };
       };
 
-      // The same content and rubric give the same facts, so an unchanged page costs no model calls.
+      // The same content, rubric and pipeline give the same facts, so an unchanged page costs no model calls.
       const { evaluation, answers } = reused
         ? await step.do("reuse unchanged evaluation", RETRY, async () => {
             await store.recordEvent(params.runId, {

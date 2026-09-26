@@ -55,7 +55,8 @@ export async function publishPageProjection(db: Database, input: PagePublication
     runId: input.runId,
     rubricId: input.rubricId,
     model: input.model,
-    pricingFacts: input.pricingFacts ?? null,
+    // The old fact pipeline is retired; a new scan clears its facts from the summary.
+    pricingFacts: null,
     snapshot: input.snapshot ?? null,
     review: input.review ?? null,
     // Decision history stays with the page version in its Durable Object.

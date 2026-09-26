@@ -159,7 +159,10 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
       texts.push(drawn ? '[icon]' : '·');
     }
     const joined = texts.join('');
-    if (texts.every((text) => text.length <= 12) && MONEY.test(joined) && texts.join(' ').length <= 40) return joined;
+    // Only amount fragments ("$", "160", ".33") join; a plan name next to its price stays a cell.
+    const fragment = /^(?:[A-Z]{0,2}[$€£¥]|USD|EUR|[.,]?\d[\d,]*(?:[.,]\d+)?|[.,]\d+)$/;
+    if (texts.every((text) => text.length <= 12) && texts.some((text) => fragment.test(text)) &&
+        MONEY.test(joined) && texts.join(' ').length <= 40 && !texts.some((text) => /^[A-Za-z]{3,}$/.test(text) && !/^(USD|EUR)$/.test(text))) return joined;
     const line = texts.join(' | ');
     return line.length > 400 ? null : line;
   }

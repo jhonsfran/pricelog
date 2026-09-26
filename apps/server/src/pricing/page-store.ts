@@ -283,11 +283,12 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     });
   }
 
-  /** The latest succeeded evaluation, when this capture has the same content and rubric. */
+  /** The latest succeeded evaluation, when this capture has the same content, rubric and pipeline. */
   async findReusableEvaluation(
     runId: string,
     contentSha256: string,
     rubricId: string,
+    pipeline: string,
   ): Promise<ReusableEvaluation | null> {
     const previous = this.db
       .select({ version: pageVersion, stored: versionEvaluation })
@@ -303,6 +304,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       !previous ||
       previous.version.contentSha256 !== contentSha256 ||
       previous.stored.rubricId !== rubricId ||
+      previous.stored.evaluation.pipeline !== pipeline ||
       snapshot?.status !== "collected"
     )
       return null;
@@ -374,7 +376,8 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           contentSha256: row.version.contentSha256,
           choices: row.evaluated.evaluation.choices,
           signals: row.evaluated.evaluation.signals,
-          pricingFacts: row.evaluated.evaluation.pricingFacts,
+          snapshot: row.evaluated.evaluation.snapshot ?? null,
+          pipeline: row.evaluated.evaluation.pipeline,
         });
     }
     const before = observations[0];

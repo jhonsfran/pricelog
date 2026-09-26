@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createDb } from "@my-better-t-app/db";
 import { ScanWorkflow } from "./scan-workflow";
 import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
-import { EXTRACTION_MODEL } from "./quote-snapshot";
+import { EXTRACTION_MODELS } from "./quote-snapshot";
+
+const [QWEN, LLAMA] = EXTRACTION_MODELS;
+import { PRICING_PIPELINE_ID } from "@my-better-t-app/db/pricing-snapshot";
 import type { PersistedQuestion } from "./types";
 
 vi.mock("cloudflare:workers", () => ({ WorkflowEntrypoint: class {} }));
@@ -49,7 +52,15 @@ const STATE_HTML = `<h1>Pricing</h1><script type="application/json" id="pricelog
 )}</script>`;
 
 function setup(
-  failure?: "start" | "capture" | "complete" | "projection" | "evaluation" | "extraction" | "stage",
+  failure?:
+    | "start"
+    | "capture"
+    | "complete"
+    | "projection"
+    | "evaluation"
+    | "extraction"
+    | "primary"
+    | "stage",
   sourceMarkdown = "# Pricing\nPro: $20 per month",
   accessibilityTree?: unknown,
   capturedHtml = "<h1>Pricing</h1>",
@@ -121,8 +132,9 @@ function setup(
         response_format?: { json_schema: { properties: Record<string, unknown> } };
       },
     ) => {
-      if (model === EXTRACTION_MODEL) {
-        if (failure === "extraction") return { response: "{truncated" };
+      if ((EXTRACTION_MODELS as readonly string[]).includes(model)) {
+        if (failure === "extraction" || (failure === "primary" && model === QWEN))
+          return { response: "{truncated" };
         const properties = input.response_format!.json_schema.properties;
         if ("offers" in properties)
           return { response: OFFERS, usage: { prompt_tokens: 100, completion_tokens: 20 } };
@@ -222,17 +234,17 @@ describe("scan publication boundaries", () => {
     expect(scan.archivedMarkdown()).toBe(
       "## state: default\n# Pricing\n## Pro\n$20 per month\nExtra emails | $0.90 | / 1,000\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month",
     );
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      EXTRACTION_MODEL,
-      EXTRACTION_MODEL,
-      EXTRACTION_MODEL,
-      "typesafe/jev",
-    ]);
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([LLAMA, QWEN, QWEN, "typesafe/jev"]);
     expect(scan.ai.mock.calls[3]?.[1].state).toBe(scan.archivedMarkdown());
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
         model: "jev-1.13.0",
+        pipeline: PRICING_PIPELINE_ID,
+        numericPrices: expect.objectContaining({
+          version: "numeric-prices-v1",
+          model: "jev-1.13.0",
+        }),
         draft: JSON.stringify({ offers: OFFERS, features: { features: [] }, rates: RATES }),
         snapshot: {
           version: "pricing-snapshot-v3",
@@ -314,6 +326,7 @@ describe("scan publication boundaries", () => {
       "run",
       createHash("sha256").update(scan.archivedMarkdown()!).digest("hex"),
       PRICING_INTELLIGENCE_RUBRIC.id,
+      PRICING_PIPELINE_ID,
     );
     expect(scan.ai).not.toHaveBeenCalled();
     expect(scan.store.persistAnswers).toHaveBeenCalledWith(
@@ -347,6 +360,9 @@ describe("scan publication boundaries", () => {
       expect.objectContaining({ stage: "archive", kind: "warning" }),
     );
     expect(scan.ai.mock.calls[0]?.[1].messages?.[1]?.content).toBe("# Pricing\nPro: $20 per month");
+    expect(scan.ai.mock.calls[1]?.[1].messages?.[1]?.content).toBe(
+      "# Pricing\nPro: $20 per month\n\n/no_think",
+    );
     expect(scan.ai.mock.calls[3]?.[1].state).toBe("# Pricing\nPro: $20 per month");
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
@@ -376,13 +392,38 @@ describe("scan publication boundaries", () => {
     expect(scan.archivedMarkdown()).toContain("### Business\n\n$90\n\nper month");
   });
 
+  it("asks Llama for a table part when Qwen returns broken JSON", async () => {
+    const scan = setup("primary");
+    await scan.run();
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
+      LLAMA,
+      QWEN,
+      QWEN,
+      LLAMA,
+      LLAMA,
+      "typesafe/jev",
+    ]);
+    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          status: "collected",
+          offers: [expect.objectContaining({ name: "Pro" })],
+        }),
+      }),
+    );
+  });
+
   it("publishes an unavailable snapshot with a review item when extraction fails", async () => {
     const scan = setup("extraction");
     await scan.run();
     expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      EXTRACTION_MODEL,
-      EXTRACTION_MODEL,
-      EXTRACTION_MODEL,
+      LLAMA,
+      QWEN,
+      QWEN,
+      QWEN,
+      LLAMA,
+      LLAMA,
     ]);
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",

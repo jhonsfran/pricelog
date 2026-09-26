@@ -10,7 +10,6 @@ import {
 } from "@my-better-t-app/db/pricing-intelligence";
 import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
 import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
-import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
 import type { PublishedSnapshot, SnapshotReview } from "@my-better-t-app/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
@@ -20,11 +19,12 @@ export type PublicEvaluation = {
   signals: PageSignal[];
   tags: string[];
   numericPrices?: NumericPrices;
-  pricingFacts?: PricingFacts;
   /** Raw /json result and all review claims stay with the captured version. */
   draft?: string;
   snapshot?: PublishedSnapshot;
   review?: SnapshotReview[];
+  /** PRICING_PIPELINE_ID of the code that produced the snapshot. */
+  pipeline?: string;
   /** Price literals on the captured page and how many of them a grounded quote covers. */
   coverage?: { literals: number; claimed: number } | null;
 };

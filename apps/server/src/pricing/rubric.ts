@@ -9,13 +9,7 @@ import {
   TAG_PROBABILITY_THRESHOLD,
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
-import {
-  PROFILE_CHOICE_KEYS,
-  PROFILE_FLAG_KEYS,
-  PRICING_SNAPSHOT_VERSION,
-  SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
-} from "@my-better-t-app/db/pricing-snapshot";
-import { EXTRACTION_MODEL, EXTRACTION_PARTS } from "./quote-snapshot";
+import { PROFILE_CHOICE_KEYS, PROFILE_FLAG_KEYS } from "@my-better-t-app/db/pricing-snapshot";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 type ChoiceQuestion = {
@@ -76,18 +70,17 @@ export const PRICING_INTELLIGENCE_RUBRIC = {
   },
 } as const;
 
-/** The identifier covers questions, thresholds, model, and fact schema version. */
+/**
+ * The identifier covers only what Jev's profile answers depend on: questions, scope, model
+ * and thresholds. Extraction code has its own PRICING_PIPELINE_ID, so a pipeline change does
+ * not make earlier profile answers incomparable.
+ */
 export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.questions) {
   return {
     version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
     model: EXPECTED_JEV_MODEL,
     scope: PRICING_PAGE_SCOPE,
     questions,
-    facts: {
-      version: PRICING_SNAPSHOT_VERSION,
-      implementation: SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
-      extraction: { model: EXTRACTION_MODEL, parts: EXTRACTION_PARTS },
-    },
     publication: {
       choice: CHOICE_CONFIDENCE_THRESHOLD,
       stated: TAG_PROBABILITY_THRESHOLD,

@@ -10,6 +10,7 @@ import {
   PRICING_RUBRIC_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-intelligence";
 import {
+  PRICING_PIPELINE_ID,
   PROFILE_CHOICE_KEYS,
   PROFILE_FLAG_KEYS,
   SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
@@ -21,7 +22,7 @@ describe("pricing rubric", () => {
 
   it("uses the new immutable version and only v1 profile questions", () => {
     expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
-    expect(rubric.version).toBe(10);
+    expect(rubric.version).toBe(11);
     expect(Object.keys(rubric.questions).sort()).toEqual(
       [...PROFILE_CHOICE_KEYS, ...PROFILE_FLAG_KEYS].sort(),
     );
@@ -44,6 +45,15 @@ describe("pricing rubric", () => {
     }
   });
 
+  it("keeps the rubric identity independent of the extraction pipeline", () => {
+    const contract = JSON.stringify(rubricContract());
+    expect(contract).not.toContain(SNAPSHOT_IMPLEMENTATION_FINGERPRINT);
+    expect(contract).not.toContain("@cf/");
+    expect(PRICING_PIPELINE_ID).toBe(
+      `pricing-snapshot-v3-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`,
+    );
+  });
+
   it("requires a new fingerprint when the contract changes", async () => {
     expect(await rubricFingerprint()).toBe(PRICING_RUBRIC_FINGERPRINT);
     expect(await rubricFingerprint({ ...rubricContract(), model: "changed" })).not.toBe(
@@ -52,7 +62,7 @@ describe("pricing rubric", () => {
   });
 });
 
-it("requires a new version when extraction or validation code changes", () => {
+it("requires a new pipeline id when extraction or validation code changes", () => {
   const hash = createHash("sha256");
   for (const file of [
     "quote-snapshot.ts",

@@ -1,4 +1,3 @@
-import { unavailablePricingFacts } from "@my-better-t-app/db/pricing-facts";
 import { URL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -175,12 +174,14 @@ async function scanned(
   sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run(runId);
 }
 
+const PIPELINE = "pricing-snapshot-v3-aaaaaaaaaaaa";
 const COLLECTED = {
   rubricId: "pricing-intelligence-v10",
   model: "jev-1.13.0",
   choices: [],
   signals: [],
   tags: [],
+  pipeline: PIPELINE,
   snapshot: {
     version: "pricing-snapshot-v3" as const,
     status: "collected" as const,
@@ -191,13 +192,13 @@ const COLLECTED = {
 };
 
 describe("unchanged page reuse", () => {
-  it("reuses the latest evaluation only for the same content and rubric", async () => {
+  it("reuses the latest evaluation only for the same content, rubric and pipeline", async () => {
     const { store, sqlite } = storeFor("one");
     try {
       await scanned(store, sqlite, "first", "same", COLLECTED);
       await scanned(store, sqlite, "second", "same");
       expect(
-        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10"),
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10", PIPELINE),
       ).toEqual({
         runId: "first",
         rubricId: "pricing-intelligence-v10",
@@ -206,6 +207,7 @@ describe("unchanged page reuse", () => {
           choices: [],
           signals: [],
           tags: [],
+          pipeline: PIPELINE,
           snapshot: COLLECTED.snapshot,
           review: [],
         },
@@ -221,10 +223,23 @@ describe("unchanged page reuse", () => {
         ],
       });
       expect(
-        await store.findReusableEvaluation("second", "changed", "pricing-intelligence-v10"),
+        await store.findReusableEvaluation(
+          "second",
+          "changed",
+          "pricing-intelligence-v10",
+          PIPELINE,
+        ),
       ).toBeNull();
       expect(
-        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v11"),
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v11", PIPELINE),
+      ).toBeNull();
+      expect(
+        await store.findReusableEvaluation(
+          "second",
+          "same",
+          "pricing-intelligence-v10",
+          "pricing-snapshot-v3-bbbbbbbbbbbb",
+        ),
       ).toBeNull();
     } finally {
       sqlite.close();
@@ -240,7 +255,7 @@ describe("unchanged page reuse", () => {
       });
       await scanned(store, sqlite, "second", "same");
       expect(
-        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10"),
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10", PIPELINE),
       ).toBeNull();
     } finally {
       sqlite.close();
@@ -266,7 +281,7 @@ describe("page-local pricing history", () => {
     }
   });
 
-  it("keeps numeric observations with their version and ignores later replacement", async () => {
+  it("keeps snapshot observations with their version and ignores later replacement", async () => {
     const { store, sqlite } = storeFor("one");
     try {
       await capture(store, sqlite, "numeric", "2026-09-22", "running");
@@ -276,11 +291,8 @@ describe("page-local pricing history", () => {
         choices: [],
         signals: [],
         tags: [],
-        pricingFacts: {
-          ...unavailablePricingFacts("test record"),
-          status: "collected" as const,
-          model: "jev-1.13.0",
-        },
+        pipeline: PIPELINE,
+        snapshot: COLLECTED.snapshot,
         numericPrices: {
           version: "numeric-prices-v1" as const,
           status: "collected" as const,
@@ -302,9 +314,8 @@ describe("page-local pricing history", () => {
         ).numericPrices,
       ).toEqual(evaluation.numericPrices);
       expect(
-        (await store.getWeeklyHistory("one", Date.parse("2026-09-28"))).observations[0]
-          ?.pricingFacts,
-      ).toEqual(evaluation.pricingFacts);
+        (await store.getWeeklyHistory("one", Date.parse("2026-09-28"))).observations[0],
+      ).toMatchObject({ snapshot: COLLECTED.snapshot, pipeline: PIPELINE });
     } finally {
       sqlite.close();
     }

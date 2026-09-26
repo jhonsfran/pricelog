@@ -1,5 +1,8 @@
-import { requireJevModelVersion, type Decide } from "./change-verification";
-import { MAX_EVALUATION_REQUEST_BYTES } from "./evaluation-request";
+import {
+  MAX_EVALUATION_REQUEST_BYTES,
+  requireJevModelVersion,
+  type Decide,
+} from "./evaluation-request";
 import { parseJevAnswers } from "./scan-workflow-logic";
 import type { JevAnswer, PersistedQuestion } from "./types";
 
