@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createDb } from "@my-better-t-app/db";
 import { ScanWorkflow } from "./scan-workflow";
@@ -18,6 +19,9 @@ vi.mock("./url", () => ({
 const OFFERS = {
   offers: [{ name: "Pro", prices: [{ text: "$20 per month", state: "default" }], limits: [] }],
 };
+const RATES = {
+  rates: [{ name: "Extra emails", price: "$0.90", per: "/ 1,000", offer: null, state: "default" }],
+};
 const CHOICES: Record<string, string> = {
   buying_motion: "self_serve",
   price_disclosure: "full",
@@ -28,13 +32,17 @@ const CHOICES: Record<string, string> = {
   price_0_billing: "monthly",
   price_0_period: "month",
   price_0_unit: "flat",
+  rate_0_role: "overage_rate",
 };
 const STATE_HTML = `<h1>Pricing</h1><script type="application/json" id="pricelog-state">${JSON.stringify(
   {
     version: 1,
     billingView: "monthly",
     blocks: [
-      { label: "default", text: "# Pricing\n## Pro\n$20 per month" },
+      {
+        label: "default",
+        text: "# Pricing\n## Pro\n$20 per month\nExtra emails | $0.90 | / 1,000",
+      },
       { label: "billing=Yearly", text: "(within: ## Pro)\n$16 per month" },
     ],
   },
@@ -57,6 +65,7 @@ function setup(
     persistVersion: vi.fn(),
     persistAnswers: vi.fn(),
     persistEvaluation: vi.fn(),
+    findReusableEvaluation: vi.fn(async (): Promise<unknown> => null),
     getActiveRubric: async () => ({
       id: PRICING_INTELLIGENCE_RUBRIC.id,
       questions: Object.entries(PRICING_INTELLIGENCE_RUBRIC.questions).map(
@@ -114,9 +123,12 @@ function setup(
     ) => {
       if (model === EXTRACTION_MODEL) {
         if (failure === "extraction") return { response: "{truncated" };
-        return "offers" in input.response_format!.json_schema.properties
-          ? { response: OFFERS, usage: { prompt_tokens: 100, completion_tokens: 20 } }
-          : { response: { features: [] }, usage: { prompt_tokens: 100, completion_tokens: 5 } };
+        const properties = input.response_format!.json_schema.properties;
+        if ("offers" in properties)
+          return { response: OFFERS, usage: { prompt_tokens: 100, completion_tokens: 20 } };
+        if ("rates" in properties)
+          return { response: RATES, usage: { prompt_tokens: 100, completion_tokens: 10 } };
+        return { response: { features: [] }, usage: { prompt_tokens: 100, completion_tokens: 5 } };
       }
       if (failure === "evaluation") throw new Error("Evaluation failed");
       return {
@@ -196,22 +208,32 @@ describe("scan publication boundaries", () => {
     const [, options] = scan.browser.mock.calls[0]!;
     expect(options).toMatchObject({
       waitForSelector: { selector: "#pricelog-state-ready", timeout: 30_000 },
+      setExtraHTTPHeaders: { "Accept-Language": "en-IE,en;q=0.9" },
     });
-    expect((options as { addScriptTag: unknown[] }).addScriptTag).toHaveLength(2);
+    const { addScriptTag, rejectRequestPattern } = options as {
+      addScriptTag: { content: string }[];
+      rejectRequestPattern: string[];
+    };
+    expect(addScriptTag).toHaveLength(3);
+    expect(addScriptTag[0]).toEqual({
+      content: 'document.documentElement.dataset.pricelogCurrency = "EUR";',
+    });
+    expect(rejectRequestPattern[0]).toBe(String.raw`/\/api\/geo/`);
     expect(scan.archivedMarkdown()).toBe(
-      "## state: default\n# Pricing\n## Pro\n$20 per month\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month",
+      "## state: default\n# Pricing\n## Pro\n$20 per month\nExtra emails | $0.90 | / 1,000\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month",
     );
     expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
       EXTRACTION_MODEL,
       EXTRACTION_MODEL,
+      EXTRACTION_MODEL,
       "typesafe/jev",
     ]);
-    expect(scan.ai.mock.calls[2]?.[1].state).toBe(scan.archivedMarkdown());
+    expect(scan.ai.mock.calls[3]?.[1].state).toBe(scan.archivedMarkdown());
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
         model: "jev-1.13.0",
-        draft: JSON.stringify({ offers: OFFERS, features: { features: [] } }),
+        draft: JSON.stringify({ offers: OFFERS, features: { features: [] }, rates: RATES }),
         snapshot: {
           version: "pricing-snapshot-v3",
           status: "collected",
@@ -235,9 +257,24 @@ describe("scan publication boundaries", () => {
             },
           ],
           features: [],
+          rates: [
+            {
+              name: "Extra emails",
+              price_raw: "$0.90",
+              price_numeric: 0.9,
+              currency: "USD",
+              per: "/ 1,000",
+              offer: null,
+              role: "overage_rate",
+              state: "default",
+            },
+          ],
         },
-        review: [{ path: "coverage", reason: "unclaimed", value: "$16" }],
-        coverage: { literals: 2, claimed: 1 },
+        review: [
+          { path: "currency_visible", reason: "mismatch", value: "USD shown; EUR requested" },
+          { path: "coverage", reason: "unclaimed", value: "$16" },
+        ],
+        coverage: { literals: 3, claimed: 2 },
       }),
     );
     expect(scan.store.recordEvent).toHaveBeenCalledWith(
@@ -245,9 +282,57 @@ describe("scan publication boundaries", () => {
       expect.objectContaining({
         stage: "project",
         message:
-          "Published 1 offers, 1 prices, and 0 features; 1 review items; quotes cover 1 of 2 price literals",
+          "Published 1 offers, 1 prices, and 0 features; 2 review items; quotes cover 2 of 3 price literals",
       }),
     );
+  });
+
+  it("reuses the previous evaluation without model calls when the content is unchanged", async () => {
+    const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, STATE_HTML);
+    const previous = {
+      runId: "previous",
+      rubricId: PRICING_INTELLIGENCE_RUBRIC.id,
+      model: "jev-1.13.0",
+      evaluation: {
+        choices: [],
+        signals: [],
+        tags: [],
+        snapshot: {
+          version: "pricing-snapshot-v3",
+          status: "collected",
+          flags: {},
+          offers: [{ name: "Pro", prices: [] }],
+          features: [],
+        },
+        review: [],
+      },
+      answers: [{ key: "has_free_plan", type: "noul", noul: 0.95 }],
+    };
+    scan.store.findReusableEvaluation.mockResolvedValue(previous);
+    await scan.run();
+    expect(scan.store.findReusableEvaluation).toHaveBeenCalledWith(
+      "run",
+      createHash("sha256").update(scan.archivedMarkdown()!).digest("hex"),
+      PRICING_INTELLIGENCE_RUBRIC.id,
+    );
+    expect(scan.ai).not.toHaveBeenCalled();
+    expect(scan.store.persistAnswers).toHaveBeenCalledWith(
+      "run",
+      PRICING_INTELLIGENCE_RUBRIC.id,
+      previous.answers,
+    );
+    expect(scan.store.persistEvaluation).toHaveBeenCalledWith("run", {
+      rubricId: PRICING_INTELLIGENCE_RUBRIC.id,
+      model: "jev-1.13.0",
+      ...previous.evaluation,
+    });
+    expect(scan.store.recordEvent).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        message: "Content unchanged since run previous; reused its evaluation (no model calls)",
+      }),
+    );
+    expect(scan.store.publishPending).toHaveBeenCalledOnce();
   });
 
   it("falls back to cleaned Markdown when the state script does not finish", async () => {
@@ -262,7 +347,7 @@ describe("scan publication boundaries", () => {
       expect.objectContaining({ stage: "archive", kind: "warning" }),
     );
     expect(scan.ai.mock.calls[0]?.[1].messages?.[1]?.content).toBe("# Pricing\nPro: $20 per month");
-    expect(scan.ai.mock.calls[2]?.[1].state).toBe("# Pricing\nPro: $20 per month");
+    expect(scan.ai.mock.calls[3]?.[1].state).toBe("# Pricing\nPro: $20 per month");
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
@@ -297,6 +382,7 @@ describe("scan publication boundaries", () => {
     expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
       EXTRACTION_MODEL,
       EXTRACTION_MODEL,
+      EXTRACTION_MODEL,
     ]);
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
@@ -320,7 +406,7 @@ describe("scan publication boundaries", () => {
   it("does not persist or publish answers when Jev fails", async () => {
     const scan = setup("evaluation");
     await expect(scan.run()).rejects.toThrow("Evaluation failed");
-    expect(scan.ai).toHaveBeenCalledTimes(3);
+    expect(scan.ai).toHaveBeenCalledTimes(4);
     expect(scan.store.persistAnswers).not.toHaveBeenCalled();
     expect(scan.store.persistEvaluation).not.toHaveBeenCalled();
     expect(scan.store.publishPending).not.toHaveBeenCalled();

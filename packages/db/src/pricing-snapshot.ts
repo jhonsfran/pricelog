@@ -2,7 +2,7 @@ import type { NumericFactRole } from "./pricing-facts";
 
 export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v3" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "302759861394fd5178f7517413650380cea45ce976ca7857b556eabdb531cf77";
+  "e62c5cfc2503ef0861b2c3f2b8676b32ae6b89ae96d1d66c0476b523abd53564";
 
 export const PROFILE_CHOICE_KEYS = [
   "buying_motion",
@@ -61,6 +61,18 @@ export type PublishedOffer = {
   prices: PublishedPrice[];
 };
 
+/** A usage, overage, add-on or credit-pack price that no plan card carries. */
+export type PublishedRate = {
+  name: string;
+  price_raw: string;
+  price_numeric: number;
+  currency: string | null;
+  per: string | null;
+  offer: string | null;
+  role: "usage_rate" | "overage_rate" | "addon_price" | "credit_pack_price";
+  state: string;
+};
+
 export type PublishedFeature = {
   name: string;
   availability: { offer: string; status: FeatureStatus; limit_raw?: string }[];
@@ -74,6 +86,7 @@ export type PublishedSnapshot = {
   flags: Partial<Record<ProfileFlagKey, boolean>>;
   offers: PublishedOffer[];
   features: PublishedFeature[];
+  rates?: PublishedRate[];
   reason?: string;
 };
 
@@ -87,7 +100,8 @@ export type SnapshotReview = {
     | "invalid"
     | "unavailable"
     | "ungrounded"
-    | "unclaimed";
+    | "unclaimed"
+    | "mismatch";
   value: string | number | boolean | null;
 };
 

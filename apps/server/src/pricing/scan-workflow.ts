@@ -9,7 +9,13 @@ import {
   trimPricingMarkdown,
 } from "./source-cleanup";
 import { unavailableSnapshot } from "@my-better-t-app/db/pricing-snapshot";
-import { CAPTURE_STATE_SCRIPT, readCapturedState, STATE_READY_SELECTOR } from "./capture-state";
+import {
+  CAPTURE_STATE_SCRIPT,
+  captureRegion,
+  readCapturedState,
+  regionSnapshotOptions,
+  STATE_READY_SELECTOR,
+} from "./capture-state";
 import {
   classificationQuestions,
   decideSnapshot,
@@ -65,6 +71,8 @@ export interface ScanWorkflowEnv {
   BROWSER: BrowserRun;
   AI: Ai;
   PAGE_STORE: DurableObjectNamespace<PageStore>;
+  PRICING_CAPTURE_CURRENCY?: string;
+  PRICING_CAPTURE_LANGUAGE?: string;
 }
 
 const RETRY = {
@@ -94,10 +102,17 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
 
       const capture = await step.do("capture and archive", CAPTURE_RETRY, async () => {
         await store.setStage(params.runId, "capture");
+        const region = regionSnapshotOptions(captureRegion(this.env));
         const snapshotOptions = {
           url: params.canonicalUrl,
           formats: ["content", "markdown", "screenshot", "accessibilityTree"],
-          addScriptTag: [{ content: CONSENT_DISMISS_SCRIPT }, { content: CAPTURE_STATE_SCRIPT }],
+          addScriptTag: [
+            region.regionScript,
+            { content: CONSENT_DISMISS_SCRIPT },
+            { content: CAPTURE_STATE_SCRIPT },
+          ],
+          setExtraHTTPHeaders: region.setExtraHTTPHeaders,
+          rejectRequestPattern: region.rejectRequestPattern,
           screenshotOptions: { fullPage: true, type: "png" },
           gotoOptions: { waitUntil: "networkidle2", timeout: 60_000 },
         } satisfies BrowserRunSnapshotOptions;
@@ -208,156 +223,194 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         });
       });
 
-      await step.do("enter draft stage", RETRY, async () => {
-        await store.setStage(params.runId, "draft");
+      const reused = await step.do("find unchanged evaluation", RETRY, async () => {
+        const rubric = await store.getActiveRubric();
+        const found = await store.findReusableEvaluation(
+          params.runId,
+          capture.manifest.contentSha256,
+          rubric.id,
+        );
+        if (!found) return null;
+        const { runId, rubricId, model, evaluation, answers } = found;
+        return { runId, rubricId, model, evaluation, answers };
       });
 
-      // The archived state is already free of navigation; only the Markdown fallback needs trimming.
-      const readSource = async () => {
-        const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
-        if (!artifact) throw new Error("Archived page content is missing");
-        const content = await artifact.text();
-        return capture.state ? content : trimPricingMarkdown(content);
-      };
+      const evaluateCapture = async () => {
+        await step.do("enter draft stage", RETRY, async () => {
+          await store.setStage(params.runId, "draft");
+        });
 
-      const extracted = await step
-        .do("extract quotes", RETRY, async () => {
-          const source = await readSource();
-          const ai = this.env.AI as unknown as ExtractionAiBinding;
-          const settled = await Promise.allSettled(
-            EXTRACTION_PARTS.map(async (part) => {
-              const response = await ai.run(EXTRACTION_MODEL, {
-                messages: [
-                  { role: "system", content: part.prompt },
-                  { role: "user", content: source },
-                ],
-                max_tokens: part.maxTokens,
-                response_format: { type: "json_schema", json_schema: part.schema },
-              });
-              return { value: parseExtraction(response), usage: readUsage(response) };
-            }),
-          );
-          const [offersResult, featuresResult] = settled as [
-            (typeof settled)[number],
-            (typeof settled)[number],
-          ];
-          // Offers carry the prices, so only their failure retries the step.
-          if (offersResult.status === "rejected") throw offersResult.reason;
-          const offers = offersResult.value;
-          const features =
-            featuresResult.status === "fulfilled"
-              ? featuresResult.value
-              : { value: { features: [] }, usage: { input: 0, output: 0 } };
-          if (featuresResult.status === "rejected")
+        // The archived state is already free of navigation; only the Markdown fallback needs trimming.
+        const readSource = async () => {
+          const artifact = await this.env.ARTIFACTS.get(capture.manifest.contentKey);
+          if (!artifact) throw new Error("Archived page content is missing");
+          const content = await artifact.text();
+          return capture.state ? content : trimPricingMarkdown(content);
+        };
+
+        const extracted = await step
+          .do("extract quotes", RETRY, async () => {
+            const source = await readSource();
+            const ai = this.env.AI as unknown as ExtractionAiBinding;
+            const settled = await Promise.allSettled(
+              EXTRACTION_PARTS.map(async (part) => {
+                const response = await ai.run(EXTRACTION_MODEL, {
+                  messages: [
+                    { role: "system", content: part.prompt },
+                    { role: "user", content: source },
+                  ],
+                  max_tokens: part.maxTokens,
+                  response_format: { type: "json_schema", json_schema: part.schema },
+                });
+                return { value: parseExtraction(response), usage: readUsage(response) };
+              }),
+            );
+            const [offersResult, ...optionalResults] = settled as [
+              (typeof settled)[number],
+              ...(typeof settled)[number][],
+            ];
+            // Offers carry the prices, so only their failure retries the step.
+            if (offersResult.status === "rejected") throw offersResult.reason;
+            const offers = offersResult.value;
+            const [features, rates] = (await Promise.all(
+              optionalResults.map(async (result, index) => {
+                if (result.status === "fulfilled") return result.value;
+                const name = EXTRACTION_PARTS[index + 1]!.name;
+                await store.recordEvent(params.runId, {
+                  stage: "draft",
+                  kind: "warning",
+                  message: `The ${name} extraction failed; publishing without ${name}: ${String(result.reason).slice(0, 200)}`,
+                });
+                return { value: { [name]: [] }, usage: { input: 0, output: 0 } };
+              }),
+            )) as [typeof offers, typeof offers];
+            const parts = [offers, features, rates];
+            const extraction = readExtraction(offers.value, features.value, rates.value);
+            const tokens = parts.reduce(
+              (total, part) => ({
+                input: total.input + part.usage.input,
+                output: total.output + part.usage.output,
+              }),
+              { input: 0, output: 0 },
+            );
+            await store.recordEvent(params.runId, {
+              stage: "draft",
+              kind: "completed",
+              message: `${EXTRACTION_MODEL} quoted ${extraction.offers.length} offers, ${extraction.features.length} feature rows and ${extraction.rates.length} usage rates (${tokens.input} input and ${tokens.output} output tokens)`,
+              inputBytes: new TextEncoder().encode(source).byteLength,
+            });
+            return {
+              raw: JSON.stringify({
+                offers: offers.value,
+                features: features.value,
+                rates: rates.value,
+              }),
+              extraction,
+              reason: null,
+            };
+          })
+          .catch(async (error: unknown) => {
+            const message = error instanceof Error ? error.message : "Unknown extraction error";
             await store.recordEvent(params.runId, {
               stage: "draft",
               kind: "warning",
-              message: `Feature table extraction failed; publishing offers only: ${String(featuresResult.reason).slice(0, 200)}`,
+              message: `Quote extraction failed: ${message.slice(0, 200)}`,
             });
-          const parts = [offers, features];
-          const extraction = readExtraction(offers.value, features.value);
-          const tokens = parts.reduce(
-            (total, part) => ({
-              input: total.input + part.usage.input,
-              output: total.output + part.usage.output,
-            }),
-            { input: 0, output: 0 },
+            return { raw: "", extraction: null, reason: `Quote extraction failed: ${message}` };
+          });
+
+        const verified = await step.do("verify quotes", RETRY, async () => {
+          await store.setStage(params.runId, "verify");
+          const rubric = await store.getActiveRubric();
+          const source = await readSource();
+          const unavailable = (reason: string) => ({
+            rubricId: rubric.id,
+            model: null,
+            answers: [] as JevAnswer[],
+            grounded: null,
+            reason,
+          });
+          if (!extracted.extraction) return unavailable(extracted.reason ?? "Extraction failed");
+          if (new TextEncoder().encode(source).byteLength > MAX_EVALUATION_SOURCE_BYTES)
+            return unavailable("Captured page exceeds the Jev source limit");
+          const grounded = groundExtraction(source, extracted.extraction);
+          const decisions = jevDecisions((input) =>
+            (this.env.AI as unknown as JevBinding).run("typesafe/jev", input, jevGatewayOptions()),
           );
+          const answers = await decisions.run(source, [
+            ...rubric.questions,
+            ...classificationQuestions(grounded.prices, grounded.rates),
+          ]);
+          if (!decisions.model) throw new Error("Jev returned no model version");
+          return { rubricId: rubric.id, model: decisions.model, answers, grounded, reason: null };
+        });
+
+        await step.do("record verification summary", RETRY, async () => {
           await store.recordEvent(params.runId, {
-            stage: "draft",
-            kind: "completed",
-            message: `${EXTRACTION_MODEL} quoted ${extraction.offers.length} offers and ${extraction.features.length} feature rows (${tokens.input} input and ${tokens.output} output tokens)`,
-            inputBytes: new TextEncoder().encode(source).byteLength,
+            stage: "verify",
+            kind: verified.model ? "completed" : "warning",
+            message:
+              verified.model && verified.grounded
+                ? `Grounded ${verified.grounded.prices.length} prices, ${verified.grounded.rates.length} usage rates, ${verified.grounded.cells.length} feature cells and ${verified.grounded.offers.length} offers (${verified.grounded.review.length} quotes not found on the page); Jev ${verified.model} answered ${verified.answers.length} questions`
+                : `Jev skipped: ${verified.reason}`,
           });
-          return {
-            raw: JSON.stringify({ offers: offers.value, features: features.value }),
-            extraction,
-            reason: null,
-          };
-        })
-        .catch(async (error: unknown) => {
-          const message = error instanceof Error ? error.message : "Unknown extraction error";
-          await store.recordEvent(params.runId, {
-            stage: "draft",
-            kind: "warning",
-            message: `Quote extraction failed: ${message.slice(0, 200)}`,
-          });
-          return { raw: "", extraction: null, reason: `Quote extraction failed: ${message}` };
         });
 
-      const verified = await step.do("verify quotes", RETRY, async () => {
-        await store.setStage(params.runId, "verify");
-        const rubric = await store.getActiveRubric();
-        const source = await readSource();
-        const unavailable = (reason: string) => ({
-          rubricId: rubric.id,
-          model: null,
-          answers: [] as JevAnswer[],
-          grounded: null,
-          reason,
-        });
-        if (!extracted.extraction) return unavailable(extracted.reason ?? "Extraction failed");
-        if (new TextEncoder().encode(source).byteLength > MAX_EVALUATION_SOURCE_BYTES)
-          return unavailable("Captured page exceeds the Jev source limit");
-        const grounded = groundExtraction(source, extracted.extraction);
-        const decisions = jevDecisions((input) =>
-          (this.env.AI as unknown as JevBinding).run("typesafe/jev", input, jevGatewayOptions()),
-        );
-        const answers = await decisions.run(source, [
-          ...rubric.questions,
-          ...classificationQuestions(grounded.prices),
-        ]);
-        if (!decisions.model) throw new Error("Jev returned no model version");
-        return { rubricId: rubric.id, model: decisions.model, answers, grounded, reason: null };
-      });
-
-      await step.do("record verification summary", RETRY, async () => {
-        await store.recordEvent(params.runId, {
-          stage: "verify",
-          kind: verified.model ? "completed" : "warning",
-          message:
-            verified.model && verified.grounded
-              ? `Grounded ${verified.grounded.prices.length} prices, ${verified.grounded.cells.length} feature cells and ${verified.grounded.offers.length} offers (${verified.grounded.review.length} quotes not found on the page); Jev ${verified.model} answered ${verified.answers.length} questions`
-              : `Jev skipped: ${verified.reason}`,
-        });
-      });
-
-      const evaluation = await step.do("project verified snapshot", RETRY, async () => {
-        await store.setStage(params.runId, "project");
-        if (verified.model && verified.grounded) {
-          const rubricAnswers = verified.answers.filter(
-            (answer) => !isClassificationKey(answer.key),
-          );
-          const decision = decideSnapshot({
-            stateText: await readSource(),
-            billingView: capture.state?.billingView ?? "unknown",
-            grounded: verified.grounded,
-            answers: verified.answers.filter((answer) => isClassificationKey(answer.key)),
-            rubricAnswers,
-          });
+        const evaluation = await step.do("project verified snapshot", RETRY, async () => {
+          await store.setStage(params.runId, "project");
+          if (verified.model && verified.grounded) {
+            const rubricAnswers = verified.answers.filter(
+              (answer) => !isClassificationKey(answer.key),
+            );
+            const decision = decideSnapshot({
+              stateText: await readSource(),
+              billingView: capture.state?.billingView ?? "unknown",
+              grounded: verified.grounded,
+              answers: verified.answers.filter((answer) => isClassificationKey(answer.key)),
+              rubricAnswers,
+              requestedCurrency: captureRegion(this.env).currency,
+            });
+            return {
+              rubricId: verified.rubricId,
+              model: verified.model,
+              draft: extracted.raw,
+              ...buildPublicEvaluation(rubricAnswers),
+              snapshot: decision.snapshot,
+              review: decision.review,
+              coverage: decision.coverage,
+            };
+          }
+          const reason = verified.reason ?? "Pricing verification was unavailable";
           return {
             rubricId: verified.rubricId,
-            model: verified.model,
+            model: "unavailable",
             draft: extracted.raw,
-            ...buildPublicEvaluation(rubricAnswers),
-            snapshot: decision.snapshot,
-            review: decision.review,
-            coverage: decision.coverage,
+            choices: [],
+            signals: [],
+            tags: [],
+            snapshot: unavailableSnapshot(reason),
+            review: [{ path: "draft", value: reason, reason: "unavailable" as const }],
+            coverage: null,
           };
-        }
-        const reason = verified.reason ?? "Pricing verification was unavailable";
-        return {
-          rubricId: verified.rubricId,
-          model: "unavailable",
-          draft: extracted.raw,
-          choices: [],
-          signals: [],
-          tags: [],
-          snapshot: unavailableSnapshot(reason),
-          review: [{ path: "draft", value: reason, reason: "unavailable" as const }],
-          coverage: null,
-        };
-      });
+        });
+
+        return { evaluation, answers: verified.answers };
+      };
+
+      // The same content and rubric give the same facts, so an unchanged page costs no model calls.
+      const { evaluation, answers } = reused
+        ? await step.do("reuse unchanged evaluation", RETRY, async () => {
+            await store.recordEvent(params.runId, {
+              stage: "project",
+              kind: "completed",
+              message: `Content unchanged since run ${reused.runId}; reused its evaluation (no model calls)`,
+            });
+            return {
+              evaluation: { rubricId: reused.rubricId, model: reused.model, ...reused.evaluation },
+              answers: reused.answers,
+            };
+          })
+        : await evaluateCapture();
 
       await step.do("record projection summary", RETRY, async () => {
         const prices = evaluation.snapshot.offers.reduce(
@@ -376,8 +429,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
 
       await step.do("store evaluation", RETRY, async () => {
         await store.setStage(params.runId, "store");
-        if (verified.answers.length)
-          await store.persistAnswers(params.runId, verified.rubricId, verified.answers);
+        if (answers.length) await store.persistAnswers(params.runId, evaluation.rubricId, answers);
         await store.persistEvaluation(params.runId, evaluation);
       });
 

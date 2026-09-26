@@ -5,6 +5,8 @@ export type CapturedState = {
   text: string;
   billingView: "monthly" | "annual" | "unknown";
   states: number;
+  /** Whether the script switched the page to the configured currency. */
+  currencySelection: "selected" | "already" | "none";
 };
 
 /**
@@ -231,7 +233,56 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
       min + Math.round((index * (max - min)) / Math.max(1, count - 1) / step) * step);
   };
 
+  // Pages with a currency switcher show the configured currency, whatever the browser's location.
+  const SYMBOLS = { EUR: '€', USD: '$', GBP: '£', JPY: '¥', CHF: 'CHF', CAD: 'C$', AUD: 'A$' };
+  const NAMES = { EUR: 'euros?', USD: 'dollars?|us dollars?', GBP: 'pounds?|sterling' };
+  const escape = (value) => value.replace(/[.*+?^()|[\]\\$]/g, '\\$&');
+  const currencyPattern = (code) => new RegExp('^(?:' + [code, escape(SYMBOLS[code] || code), NAMES[code]].filter(Boolean)
+    .map((token) => '(?:' + token + ')').join('|') + ')(?:\\s*[(/-]?\\s*(?:' + escape(SYMBOLS[code] || code) + '|' + code + ')\\)?)?$', 'i');
+  const anyCurrency = new RegExp('^(?:' + Object.keys(SYMBOLS).map((code) => code + '|' + escape(SYMBOLS[code])).join('|') + ')(?![a-z])', 'i');
+  const navigates = (element) => element.tagName === 'A' && element.getAttribute('href') && !/^(#|javascript:)/.test(element.getAttribute('href'));
+  async function selectCurrency(code) {
+    if (!code) return 'none';
+    const target = currencyPattern(code);
+    for (const select of document.querySelectorAll('select')) {
+      if (!shown(select) || inConsent(select)) continue;
+      const options = [...select.options];
+      const match = options.find((option) => target.test(clean(option.text)) || target.test(option.value));
+      if (!match || options.filter((option) => anyCurrency.test(clean(option.text))).length < 2) continue;
+      if (select.value === match.value) return 'already';
+      select.value = match.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return 'selected';
+    }
+    const clickable = () => [...document.querySelectorAll('[role="option"], [role="menuitem"], [role="menuitemradio"], [role="radio"], [role="tab"], button, a, li, label')]
+      .filter((element) => shown(element) && !inConsent(element) && !navigates(element) && !element.closest(CHROME));
+    const findTarget = () => clickable().filter((element) => {
+      const text = clean(element.innerText || element.getAttribute('aria-label') || '');
+      if (text.length > 24 || !target.test(text)) return false;
+      const group = element.parentElement ? element.parentElement.parentElement || element.parentElement : null;
+      return !!group && [...group.querySelectorAll('*')].some((other) => other !== element && anyCurrency.test(clean(other.innerText || '')) && !target.test(clean(other.innerText || '')));
+    }).find((element, _, matches) => !matches.some((other) => other !== element && element.contains(other)));
+    let option = findTarget();
+    if (!option) {
+      const trigger = clickable().find((element) => {
+        const text = clean(element.innerText || '');
+        return text.length <= 12 && anyCurrency.test(text) && !target.test(text) &&
+          (element.getAttribute('aria-haspopup') || element.getAttribute('aria-expanded') !== null || element.tagName === 'BUTTON');
+      });
+      if (!trigger) return 'none';
+      trigger.click();
+      await sleep(400);
+      option = findTarget();
+      if (!option) { trigger.click(); return 'none'; }
+    }
+    if (isSelected(option)) return 'already';
+    option.click();
+    await sleep(700);
+    return 'selected';
+  }
+
   async function capture() {
+    const currency = await selectCurrency(document.documentElement.dataset.pricelogCurrency);
     const base = snapshot();
     const billingView = /year|annual/i.test(selectedLabel()) ? 'annual' : /month/i.test(selectedLabel()) ? 'monthly' : 'unknown';
     const blocks = [{ label: 'default' + (selectedLabel() ? ' (selected: ' + selectedLabel() + ')' : ''), text: print(base, 0) }];
@@ -284,14 +335,18 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
           await record('billing=' + option.text);
           prefix = 'billing=' + option.text + '; ';
         }
-        for (const group of otherGroups) await walk(group, prefix);
+        for (const group of otherGroups) {
+          // The currency is fixed by the configured region, not explored like a tab.
+          if (group.filter(({ text }) => anyCurrency.test(text)).length >= 2) continue;
+          await walk(group, prefix);
+        }
       }
       if (billing) {
         const initial = billing.find(({ element }) => isSelected(element));
         if (initial) { activate(initial.element); await sleep(250); }
       }
     }
-    return { version: 1, billingView, blocks, skipped };
+    return { version: 1, billingView, currency, blocks, skipped };
   }
 
   const publish = (value) => {
@@ -316,8 +371,44 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
 })();
 `;
 
+export type CaptureRegion = { currency: string; language: string };
+
+/** Known client-side geo-IP lookups. Blocking them keeps the currency the page serves by default. */
+const GEO_LOOKUPS = [
+  String.raw`/\/api\/geo/`,
+  String.raw`/\/geo(ip|location)/`,
+  String.raw`/ipapi\.co|ipinfo\.io|ip-api\.com|api\.country\.is|geolocation-db\.com|ipgeolocation\.io|ipregistry\.co|geojs\.io|freeipapi\.com|geoip-js\.com|ipdata\.co|ipwho\.is|\/cdn-cgi\/trace/`,
+];
+
+export function captureRegion(env: {
+  PRICING_CAPTURE_CURRENCY?: string;
+  PRICING_CAPTURE_LANGUAGE?: string;
+}): CaptureRegion {
+  return {
+    currency: (env.PRICING_CAPTURE_CURRENCY || "EUR").toUpperCase(),
+    language: env.PRICING_CAPTURE_LANGUAGE || "en-IE,en;q=0.9",
+  };
+}
+
+/** Browser Run options that make a capture look like a visitor from the configured region. */
+export function regionSnapshotOptions(region: CaptureRegion) {
+  return {
+    setExtraHTTPHeaders: { "Accept-Language": region.language },
+    rejectRequestPattern: GEO_LOOKUPS,
+    regionScript: {
+      content: `document.documentElement.dataset.pricelogCurrency = ${JSON.stringify(region.currency)};`,
+    },
+  };
+}
+
 type StateBlock = { label: string; text: string };
-type StatePayload = { version: 1; billingView?: string; blocks?: StateBlock[]; error?: string };
+type StatePayload = {
+  version: 1;
+  billingView?: string;
+  currency?: string;
+  blocks?: StateBlock[];
+  error?: string;
+};
 
 /** The captured state as the outline that extraction and Jev read. Null when the script did not finish. */
 export function readCapturedState(html: string): CapturedState | null {
@@ -339,5 +430,7 @@ export function readCapturedState(html: string): CapturedState | null {
         ? payload.billingView
         : "unknown",
     states: payload.blocks.length,
+    currencySelection:
+      payload.currency === "selected" || payload.currency === "already" ? payload.currency : "none",
   };
 }

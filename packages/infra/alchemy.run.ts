@@ -28,6 +28,12 @@ export const server = Cloudflare.Worker("server", {
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     PAGE_OPERATOR_EMAILS: Config.String("PAGE_OPERATOR_EMAILS").pipe(Config.withDefault("")),
+    PRICING_CAPTURE_CURRENCY: Config.String("PRICING_CAPTURE_CURRENCY").pipe(
+      Config.withDefault("EUR"),
+    ),
+    PRICING_CAPTURE_LANGUAGE: Config.String("PRICING_CAPTURE_LANGUAGE").pipe(
+      Config.withDefault("en-IE,en;q=0.9"),
+    ),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
     LOG_FORMAT: process.env.ALCHEMY_DEV === "true" ? "pretty" : "json",
   },

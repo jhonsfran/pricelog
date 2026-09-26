@@ -133,6 +133,121 @@ async function capture(
   sqlite.prepare("UPDATE scan_run SET status = ? WHERE id = ?").run(status, runId);
 }
 
+async function scanned(
+  store: PageStore,
+  sqlite: DatabaseSync,
+  runId: string,
+  contentSha256: string,
+  evaluation?: PublicEvaluation & { rubricId: string; model: string },
+) {
+  sqlite
+    .prepare(
+      "INSERT INTO scan_run (id, trigger, status, stage, workflow_instance_id) VALUES (?, 'manual', 'running', 'capture', ?)",
+    )
+    .run(runId, runId);
+  await store.persistVersion(runId, {
+    capturedAt: Date.parse("2026-09-22"),
+    httpStatus: 200,
+    finalUrl: "https://example.com/pricing",
+    title: "Example",
+    htmlKey: `${runId}.html`,
+    screenshotKey: `${runId}.png`,
+    contentKey: `${runId}.md`,
+    htmlSha256: runId,
+    screenshotSha256: runId,
+    contentSha256,
+    htmlBytes: 1,
+    screenshotBytes: 1,
+    contentBytes: 1,
+  });
+  if (!evaluation) return;
+  await store.persistAnswers(runId, evaluation.rubricId, [
+    { key: "has_free_plan", type: "noul", noul: 0.9 },
+    {
+      key: "price_0_role",
+      type: "choice",
+      choice: "base_price",
+      confidence: 0.8,
+      probabilities: { base_price: 0.8 },
+    },
+  ]);
+  await store.persistEvaluation(runId, evaluation);
+  sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run(runId);
+}
+
+const COLLECTED = {
+  rubricId: "pricing-intelligence-v10",
+  model: "jev-1.13.0",
+  choices: [],
+  signals: [],
+  tags: [],
+  snapshot: {
+    version: "pricing-snapshot-v3" as const,
+    status: "collected" as const,
+    flags: {},
+    offers: [{ name: "Pro", prices: [] }],
+    features: [],
+  },
+};
+
+describe("unchanged page reuse", () => {
+  it("reuses the latest evaluation only for the same content and rubric", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await scanned(store, sqlite, "first", "same", COLLECTED);
+      await scanned(store, sqlite, "second", "same");
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10"),
+      ).toEqual({
+        runId: "first",
+        rubricId: "pricing-intelligence-v10",
+        model: "jev-1.13.0",
+        evaluation: {
+          choices: [],
+          signals: [],
+          tags: [],
+          snapshot: COLLECTED.snapshot,
+          review: [],
+        },
+        answers: [
+          { key: "has_free_plan", type: "noul", noul: 0.9 },
+          {
+            key: "price_0_role",
+            type: "choice",
+            choice: "base_price",
+            confidence: 0.8,
+            probabilities: { base_price: 0.8 },
+          },
+        ],
+      });
+      expect(
+        await store.findReusableEvaluation("second", "changed", "pricing-intelligence-v10"),
+      ).toBeNull();
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v11"),
+      ).toBeNull();
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  it("does not reuse an evaluation that published no snapshot", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await scanned(store, sqlite, "first", "same", {
+        ...COLLECTED,
+        snapshot: { ...COLLECTED.snapshot, status: "unavailable" },
+      });
+      await scanned(store, sqlite, "second", "same");
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10"),
+      ).toBeNull();
+    } finally {
+      sqlite.close();
+    }
+  });
+});
+
 describe("page-local pricing history", () => {
   it("seeds an immutable rubric and rejects changed content under the same identity", async () => {
     const { store, sqlite } = storeFor("one");

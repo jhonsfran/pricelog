@@ -7,6 +7,7 @@ import {
   type PublishedFeature,
   type PublishedOffer,
   type PublishedPrice,
+  type PublishedRate,
   type PublishedSnapshot,
   type SnapshotReview,
 } from "@my-better-t-app/db/pricing-snapshot";
@@ -28,16 +29,26 @@ export type Extraction = {
     limits: { name: string; value: string | null }[];
   }[];
   features: { name: string; cells: { offer: string; text: string }[] }[];
+  rates: { name: string; price: string; per: string | null; offer: string | null; state: string }[];
 };
 
 export type Amount = { value: number; currency: string };
 export type GroundedPrice = { offer: string; text: string; state: string; amount: Amount | null };
 /** A null text means the offer lists the feature without a value. */
 export type GroundedCell = { feature: string; offer: string; text: string | null };
+export type GroundedRate = {
+  name: string;
+  price: string;
+  per: string | null;
+  offer: string | null;
+  state: string;
+  amount: Amount | null;
+};
 export type GroundedExtraction = {
   offers: string[];
   prices: GroundedPrice[];
   cells: GroundedCell[];
+  rates: GroundedRate[];
   review: SnapshotReview[];
 };
 
@@ -56,14 +67,18 @@ const COPY_RULES =
 export const EXTRACTION_PARTS = [
   {
     name: "offers",
-    maxTokens: 4096,
+    maxTokens: 6144,
     schema: object({
       offers: {
         type: "array",
         items: object({
           name: text,
           prices: { type: "array", items: object({ text, state: text }) },
-          limits: { type: "array", items: object({ name: text, value: nullableText }) },
+          limits: {
+            type: "array",
+            maxItems: 15,
+            items: object({ name: text, value: nullableText }),
+          },
         }),
       },
     }),
@@ -71,7 +86,7 @@ export const EXTRACTION_PARTS = [
 List every plan or offer shown in any state, including free and custom-priced ones. For each plan:
 - name: the plan name exactly as shown.
 - prices: every line that states a money amount (or "Free" / "Custom") for that plan, in every state. text = the exact line including the amount (e.g. "$80 | /month", "Extra emails: $0.90 / 1,000", "Custom"). state = the state label the line appears under.
-- limits: quotas, included amounts and listed features for that plan. name = the exact label (e.g. "Team members"), value = the exact value shown for it (e.g. "Unlimited", "10,000 emails/mo"), or null when the line has no separate value (e.g. "Unlimited seats").
+- limits: at most 15 quotas, included amounts and listed features shown on that plan's own card; leave comparison-table rows to the feature table. name = the exact label (e.g. "Team members"), value = the exact value shown for it (e.g. "Unlimited", "10,000 emails/mo"), or null when the line has no separate value (e.g. "Unlimited seats").
 Skip FAQs, testimonials, calculators, and competitor prices.`,
   },
   {
@@ -88,6 +103,30 @@ Skip FAQs, testimonials, calculators, and competitor prices.`,
     }),
     prompt: `${COPY_RULES}
 List every row of any feature comparison table or grid. name = the row label exactly. cells = one entry per plan column: offer = the plan name, text = the exact cell text ("[✓]", "·", "10", "Unlimited", ...). Return {"features": []} if there is no comparison table.`,
+  },
+  {
+    name: "rates",
+    maxTokens: 4096,
+    schema: object({
+      rates: {
+        type: "array",
+        items: object({
+          name: text,
+          price: text,
+          per: nullableText,
+          offer: nullableText,
+          state: text,
+        }),
+      },
+    }),
+    prompt: `${COPY_RULES}
+List every usage, overage, per-unit, add-on and credit-pack price, including every row of rate tables and model-price tables. For each rate:
+- name: the exact label of what is charged (e.g. "Edge Requests", "Extra emails", "GPT-4o input tokens").
+- price: the exact text containing the amount (e.g. "$2", "$0.90").
+- per: the exact unit text (e.g. "per 1M requests", "/ 1,000"), or null when none is shown.
+- offer: the exact plan name the rate applies to, or null when it applies to all plans or no plan.
+- state: the state label the rate appears under.
+Skip plan subscription prices shown on plan cards, calculator results, and competitor prices. Return {"rates": []} if the page lists no such prices.`,
   },
 ] as const;
 
@@ -114,7 +153,11 @@ export function parseExtraction(payload: unknown): Record<string, unknown> {
 }
 
 /** Keeps only well-formed rows so a malformed row cannot hide the rest of the page. */
-export function readExtraction(offers: unknown, features: unknown): Extraction {
+export function readExtraction(
+  offers: unknown,
+  features: unknown,
+  rates: unknown = { rates: [] },
+): Extraction {
   const strings = (value: unknown) => (typeof value === "string" && value.trim() ? value : null);
   const list = (value: unknown) =>
     Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
@@ -150,6 +193,20 @@ export function readExtraction(offers: unknown, features: unknown): Extraction {
         },
       ];
     }),
+    rates: list((rates as { rates?: unknown })?.rates).flatMap((rate) => {
+      const name = strings(rate?.name);
+      const price = strings(rate?.price);
+      if (!name || !price) return [];
+      return [
+        {
+          name,
+          price,
+          per: strings(rate.per),
+          offer: strings(rate.offer),
+          state: strings(rate.state) ?? "default",
+        },
+      ];
+    }),
   };
 }
 
@@ -169,6 +226,7 @@ export function groundExtraction(stateText: string, extraction: Extraction): Gro
   const offers: string[] = [];
   const prices: GroundedPrice[] = [];
   const cells: GroundedCell[] = [];
+  const rates: GroundedRate[] = [];
 
   extraction.offers.forEach((offer, index) => {
     const path = `offers.${index}`;
@@ -200,7 +258,21 @@ export function groundExtraction(stateText: string, extraction: Extraction): Gro
       cells.push({ feature: feature.name, offer: cell.offer, text: cell.text });
     });
   });
-  return { offers, prices, cells, review };
+  const planQuotes = new Set(prices.map((price) => normalize(price.text)));
+  extraction.rates.forEach((rate, index) => {
+    const parts = [rate.name, rate.price, rate.per, rate.offer].filter(
+      (part): part is string => part !== null,
+    );
+    if (!parts.every(found))
+      return ungrounded(
+        `rates.${index}`,
+        [rate.name, rate.price, rate.per].filter(Boolean).join(" "),
+      );
+    // A plan price the rates part repeated is already a fact, not a second one.
+    if (planQuotes.has(normalize(rate.price))) return;
+    rates.push({ ...rate, amount: parseAmount(rate.price) });
+  });
+  return { offers, prices, cells, rates, review };
 }
 
 const CURRENCIES: Record<string, string> = {
@@ -279,9 +351,34 @@ const classify = (key: string, instructions: string, criteria: Record<string, st
     criteria,
   );
 
-export const isClassificationKey = (key: string) => /^price_\d+_/.test(key);
+const RATE_ROLE = {
+  usage_rate: "A price per measured unit of usage.",
+  overage_rate: "A rate charged after the included allowance runs out.",
+  addon_price: "The price of a separately purchased add-on.",
+  credit_pack_price: "The price of a separately purchased pack of credits.",
+  not_a_price:
+    "Not a current rate: a saving, a value estimate, a calculator result, a competitor, or a crossed-out price.",
+};
 
-export function classificationQuestions(prices: GroundedPrice[]): PersistedQuestion[] {
+export const isClassificationKey = (key: string) => /^(?:price|rate)_\d+_/.test(key);
+
+export function classificationQuestions(
+  prices: GroundedPrice[],
+  rates: GroundedRate[] = [],
+): PersistedQuestion[] {
+  const rateQuestions = rates.map((rate, index) => {
+    const scope = rate.offer ? `plan ${JSON.stringify(rate.offer)}` : "the page";
+    const unit = rate.per ? ` ${rate.per}` : "";
+    return classify(
+      `rate_${index}_role`,
+      `What is the amount ${JSON.stringify(rate.price + unit)} charged for ${JSON.stringify(rate.name)} on ${scope} in state ${JSON.stringify(rate.state)}?`,
+      RATE_ROLE,
+    );
+  });
+  return [...priceQuestions(prices), ...rateQuestions];
+}
+
+function priceQuestions(prices: GroundedPrice[]): PersistedQuestion[] {
   return prices.flatMap((price, index) => {
     const subject = `the amount ${JSON.stringify(price.text)} shown for plan ${JSON.stringify(price.offer)} in state ${JSON.stringify(price.state)}`;
     return [
@@ -320,6 +417,8 @@ export function decideSnapshot(input: {
   grounded: GroundedExtraction;
   answers: JevAnswer[];
   rubricAnswers: JevAnswer[];
+  /** The currency the capture asked the page for; a page showing another one is flagged. */
+  requestedCurrency?: string;
 }): SnapshotDecision {
   const byKey = new Map(input.answers.map((answer) => [answer.key, answer]));
   const review: SnapshotReview[] = [...input.grounded.review];
@@ -362,6 +461,28 @@ export function decideSnapshot(input: {
     if (offer.prices.some((price) => price.role === "custom_price")) offer.is_contact_sales = true;
   }
 
+  const rates: PublishedRate[] = [];
+  input.grounded.rates.forEach((rate, index) => {
+    const path = `rates.${index}`;
+    const value = rate.per ? `${rate.price} ${rate.per}` : rate.price;
+    const role = byKey.get(`rate_${index}_role`);
+    if (!role || role.type !== "choice") return review.push({ path, reason: "missing", value });
+    if (role.choice === "not_a_price") return review.push({ path, reason: "rejected", value });
+    if (role.confidence < CHOICE_CONFIDENCE_THRESHOLD)
+      return review.push({ path, reason: "uncertain", value });
+    if (!rate.amount) return review.push({ path, reason: "invalid", value });
+    rates.push({
+      name: rate.name,
+      price_raw: rate.price,
+      price_numeric: rate.amount.value,
+      currency: rate.amount.currency,
+      per: rate.per,
+      offer: rate.offer,
+      role: role.choice as PublishedRate["role"],
+      state: rate.state,
+    });
+  });
+
   const features = new Map<string, PublishedFeature>();
   for (const cell of input.grounded.cells) {
     const decided = cell.text === null ? { status: "included" as const } : cellStatus(cell.text);
@@ -388,9 +509,18 @@ export function decideSnapshot(input: {
     const amount = parseAmount(price.price_raw);
     return amount ? [amount.currency] : [];
   });
-  const currency = mostCommon(currencies);
+  const currency = mostCommon([...currencies, ...rates.flatMap((rate) => rate.currency ?? [])]);
+  if (currency && input.requestedCurrency && currency !== input.requestedCurrency)
+    review.push({
+      path: "currency_visible",
+      reason: "mismatch",
+      value: `${currency} shown; ${input.requestedCurrency} requested`,
+    });
 
-  const claimedQuotes = input.grounded.prices.map((price) => normalize(price.text));
+  const claimedQuotes = [
+    ...input.grounded.prices.map((price) => normalize(price.text)),
+    ...input.grounded.rates.map((rate) => normalize(rate.price)),
+  ];
   const literals = [...new Set((input.stateText.match(PRICE_LITERAL) ?? []).map(normalize))];
   const unclaimed = literals.filter(
     (literal) => !claimedQuotes.some((quote) => quote.includes(literal)),
@@ -407,6 +537,7 @@ export function decideSnapshot(input: {
       flags,
       offers: [...offers.values()],
       features: [...features.values()],
+      ...(rates.length ? { rates } : {}),
     },
     review,
     coverage: { literals: literals.length, claimed: literals.length - unclaimed.length },

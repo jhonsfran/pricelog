@@ -55,6 +55,20 @@ export function CommercialSnapshot({
             ) : (
               <p>No offer passed verification for this capture.</p>
             )}
+            {snapshot.rates?.length ? (
+              <DataTable columns={["Charge", "Price", "Applies to"]}>
+                {snapshot.rates.map((rate, index) => (
+                  <DataRow key={`${rate.name}:${index}`}>
+                    <RowHeader>{rate.name}</RowHeader>
+                    <DataCell>
+                      {rate.price_raw}
+                      {rate.per ? ` ${rate.per}` : ""} · {formatToken(rate.role)}
+                    </DataCell>
+                    <DataCell>{rate.offer ?? "All plans"}</DataCell>
+                  </DataRow>
+                ))}
+              </DataTable>
+            ) : null}
             {snapshot.features.length ? (
               <DataTable columns={["Feature", "Verified availability"]}>
                 {snapshot.features.map((feature, index) => (

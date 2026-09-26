@@ -78,6 +78,33 @@ const EXTRACTION: Extraction = {
     { name: "Enterprise", prices: [{ text: "Custom", state: "default" }], limits: [] },
   ],
   features: [],
+  rates: [],
+};
+
+const VERCEL_STATE = `## state: default
+  ## Pro
+  $20/user/month
+  ## Usage pricing
+  Edge Requests | $2 | per 1M requests
+  Fast Data Transfer (Pro) | $0.15 | per GB
+  Spend management cap | $1,000`;
+
+const VERCEL_EXTRACTION: Extraction = {
+  offers: [{ name: "Pro", prices: [{ text: "$20/user/month", state: "default" }], limits: [] }],
+  features: [],
+  rates: [
+    { name: "Edge Requests", price: "$2", per: "per 1M requests", offer: null, state: "default" },
+    { name: "Fast Data Transfer", price: "$0.15", per: "per GB", offer: "Pro", state: "default" },
+    { name: "Spend management cap", price: "$1,000", per: null, offer: null, state: "default" },
+    {
+      name: "Image Optimization",
+      price: "$5",
+      per: "per 1K images",
+      offer: null,
+      state: "default",
+    },
+    { name: "Pro", price: "$20/user/month", per: null, offer: "Pro", state: "default" },
+  ],
 };
 
 const choice = (key: string, value: string, confidence = 0.95): JevAnswer => ({
@@ -235,6 +262,7 @@ describe("quote snapshot", () => {
         { name: "Scale", prices: [{ text: "$800 /month", state: "default" }], limits: [] },
       ],
       features: [],
+      rates: [],
     };
     const grounded = groundExtraction(POLYLANE_STATE, extraction);
     expect(grounded.prices.map((item) => item.text)).toEqual(["$80 /month"]);
@@ -258,6 +286,7 @@ describe("quote snapshot", () => {
         },
       ],
       features: [],
+      rates: [],
     };
     const decision = decideSnapshot({
       stateText: POLYLANE_STATE,
@@ -280,6 +309,7 @@ describe("quote snapshot", () => {
     const extraction: Extraction = {
       offers: [{ name: "Starter", prices: [{ text: "$80 /month", state: "default" }], limits: [] }],
       features: [],
+      rates: [],
     };
     const decision = decideSnapshot({
       stateText: POLYLANE_STATE,
@@ -304,6 +334,27 @@ describe("quote snapshot", () => {
         state: "default",
       },
     ]);
+  });
+
+  it("flags a page that shows another currency than the capture requested", () => {
+    const extraction: Extraction = {
+      offers: [{ name: "Starter", prices: [{ text: "$80 /month", state: "default" }], limits: [] }],
+      features: [],
+      rates: [],
+    };
+    const decide = (requestedCurrency: string) =>
+      decideSnapshot({
+        stateText: POLYLANE_STATE,
+        billingView: "unknown",
+        grounded: groundExtraction(POLYLANE_STATE, extraction),
+        answers: [choice("price_0_role", "base_price")],
+        rubricAnswers: [],
+        requestedCurrency,
+      }).review.filter((item) => item.reason === "mismatch");
+    expect(decide("EUR")).toEqual([
+      { path: "currency_visible", reason: "mismatch", value: "USD shown; EUR requested" },
+    ]);
+    expect(decide("USD")).toEqual([]);
   });
 
   it("maps comparison cells to availability without a model", () => {
@@ -389,6 +440,73 @@ describe("quote snapshot", () => {
         },
       ],
       features: [],
+      rates: [],
     });
+  });
+
+  it("publishes usage rates from rate tables once, with their unit", () => {
+    const decision = decideSnapshot({
+      stateText: VERCEL_STATE,
+      billingView: "unknown",
+      grounded: groundExtraction(VERCEL_STATE, VERCEL_EXTRACTION),
+      answers: [
+        ...price(0, "base_price", "monthly", "month", "per_seat"),
+        choice("rate_0_role", "usage_rate"),
+        choice("rate_1_role", "overage_rate"),
+        choice("rate_2_role", "not_a_price"),
+      ],
+      rubricAnswers: [],
+    });
+    expect(decision.snapshot.rates).toEqual([
+      {
+        name: "Edge Requests",
+        price_raw: "$2",
+        price_numeric: 2,
+        currency: "USD",
+        per: "per 1M requests",
+        offer: null,
+        role: "usage_rate",
+        state: "default",
+      },
+      {
+        name: "Fast Data Transfer",
+        price_raw: "$0.15",
+        price_numeric: 0.15,
+        currency: "USD",
+        per: "per GB",
+        offer: "Pro",
+        role: "overage_rate",
+        state: "default",
+      },
+    ]);
+    expect(decision.snapshot.offers[0]?.prices.map((item) => item.price_raw)).toEqual([
+      "$20/user/month",
+    ]);
+    expect(decision.review).toEqual([
+      { path: "rates.3", reason: "ungrounded", value: "Image Optimization $5 per 1K images" },
+      { path: "rates.2", reason: "rejected", value: "$1,000" },
+    ]);
+    expect(decision.coverage).toEqual({ literals: 4, claimed: 4 });
+  });
+
+  it("sends rates that are not on the page to review and skips repeated plan prices", () => {
+    const grounded = groundExtraction(VERCEL_STATE, VERCEL_EXTRACTION);
+    expect(grounded.rates.map((rate) => rate.name)).toEqual([
+      "Edge Requests",
+      "Fast Data Transfer",
+      "Spend management cap",
+    ]);
+    expect(grounded.review).toEqual([
+      { path: "rates.3", reason: "ungrounded", value: "Image Optimization $5 per 1K images" },
+    ]);
+    expect(classificationQuestions(grounded.prices, grounded.rates).map((q) => q.key)).toEqual([
+      "price_0_role",
+      "price_0_billing",
+      "price_0_period",
+      "price_0_unit",
+      "rate_0_role",
+      "rate_1_role",
+      "rate_2_role",
+    ]);
   });
 });

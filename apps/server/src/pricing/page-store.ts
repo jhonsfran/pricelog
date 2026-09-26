@@ -9,10 +9,11 @@ import {
   type WeeklyPageHistory,
 } from "@my-better-t-app/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
+import type { PublishedSnapshot, SnapshotReview } from "@my-better-t-app/db/pricing-snapshot";
 import { DurableObject } from "cloudflare:workers";
 import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
 import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -280,6 +281,47 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         })
         .run();
     });
+  }
+
+  /** The latest succeeded evaluation, when this capture has the same content and rubric. */
+  async findReusableEvaluation(
+    runId: string,
+    contentSha256: string,
+    rubricId: string,
+  ): Promise<ReusableEvaluation | null> {
+    const previous = this.db
+      .select({ version: pageVersion, stored: versionEvaluation })
+      .from(scanRun)
+      .innerJoin(pageVersion, eq(pageVersion.runId, scanRun.id))
+      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
+      .where(and(eq(scanRun.status, "succeeded"), ne(scanRun.id, runId)))
+      .orderBy(desc(scanRun.createdAt))
+      .limit(1)
+      .get();
+    const snapshot = previous?.stored.evaluation.snapshot;
+    if (
+      !previous ||
+      previous.version.contentSha256 !== contentSha256 ||
+      previous.stored.rubricId !== rubricId ||
+      snapshot?.status !== "collected"
+    )
+      return null;
+    const rows = this.db
+      .select()
+      .from(answer)
+      .where(and(eq(answer.versionId, previous.version.id), eq(answer.questionSetId, rubricId)))
+      .all();
+    return {
+      runId: previous.version.runId,
+      rubricId,
+      model: previous.stored.model,
+      evaluation: {
+        ...previous.stored.evaluation,
+        snapshot,
+        review: previous.stored.evaluation.review ?? [],
+      },
+      answers: rows.map(fromStoredAnswer),
+    };
   }
 
   async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
@@ -645,6 +687,26 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     await this.scheduleNextAlarm();
     return nextScanAt;
   }
+}
+
+type ReusableEvaluation = {
+  runId: string;
+  rubricId: string;
+  model: string;
+  evaluation: PublicEvaluation & { snapshot: PublishedSnapshot; review: SnapshotReview[] };
+  answers: JevAnswer[];
+};
+
+function fromStoredAnswer(row: typeof answer.$inferSelect): JevAnswer {
+  if (row.type === "choice")
+    return {
+      key: row.questionKey,
+      type: "choice",
+      choice: row.choice!,
+      confidence: row.confidence!,
+      probabilities: row.probabilities ?? {},
+    };
+  return { key: row.questionKey, type: "noul", noul: row.noul! };
 }
 
 type StoredAnswer = Omit<
