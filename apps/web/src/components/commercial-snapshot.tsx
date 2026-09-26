@@ -36,6 +36,9 @@ export function CommercialSnapshot({
                         ? offer.prices.map((price, index) => (
                             <div key={`${price.price_raw}:${index}`}>
                               {price.price_raw} · {formatToken(price.role)}
+                              {price.billing && price.billing !== "unknown"
+                                ? ` · billed ${formatToken(price.billing)}`
+                                : ""}
                             </div>
                           ))
                         : "No verified price"}
@@ -74,15 +77,13 @@ export function CommercialSnapshot({
       </Panel>
       {review?.length ? (
         <Panel role="region" aria-label="Claims for review" title="Claims for review">
-          <DataTable columns={["Field", "Result", "Draft value"]}>
+          <DataTable columns={["Field", "Result", "Value"]}>
             {review.map((item, index) => (
               <DataRow key={`${item.path}:${index}`}>
                 <RowHeader>{item.path}</RowHeader>
                 <DataCell>{formatToken(item.reason)}</DataCell>
                 <DataCell>
-                  {typeof item.draftValue === "string"
-                    ? item.draftValue
-                    : JSON.stringify(item.draftValue)}
+                  {typeof item.value === "string" ? item.value : JSON.stringify(item.value)}
                 </DataCell>
               </DataRow>
             ))}

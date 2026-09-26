@@ -10,33 +10,33 @@ import {
   PRICING_RUBRIC_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-intelligence";
 import {
-  DRAFT_CHOICE_KEYS,
-  DRAFT_FLAG_KEYS,
+  PROFILE_CHOICE_KEYS,
+  PROFILE_FLAG_KEYS,
   SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-snapshot";
 import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "./rubric";
 
-describe("draft validation rubric", () => {
+describe("pricing rubric", () => {
   const rubric = PRICING_INTELLIGENCE_RUBRIC;
 
   it("uses the new immutable version and only v1 profile questions", () => {
     expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
-    expect(rubric.version).toBe(9);
+    expect(rubric.version).toBe(10);
     expect(Object.keys(rubric.questions).sort()).toEqual(
-      [...DRAFT_CHOICE_KEYS, ...DRAFT_FLAG_KEYS].sort(),
+      [...PROFILE_CHOICE_KEYS, ...PROFILE_FLAG_KEYS].sort(),
     );
     expect(rubric.questions).not.toHaveProperty("credit_conversion");
     expect(rubric.questions).not.toHaveProperty("charges_fixed_subscription");
   });
 
   it("derives every profile question from the public catalogs", () => {
-    for (const key of DRAFT_CHOICE_KEYS) {
+    for (const key of PROFILE_CHOICE_KEYS) {
       const question = rubric.questions[key];
       const entry = PRICING_CHOICE_CATALOG[key];
       expect(question.instructions).toBe(`${PRICING_PAGE_SCOPE} ${entry.question}`);
       expect(question.criteria).toEqual(entry.options);
     }
-    for (const key of DRAFT_FLAG_KEYS) {
+    for (const key of PROFILE_FLAG_KEYS) {
       const question = rubric.questions[key];
       const entry = PRICING_SIGNAL_CATALOG[key];
       expect(question.instructions).toBe(`${PRICING_PAGE_SCOPE} ${entry.question}`);
@@ -55,12 +55,11 @@ describe("draft validation rubric", () => {
 it("requires a new version when extraction or validation code changes", () => {
   const hash = createHash("sha256");
   for (const file of [
-    "draft-snapshot.ts",
-    "draft-extraction.ts",
-    "draft-validation.ts",
-    "source-cleanup.ts",
+    "quote-snapshot.ts",
+    "capture-state.ts",
     "jev-decisions.ts",
     "scan-workflow.ts",
+    "source-cleanup.ts",
   ])
     hash.update(readFileSync(new URL(file, import.meta.url)));
   expect(hash.digest("hex")).toBe(SNAPSHOT_IMPLEMENTATION_FINGERPRINT);

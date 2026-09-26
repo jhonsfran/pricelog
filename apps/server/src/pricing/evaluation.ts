@@ -25,6 +25,8 @@ export type PublicEvaluation = {
   draft?: string;
   snapshot?: PublishedSnapshot;
   review?: SnapshotReview[];
+  /** Price literals on the captured page and how many of them a grounded quote covers. */
+  coverage?: { literals: number; claimed: number } | null;
 };
 
 export function buildPublicEvaluation(answers: JevAnswer[]): PublicEvaluation {

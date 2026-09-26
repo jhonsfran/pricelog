@@ -8,7 +8,7 @@ import {
   TAG_PROBABILITY_THRESHOLD,
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
-import { DRAFT_CHOICE_KEYS, DRAFT_FLAG_KEYS } from "@my-better-t-app/api/pricing-snapshot";
+import { PROFILE_CHOICE_KEYS, PROFILE_FLAG_KEYS } from "@my-better-t-app/api/pricing-snapshot";
 import { createFileRoute } from "@tanstack/react-router";
 import { DataCell, DataRow, DataTable, RowHeader } from "@/components/data-table";
 import { formatToken } from "@/lib/format";
@@ -74,38 +74,38 @@ function MethodologyPage() {
       <section className="pt-10">
         <SectionHeading
           title="Page choices"
-          meta={`${DRAFT_CHOICE_KEYS.length} questions`}
+          meta={`${PROFILE_CHOICE_KEYS.length} questions`}
           className="border-b"
         />
         {PRICING_CHOICE_GROUPS.filter((group) => group.key !== "practices").map((group) => (
           <div key={group.key} className="pt-6">
             <h4 className="text-sm tracking-normal">{group.label}</h4>
-            {DRAFT_CHOICE_KEYS.filter((key) => PRICING_CHOICE_CATALOG[key].group === group.key).map(
-              (key) => {
-                const entry = PRICING_CHOICE_CATALOG[key];
-                return (
-                  <article className="grid gap-3 border-b border-gray-4 py-5" key={key}>
-                    <h3 className="text-base">{entry.label}</h3>
-                    <p>{entry.question}</p>
-                    <Definitions
-                      items={Object.entries(entry.options).map(([option, description]) => ({
-                        key: option,
-                        term: formatToken(option),
-                        detail: description,
-                      }))}
-                    />
-                  </article>
-                );
-              },
-            )}
+            {PROFILE_CHOICE_KEYS.filter(
+              (key) => PRICING_CHOICE_CATALOG[key].group === group.key,
+            ).map((key) => {
+              const entry = PRICING_CHOICE_CATALOG[key];
+              return (
+                <article className="grid gap-3 border-b border-gray-4 py-5" key={key}>
+                  <h3 className="text-base">{entry.label}</h3>
+                  <p>{entry.question}</p>
+                  <Definitions
+                    items={Object.entries(entry.options).map(([option, description]) => ({
+                      key: option,
+                      term: formatToken(option),
+                      detail: description,
+                    }))}
+                  />
+                </article>
+              );
+            })}
           </div>
         ))}
       </section>
 
       <section className="pt-10">
-        <SectionHeading title="Page flags" meta={`${DRAFT_FLAG_KEYS.length} questions`} />
+        <SectionHeading title="Page flags" meta={`${PROFILE_FLAG_KEYS.length} questions`} />
         <DataTable columns={["Flag", "Question"]} className="min-w-0">
-          {DRAFT_FLAG_KEYS.map((key) => {
+          {PROFILE_FLAG_KEYS.map((key) => {
             const entry = PRICING_SIGNAL_CATALOG[key];
             return (
               <DataRow key={key}>

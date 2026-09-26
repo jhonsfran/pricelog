@@ -1,11 +1,10 @@
 import type { NumericFactRole } from "./pricing-facts";
-import type { PRICING_CHOICE_CATALOG } from "./pricing-intelligence";
 
-export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v2" as const;
+export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v3" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "e258dcd5cae2320c0b1bcdabeca07e25835e13e68f1907bed0665e3b2d60e47c";
+  "302759861394fd5178f7517413650380cea45ce976ca7857b556eabdb531cf77";
 
-export const DRAFT_CHOICE_KEYS = [
+export const PROFILE_CHOICE_KEYS = [
   "buying_motion",
   "price_disclosure",
   "primary_customer_segment",
@@ -13,7 +12,7 @@ export const DRAFT_CHOICE_KEYS = [
   "product_category",
 ] as const;
 
-export const DRAFT_FLAG_KEYS = [
+export const PROFILE_FLAG_KEYS = [
   "has_free_plan",
   "has_free_trial",
   "requires_card_for_free",
@@ -29,9 +28,11 @@ export const DRAFT_FLAG_KEYS = [
   "has_usage_visibility",
 ] as const;
 
-export type DraftChoiceKey = (typeof DRAFT_CHOICE_KEYS)[number];
-export type DraftFlagKey = (typeof DRAFT_FLAG_KEYS)[number];
+export type ProfileChoiceKey = (typeof PROFILE_CHOICE_KEYS)[number];
+export type ProfileFlagKey = (typeof PROFILE_FLAG_KEYS)[number];
 export type PriceRole = NumericFactRole | "free_plan" | "custom_price";
+export type PriceBilling = "monthly" | "annual" | "one_time" | "usage" | "unknown";
+export type BillingView = "monthly" | "annual" | "unknown";
 export type FeatureStatus =
   | "included"
   | "not_included"
@@ -40,36 +41,15 @@ export type FeatureStatus =
   | "contact"
   | "unknown";
 
-export type DraftPrice = {
+/** One price quoted from a captured UI state and classified by Jev. */
+export type PublishedPrice = {
   role: PriceRole;
   price_raw: string;
   price_numeric: number | null;
   period: "month" | "year" | "one_time" | "unknown";
   unit: "per_seat" | "flat" | "usage" | "custom" | "unknown";
-};
-
-export type DraftOffer = {
-  name: string;
-  is_highlighted: boolean;
-  is_free: boolean;
-  is_contact_sales: boolean;
-  audience_blurb: string | null;
-  prices: DraftPrice[];
-};
-
-export type DraftFeature = {
-  name: string;
-  availability: { offer: string; status: FeatureStatus; limit_raw: string | null }[];
-};
-
-export type DraftSnapshot = {
-  [Key in DraftChoiceKey]: keyof (typeof PRICING_CHOICE_CATALOG)[Key]["options"] & string;
-} & {
-  billing_view: "monthly" | "annual" | "unknown";
-  currency_visible: string | null;
-  flags: Record<DraftFlagKey, boolean>;
-  offers: DraftOffer[];
-  features: DraftFeature[];
+  billing: PriceBilling;
+  state: string;
 };
 
 export type PublishedOffer = {
@@ -78,7 +58,7 @@ export type PublishedOffer = {
   is_free?: boolean;
   is_contact_sales?: boolean;
   audience_blurb?: string;
-  prices: DraftPrice[];
+  prices: PublishedPrice[];
 };
 
 export type PublishedFeature = {
@@ -89,18 +69,26 @@ export type PublishedFeature = {
 export type PublishedSnapshot = {
   version: typeof PRICING_SNAPSHOT_VERSION;
   status: "collected" | "unavailable";
-  billing_view?: DraftSnapshot["billing_view"];
+  billing_view?: BillingView;
   currency_visible?: string;
-  flags: Partial<Record<DraftFlagKey, boolean>>;
+  flags: Partial<Record<ProfileFlagKey, boolean>>;
   offers: PublishedOffer[];
   features: PublishedFeature[];
   reason?: string;
 };
 
+/** Every quote or claim that did not publish, with the reason it stopped. */
 export type SnapshotReview = {
   path: string;
-  reason: "missing" | "rejected" | "uncertain" | "invalid" | "unavailable";
-  draftValue: string | number | boolean | null;
+  reason:
+    | "missing"
+    | "rejected"
+    | "uncertain"
+    | "invalid"
+    | "unavailable"
+    | "ungrounded"
+    | "unclaimed";
+  value: string | number | boolean | null;
 };
 
 export function unavailableSnapshot(reason: string): PublishedSnapshot {

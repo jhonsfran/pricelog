@@ -10,12 +10,12 @@ import {
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
 import {
-  DRAFT_CHOICE_KEYS,
-  DRAFT_FLAG_KEYS,
+  PROFILE_CHOICE_KEYS,
+  PROFILE_FLAG_KEYS,
   PRICING_SNAPSHOT_VERSION,
   SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-snapshot";
-import { DRAFT_JSON_SCHEMA, DRAFT_PROMPT } from "./draft-snapshot";
+import { EXTRACTION_MODEL, EXTRACTION_PARTS } from "./quote-snapshot";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 type ChoiceQuestion = {
@@ -48,11 +48,11 @@ function mapCatalog<Key extends string, Entry, Question>(
  * publishes. Adding a question to the catalog adds it to the prompt.
  */
 const profileCatalog = Object.fromEntries(
-  DRAFT_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
-) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof DRAFT_CHOICE_KEYS)[number]>;
+  PROFILE_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
+) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof PROFILE_CHOICE_KEYS)[number]>;
 const flagCatalog = Object.fromEntries(
-  DRAFT_FLAG_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
-) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof DRAFT_FLAG_KEYS)[number]>;
+  PROFILE_FLAG_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
+) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof PROFILE_FLAG_KEYS)[number]>;
 const choiceQuestions = mapCatalog(profileCatalog, (entry): ChoiceQuestion => ({
   type: "choice",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
@@ -86,8 +86,7 @@ export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.
     facts: {
       version: PRICING_SNAPSHOT_VERSION,
       implementation: SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
-      schema: DRAFT_JSON_SCHEMA,
-      prompt: DRAFT_PROMPT,
+      extraction: { model: EXTRACTION_MODEL, parts: EXTRACTION_PARTS },
     },
     publication: {
       choice: CHOICE_CONFIDENCE_THRESHOLD,

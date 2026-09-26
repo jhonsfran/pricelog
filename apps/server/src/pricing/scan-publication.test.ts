@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDb } from "@my-better-t-app/db";
-import { DRAFT_FLAG_KEYS, type DraftSnapshot } from "@my-better-t-app/db/pricing-snapshot";
 import { ScanWorkflow } from "./scan-workflow";
 import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
-import { QWEN_DRAFT_MODEL } from "./draft-extraction";
+import { EXTRACTION_MODEL } from "./quote-snapshot";
 import type { PersistedQuestion } from "./types";
 
 vi.mock("cloudflare:workers", () => ({ WorkflowEntrypoint: class {} }));
@@ -16,57 +15,33 @@ vi.mock("./url", () => ({
   resolveDnsAddresses: vi.fn(),
 }));
 
-const draft: DraftSnapshot = {
+const OFFERS = {
+  offers: [{ name: "Pro", prices: [{ text: "$20 per month", state: "default" }], limits: [] }],
+};
+const CHOICES: Record<string, string> = {
   buying_motion: "self_serve",
   price_disclosure: "full",
   primary_customer_segment: "small_business",
   primary_market: "developer_tools",
   product_category: "coding_assistants",
-  billing_view: "monthly",
-  currency_visible: "USD",
-  flags: Object.fromEntries(DRAFT_FLAG_KEYS.map((key) => [key, false])) as DraftSnapshot["flags"],
-  offers: [
-    {
-      name: "Pro",
-      is_highlighted: false,
-      is_free: false,
-      is_contact_sales: false,
-      audience_blurb: null,
-      prices: [
-        {
-          role: "base_price",
-          price_raw: "$20 per month",
-          price_numeric: 20,
-          period: "month",
-          unit: "flat",
-        },
-      ],
-    },
-  ],
-  features: [],
+  price_0_role: "base_price",
+  price_0_billing: "monthly",
+  price_0_period: "month",
+  price_0_unit: "flat",
 };
-
-function requestedDraftPart(schema: {
-  properties: Record<string, unknown>;
-}): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.keys(schema.properties).map((key) => [key, draft[key as keyof DraftSnapshot]]),
-  );
-}
+const STATE_HTML = `<h1>Pricing</h1><script type="application/json" id="pricelog-state">${JSON.stringify(
+  {
+    version: 1,
+    billingView: "monthly",
+    blocks: [
+      { label: "default", text: "# Pricing\n## Pro\n$20 per month" },
+      { label: "billing=Yearly", text: "(within: ## Pro)\n$16 per month" },
+    ],
+  },
+)}</script>`;
 
 function setup(
-  failure?:
-    | "start"
-    | "capture"
-    | "complete"
-    | "projection"
-    | "evaluation"
-    | "json"
-    | "jsonOne"
-    | "json422"
-    | "jsonTimeout"
-    | "jsonEnvelope"
-    | "stage",
+  failure?: "start" | "capture" | "complete" | "projection" | "evaluation" | "extraction" | "stage",
   sourceMarkdown = "# Pricing\nPro: $20 per month",
   accessibilityTree?: unknown,
   capturedHtml = "<h1>Pricing</h1>",
@@ -129,46 +104,33 @@ function setup(
   } as unknown as ReturnType<typeof createDb>);
   const ai = vi.fn(
     async (
-      _model: string,
+      model: string,
       input: {
-        state: string;
-        questions: Record<string, PersistedQuestion>;
+        state?: string;
+        questions?: Record<string, PersistedQuestion>;
+        messages?: { role: string; content: string }[];
         response_format?: { json_schema: { properties: Record<string, unknown> } };
       },
     ) => {
-      if (_model === "@cf/meta/llama-3.3-70b-instruct-fp8-fast")
-        return { response: requestedDraftPart(input.response_format!.json_schema) };
+      if (model === EXTRACTION_MODEL) {
+        if (failure === "extraction") return { response: "{truncated" };
+        return "offers" in input.response_format!.json_schema.properties
+          ? { response: OFFERS, usage: { prompt_tokens: 100, completion_tokens: 20 } }
+          : { response: { features: [] }, usage: { prompt_tokens: 100, completion_tokens: 5 } };
+      }
       if (failure === "evaluation") throw new Error("Evaluation failed");
-      const choiceValues: Record<string, string> = {
-        buying_motion: draft.buying_motion,
-        price_disclosure: draft.price_disclosure,
-        primary_customer_segment: draft.primary_customer_segment,
-        primary_market: draft.primary_market,
-        product_category: draft.product_category,
-        draft_billing_view: draft.billing_view,
-        offer_0_price_0_role: "base_price",
-        offer_0_price_0_period: "month",
-        offer_0_price_0_unit: "flat",
-      };
       return {
         result: {
           model: "jev-1.13.0",
           answers: Object.fromEntries(
-            Object.entries(input.questions).map(([key, question]) => [
+            Object.entries(input.questions!).map(([key, question]) => [
               key,
               question.type === "noul"
-                ? {
-                    noul:
-                      key === "offer_0_name" ||
-                      key === "offer_0_price_0_raw" ||
-                      key === "draft_currency_visible"
-                        ? 0.95
-                        : 0.05,
-                  }
+                ? { noul: key === "has_free_plan" ? 0.95 : 0.05 }
                 : {
-                    choice: choiceValues[key],
+                    choice: CHOICES[key],
                     confidence: 0.9,
-                    probabilities: { [choiceValues[key]!]: 0.9 },
+                    probabilities: { [CHOICES[key]!]: 0.9 },
                   },
             ]),
           ),
@@ -177,58 +139,20 @@ function setup(
     },
   );
   const artifacts = new Map<string, string>();
-  const browser = vi.fn(
-    async (
-      action: string,
-      options: {
-        html?: string;
-        response_format?: { json_schema: { properties: Record<string, unknown> } };
+  const browser = vi.fn(async (action: string, _options: Record<string, unknown>) => {
+    if (failure === "capture" && action === "snapshot")
+      throw new Error("WebSocket connection failed.");
+    return Response.json({
+      success: true,
+      result: {
+        content: capturedHtml,
+        markdown: sourceMarkdown,
+        screenshot: "eA==",
+        accessibilityTree,
       },
-    ) => {
-      if (failure === "capture" && action === "snapshot")
-        throw new Error("WebSocket connection failed.");
-      if (action === "json") {
-        const part = requestedDraftPart(options.response_format!.json_schema);
-        if (failure === "json") return Response.json({ success: true, result: {} });
-        if (failure === "jsonOne" && "offers" in part)
-          return Response.json({ success: true, result: {} });
-        if (failure === "jsonEnvelope")
-          return Response.json({
-            success: true,
-            result: {
-              choices: [{ finish_reason: "stop", message: { content: JSON.stringify(part) } }],
-            },
-          });
-        if (failure === "json422")
-          return Response.json(
-            {
-              success: false,
-              errors: [
-                { message: "Unable to form JSON based on user prompt and/or webpage text." },
-              ],
-              rawAiResponse: '{"features":[{"name":"Multich',
-            },
-            { status: 422 },
-          );
-        if (failure === "jsonTimeout")
-          return Response.json(
-            { success: false, errors: [{ message: "AiError: 3046: Request timeout" }] },
-            { status: 422 },
-          );
-        return Response.json({ success: true, result: part });
-      }
-      return Response.json({
-        success: true,
-        result: {
-          content: capturedHtml,
-          markdown: sourceMarkdown,
-          screenshot: "eA==",
-          accessibilityTree,
-        },
-        meta: { status: 200, title: "Pricing" },
-      });
-    },
-  );
+      meta: { status: 200, title: "Pricing" },
+    });
+  });
   const workflow: ScanWorkflow = Object.assign(Object.create(ScanWorkflow.prototype), {
     env: {
       DB: {},
@@ -266,27 +190,82 @@ function setup(
 }
 
 describe("scan publication boundaries", () => {
-  it("extracts bounded Markdown and judges cleaned Markdown from the same capture", async () => {
+  it("extracts, grounds and verifies quotes from the captured page state", async () => {
+    const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, STATE_HTML);
+    await scan.run();
+    const [, options] = scan.browser.mock.calls[0]!;
+    expect(options).toMatchObject({
+      waitForSelector: { selector: "#pricelog-state-ready", timeout: 30_000 },
+    });
+    expect((options as { addScriptTag: unknown[] }).addScriptTag).toHaveLength(2);
+    expect(scan.archivedMarkdown()).toBe(
+      "## state: default\n# Pricing\n## Pro\n$20 per month\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month",
+    );
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
+      EXTRACTION_MODEL,
+      EXTRACTION_MODEL,
+      "typesafe/jev",
+    ]);
+    expect(scan.ai.mock.calls[2]?.[1].state).toBe(scan.archivedMarkdown());
+    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        model: "jev-1.13.0",
+        draft: JSON.stringify({ offers: OFFERS, features: { features: [] } }),
+        snapshot: {
+          version: "pricing-snapshot-v3",
+          status: "collected",
+          billing_view: "monthly",
+          currency_visible: "USD",
+          flags: expect.objectContaining({ has_free_plan: true, has_free_trial: false }),
+          offers: [
+            {
+              name: "Pro",
+              prices: [
+                {
+                  role: "base_price",
+                  price_raw: "$20 per month",
+                  price_numeric: 20,
+                  period: "month",
+                  unit: "flat",
+                  billing: "monthly",
+                  state: "default",
+                },
+              ],
+            },
+          ],
+          features: [],
+        },
+        review: [{ path: "coverage", reason: "unclaimed", value: "$16" }],
+        coverage: { literals: 2, claimed: 1 },
+      }),
+    );
+    expect(scan.store.recordEvent).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        stage: "project",
+        message:
+          "Published 1 offers, 1 prices, and 0 features; 1 review items; quotes cover 1 of 2 price literals",
+      }),
+    );
+  });
+
+  it("falls back to cleaned Markdown when the state script does not finish", async () => {
     const scan = setup(
       undefined,
       "Home\nProducts\n# Pricing\nPro: $20 per month\nThis website uses cookies\nAccept all\nDecline all\nCookie report\n| Name | Provider / Domain | Expiration | Description |\n| --- | --- | --- | --- |\n| _ga | Example | 1 year | Analytics |",
     );
     await scan.run();
     expect(scan.archivedMarkdown()).toBe("Home\nProducts\n# Pricing\nPro: $20 per month");
-    expect(scan.browser).toHaveBeenCalledWith(
-      "json",
-      expect.objectContaining({
-        html: "<html><body><main><pre># Pricing\nPro: $20 per month</pre></main></body></html>",
-        custom_ai: [{ model: QWEN_DRAFT_MODEL }],
-      }),
+    expect(scan.store.recordEvent).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({ stage: "archive", kind: "warning" }),
     );
-    expect(scan.browser.mock.calls.filter(([action]) => action === "json")).toHaveLength(4);
-    expect(scan.ai.mock.calls[0]?.[1].state).toBe("# Pricing\nPro: $20 per month");
-    expect(scan.ai.mock.calls[0]?.[1].state).not.toContain("Cookie report");
+    expect(scan.ai.mock.calls[0]?.[1].messages?.[1]?.content).toBe("# Pricing\nPro: $20 per month");
+    expect(scan.ai.mock.calls[2]?.[1].state).toBe("# Pricing\nPro: $20 per month");
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
-        model: "jev-1.13.0",
         snapshot: expect.objectContaining({
           status: "collected",
           offers: [expect.objectContaining({ name: "Pro" })],
@@ -295,7 +274,7 @@ describe("scan publication boundaries", () => {
     );
   });
 
-  it("preserves accessible prices in the archived source and Jev state", async () => {
+  it("preserves accessible prices in the Markdown fallback", async () => {
     const scan = setup(undefined, "# Pricing\n\n### Business\n\nper month", {
       role: "RootWebArea",
       children: [
@@ -310,93 +289,30 @@ describe("scan publication boundaries", () => {
     });
     await scan.run();
     expect(scan.archivedMarkdown()).toContain("### Business\n\n$90\n\nper month");
-    expect(scan.ai.mock.calls[0]?.[1].state).toContain("$90");
   });
 
-  it("recovers an invalid Browser JSON draft before calling Jev", async () => {
-    const scan = setup("json");
+  it("publishes an unavailable snapshot with a review item when extraction fails", async () => {
+    const scan = setup("extraction");
     await scan.run();
-    expect(scan.ai).toHaveBeenCalledTimes(5);
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
+      EXTRACTION_MODEL,
+      EXTRACTION_MODEL,
+    ]);
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
-        snapshot: expect.objectContaining({ status: "collected" }),
+        model: "unavailable",
+        snapshot: expect.objectContaining({ status: "unavailable" }),
+        review: [expect.objectContaining({ path: "draft", reason: "unavailable" })],
       }),
     );
     expect(scan.store.publishPending).toHaveBeenCalledOnce();
   });
 
-  it("recovers only the failed Qwen part", async () => {
-    const scan = setup("jsonOne");
-    await scan.run();
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "typesafe/jev",
-    ]);
-    expect(scan.store.recordEvent).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ message: expect.stringContaining("recovered offers") }),
-    );
-  });
-
-  it("accepts Qwen chat completion JSON from Browser Run", async () => {
-    const scan = setup("jsonEnvelope");
-    await scan.run();
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual(["typesafe/jev"]);
-    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ snapshot: expect.objectContaining({ status: "collected" }) }),
-    );
-  });
-
-  it("recovers a Qwen timeout reported as Browser JSON 422", async () => {
-    const scan = setup("jsonTimeout");
-    await scan.run();
-    expect(scan.ai).toHaveBeenCalledTimes(5);
-    expect(scan.store.recordEvent).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ stage: "draft", httpStatus: 422, kind: "warning" }),
-    );
-    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ snapshot: expect.objectContaining({ status: "collected" }) }),
-    );
-  });
-
-  it("does not send large captured HTML to Qwen", async () => {
-    const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, "x".repeat(9 * 1024));
-    await scan.run();
-    const requests = scan.browser.mock.calls.filter(([action]) => action === "json");
-    expect(requests).toHaveLength(4);
-    expect(requests.every(([, options]) => !options.html?.includes("x".repeat(100)))).toBe(true);
-    expect(scan.ai).toHaveBeenCalledTimes(1);
-  });
-
-  it("recovers a truncated Browser JSON response and records the provider error", async () => {
-    const scan = setup("json422");
-    await scan.run();
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-      "typesafe/jev",
-    ]);
-    expect(scan.browser.mock.calls.filter(([action]) => action === "json")).toHaveLength(4);
-    expect(scan.store.recordEvent).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ stage: "draft", httpStatus: 422, kind: "warning" }),
-    );
-    expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({ model: "jev-1.13.0" }),
-    );
-  });
-
   it("fails the scan if the page store cannot enter the draft stage", async () => {
     const scan = setup("stage");
     await expect(scan.run()).rejects.toThrow("Page store unavailable");
-    expect(scan.browser).not.toHaveBeenCalledWith("json", expect.anything());
+    expect(scan.ai).not.toHaveBeenCalled();
     expect(scan.store.persistEvaluation).not.toHaveBeenCalled();
     expect(scan.status()).toBe("failed");
   });
@@ -404,7 +320,7 @@ describe("scan publication boundaries", () => {
   it("does not persist or publish answers when Jev fails", async () => {
     const scan = setup("evaluation");
     await expect(scan.run()).rejects.toThrow("Evaluation failed");
-    expect(scan.ai).toHaveBeenCalledTimes(1);
+    expect(scan.ai).toHaveBeenCalledTimes(3);
     expect(scan.store.persistAnswers).not.toHaveBeenCalled();
     expect(scan.store.persistEvaluation).not.toHaveBeenCalled();
     expect(scan.store.publishPending).not.toHaveBeenCalled();
