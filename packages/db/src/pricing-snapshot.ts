@@ -2,7 +2,7 @@ import type { NumericFactRole } from "./pricing-facts";
 
 export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v3" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "54b41470eaf9c4750d87a0b8944dd3638b30649ce1af6b97940c634c3c9ee5fd";
+  "c1c8f199211f5394eda45a74d0a23670bcbac3214700ac023fee83e2e72c5521";
 /** Identifies the capture and extraction code that produced a snapshot. */
 export const PRICING_PIPELINE_ID = `${PRICING_SNAPSHOT_VERSION}-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`;
 

@@ -65,6 +65,18 @@ describe("capture validation", () => {
     ).toThrow("Target returned a bot challenge");
   });
 
+  it("rejects a short page without any amount, such as a bot check", () => {
+    expect(() =>
+      assertUsableCapture({
+        httpStatus: 200,
+        title: "autocalls.ai",
+        html: "<main>Please wait while your request is being verified...</main>",
+        markdown:
+          "## state: default\n[Loader] | Please wait while your request is being verified...",
+      }),
+    ).toThrow("Captured page shows no pricing content");
+  });
+
   it("allows a normal pricing page", () => {
     expect(() =>
       assertUsableCapture({

@@ -362,8 +362,20 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     ready.id = '${STATE_READY_SELECTOR.slice(1)}';
     document.documentElement.appendChild(ready);
   };
+  // Bot checks ("verifying your request...") show a short page without prices, then redirect.
+  // An injected script does not survive that redirect, so report it and let the capture wait.
+  const INTERSTITIAL = /verif|checking your browser|just a moment|please wait|security check|captcha|are you (?:a )?human|access denied|ddos|bot protection|one moment/i;
+  const looksLikeInterstitial = () => {
+    const text = clean((document.body && document.body.innerText) || '');
+    return text.length < 600 && !MONEY.test(text) && INTERSTITIAL.test(text + ' ' + document.title);
+  };
   const start = async () => {
     for (let waited = 0; !document.getElementById('pricelog-capture-ready') && waited < 6000; waited += 100) await sleep(100);
+    for (let waited = 0; looksLikeInterstitial() && waited < 4000; waited += 250) await sleep(250);
+    if (looksLikeInterstitial()) {
+      publish({ version: 1, interstitial: true });
+      return;
+    }
     try {
       publish(await capture());
     } catch (error) {
@@ -407,25 +419,34 @@ export function regionSnapshotOptions(region: CaptureRegion) {
 type StateBlock = { label: string; text: string };
 type StatePayload = {
   version: 1;
+  interstitial?: boolean;
   billingView?: string;
   currency?: string;
   blocks?: StateBlock[];
   error?: string;
 };
 
-/** The captured state as the outline that extraction and Jev read. Null when the script did not finish. */
-export function readCapturedState(html: string): CapturedState | null {
+function readPayload(html: string): StatePayload | null {
   const match = new RegExp(`<script[^>]*id="${STATE_ELEMENT_ID}"[^>]*>([\\s\\S]*?)</script>`).exec(
     html,
   );
   if (!match) return null;
-  let payload: StatePayload;
   try {
-    payload = JSON.parse(match[1]!) as StatePayload;
+    return JSON.parse(match[1]!) as StatePayload;
   } catch {
     return null;
   }
-  if (!payload.blocks?.length) return null;
+}
+
+/** True when the state script found a bot check instead of the page. */
+export function capturedInterstitial(html: string): boolean {
+  return readPayload(html)?.interstitial === true;
+}
+
+/** The captured state as the outline that extraction and Jev read. Null when the script did not finish. */
+export function readCapturedState(html: string): CapturedState | null {
+  const payload = readPayload(html);
+  if (!payload?.blocks?.length) return null;
   return {
     text: payload.blocks.map((block) => `## state: ${block.label}\n${block.text}`).join("\n\n"),
     billingView:

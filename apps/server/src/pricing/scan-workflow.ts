@@ -12,6 +12,7 @@ import { PRICING_PIPELINE_ID, unavailableSnapshot } from "@my-better-t-app/db/pr
 import { numericPricesFromSnapshot } from "./snapshot-projection";
 import {
   CAPTURE_STATE_SCRIPT,
+  capturedInterstitial,
   captureRegion,
   readCapturedState,
   regionSnapshotOptions,
@@ -113,24 +114,35 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         } satisfies BrowserRunSnapshotOptions;
         // The state script signals once consent, scrolling and every UI state are recorded, so
         // short pages are captured sooner than a fixed wait allows.
-        let response = await this.env.BROWSER.quickAction("snapshot", {
-          ...snapshotOptions,
-          waitForSelector: { selector: STATE_READY_SELECTOR, timeout: 30_000 },
-        });
-        let browserMs = Number(response.headers.get("X-Browser-Ms-Used")) || 0;
-        let failure = response.ok ? "" : (await response.text()).slice(0, 300);
-        // A page that navigates away or blocks the script never signals; capture it after a
-        // fixed wait instead of failing the scan.
-        if (!response.ok && /selector|time(?:d )?out/i.test(failure)) {
-          response = await this.env.BROWSER.quickAction("snapshot", {
+        let browserMs = 0;
+        const attempt = async (options: Record<string, unknown>) => {
+          const response = await this.env.BROWSER.quickAction("snapshot", {
             ...snapshotOptions,
-            waitForTimeout: 5_000,
+            ...options,
           });
           browserMs += Number(response.headers.get("X-Browser-Ms-Used")) || 0;
-          failure = response.ok ? "" : (await response.text()).slice(0, 300);
+          return { ok: response.ok, status: response.status, body: await response.text() };
+        };
+        let result = await attempt({
+          waitForSelector: { selector: STATE_READY_SELECTOR, timeout: 30_000 },
+        });
+        const interstitial =
+          result.ok &&
+          capturedInterstitial((JSON.parse(result.body) as SnapshotResult).result.content ?? "");
+        // A page that navigates away or blocks the script never signals, and a bot check
+        // redirects after the script ran; capture those after a fixed wait instead.
+        if (interstitial || (!result.ok && /selector|time(?:d )?out/i.test(result.body))) {
+          if (interstitial)
+            await store.recordEvent(params.runId, {
+              stage: "capture",
+              kind: "warning",
+              message: "The page showed a bot check first; capturing again after it resolves",
+            });
+          result = await attempt({ waitForTimeout: interstitial ? 8_000 : 5_000 });
         }
-        if (!response.ok) throw new Error(`Browser Run failed with ${response.status}: ${failure}`);
-        const snapshot = (await response.json()) as SnapshotResult;
+        if (!result.ok)
+          throw new Error(`Browser Run failed with ${result.status}: ${result.body.slice(0, 300)}`);
+        const snapshot = JSON.parse(result.body) as SnapshotResult;
         const html = snapshot.result.content;
         const rawMarkdown = snapshot.result.markdown;
         const screenshot = snapshot.result.screenshot;
@@ -149,7 +161,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           httpStatus: snapshot.meta.status,
           title: snapshot.meta.title,
           html,
-          markdown,
+          markdown: content,
         });
 
         const finalUrl = snapshot.meta.finalUrl ?? params.canonicalUrl;

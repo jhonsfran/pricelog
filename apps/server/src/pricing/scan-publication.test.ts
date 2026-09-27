@@ -63,7 +63,7 @@ function setup(
     | "stage",
   sourceMarkdown = "# Pricing\nPro: $20 per month",
   accessibilityTree?: unknown,
-  capturedHtml = "<h1>Pricing</h1>",
+  capturedHtml: string | string[] = "<h1>Pricing</h1>",
 ) {
   let status = "running";
   let prepared = false;
@@ -163,13 +163,14 @@ function setup(
     },
   );
   const artifacts = new Map<string, string>();
+  const pages = [capturedHtml].flat();
   const browser = vi.fn(async (action: string, _options: Record<string, unknown>) => {
     if (failure === "capture" && action === "snapshot")
       throw new Error("WebSocket connection failed.");
     return Response.json({
       success: true,
       result: {
-        content: capturedHtml,
+        content: pages.length > 1 ? pages.shift() : pages[0],
         markdown: sourceMarkdown,
         screenshot: "eA==",
         accessibilityTree,
@@ -412,6 +413,27 @@ describe("scan publication boundaries", () => {
         }),
       }),
     );
+  });
+
+  it("captures again after a bot check instead of archiving it", async () => {
+    const botCheck = `<p>Please wait</p><script type="application/json" id="pricelog-state">${JSON.stringify(
+      { version: 1, interstitial: true },
+    )}</script>`;
+    const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, [
+      botCheck,
+      "<h1>Pricing</h1>",
+    ]);
+    await scan.run();
+    expect(scan.browser).toHaveBeenCalledTimes(2);
+    expect(scan.browser.mock.calls[1]?.[1]).toMatchObject({ waitForTimeout: 8_000 });
+    expect(scan.store.recordEvent).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        stage: "capture",
+        message: "The page showed a bot check first; capturing again after it resolves",
+      }),
+    );
+    expect(scan.archivedMarkdown()).toBe("# Pricing\nPro: $20 per month");
   });
 
   it("publishes an unavailable snapshot with a review item when extraction fails", async () => {
