@@ -31,6 +31,9 @@ const PRICES = {
 };
 const CHOICES: Record<string, string> = {
   product_category: "coding_assistants",
+  limit_behavior: "pay_as_you_go",
+  spend_cap: "not_stated",
+  metered_unit: "credits",
   price_0: "flat_monthly",
   price_1: "usage",
 };
@@ -234,7 +237,9 @@ describe("scan publication boundaries", () => {
     expect(scan.ai.mock.calls[2]?.[1].state).toBe(scan.archivedMarkdown());
     expect(Object.keys(scan.ai.mock.calls[2]?.[1].questions ?? {})).toEqual([
       "product_category",
-      "has_free_trial",
+      "limit_behavior",
+      "spend_cap",
+      "metered_unit",
       "price_0",
       "price_1",
     ]);
@@ -248,8 +253,13 @@ describe("scan publication boundaries", () => {
           model: "jev-1.13.0",
         }),
         draft: JSON.stringify({ prices: PRICES, features: { features: [] } }),
+        choices: [
+          expect.objectContaining({ key: "product_category", choice: "coding_assistants" }),
+          expect.objectContaining({ key: "limit_behavior", choice: "pay_as_you_go" }),
+          expect.objectContaining({ key: "metered_unit", choice: "credits" }),
+          expect.objectContaining({ key: "price_disclosure" }),
+        ],
         signals: expect.arrayContaining([
-          { key: "has_free_trial", probability: 0.05 },
           { key: "charges_fixed_subscription", probability: 1 },
           { key: "charges_direct_usage", probability: 1 },
         ]),
@@ -339,7 +349,15 @@ describe("scan publication boundaries", () => {
         },
         review: [],
       },
-      answers: [{ key: "has_free_trial", type: "noul", noul: 0.95 }],
+      answers: [
+        {
+          key: "spend_cap",
+          type: "choice",
+          choice: "yes",
+          confidence: 0.9,
+          probabilities: { yes: 0.9, no: 0.05, not_stated: 0.05 },
+        },
+      ],
     };
     scan.store.findReusableEvaluation.mockResolvedValue(previous);
     await scan.run();

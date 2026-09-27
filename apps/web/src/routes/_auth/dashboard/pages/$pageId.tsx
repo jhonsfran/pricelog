@@ -92,7 +92,13 @@ function OwnerPageDetail() {
       {data.summary ? (
         <>
           {data.summary.snapshot ? (
-            <CommercialSnapshot snapshot={data.summary.snapshot} review={data.summary.review} />
+            <CommercialSnapshot
+              snapshot={data.summary.snapshot}
+              review={data.summary.review}
+              meteredUnit={
+                data.summary.choices.find((choice) => choice.key === "metered_unit")?.choice
+              }
+            />
           ) : (
             <>
               <NumericPricesPanel

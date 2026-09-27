@@ -26,28 +26,37 @@ Each run has a durable pipeline trace in the owner view. It records stage transi
 
 ## Extraction and verification
 
-The extraction model copies prices and features from the archived page text in two requests. The prices request asks for every price with its plan (or none, for prices that apply to all plans), the exact line, and a proposed period, billing term and kind (flat, per seat, usage, add-on, free or custom quote). Llama 3.3 70B answers first and Qwen3 30B answers if Llama fails. The features request asks for each feature with its value per plan; Qwen answers first and Llama is the fallback. A proposal is not evidence.
+The extraction model copies prices and features from the archived page text in two requests. The prices request asks for every price with its plan (or none, for prices that apply to all plans), the exact line, and the page state it appears under. Qwen3 30B answers first; Llama 3.3 70B answers when Qwen fails, returns no prices for a page that shows amounts, or repeats one line in a loop. The features request asks for each feature with its value per plan, with the same fallback. The model proposes no labels; Jev decides what each price is.
 
-Code checks two things: every quoted plan, price line, feature name and value must appear in the page text, and every proposed period, billing term and kind must be one of the allowed values. A failed check becomes an `ungrounded` or `invalid` review item.
+Code checks that every quoted plan, price line, feature name and value appears in the page text. A quote that does not becomes an `ungrounded` review item. The same price line for the same plan is checked once.
 
 Jev receives the same page text and answers:
 
-| Question         | Type   | Publishes when              |
-| ---------------- | ------ | --------------------------- |
-| Each price       | Yes/no | Probability at least `0.80` |
-| Each feature row | Yes/no | Probability at least `0.80` |
-| Product category | Choice | Confidence at least `0.75`  |
-| Free trial       | Yes/no | Stored as a probability     |
+| Question                     | Type   | Publishes when                                     |
+| ---------------------------- | ------ | -------------------------------------------------- |
+| Each price                   | Choice | Confidence at least `0.5`, and not "not this plan" |
+| Each feature row             | Yes/no | Probability at least `0.5`                         |
+| Product category             | Choice | Confidence at least `0.75`, and not `unknown`      |
+| When included usage runs out | Choice | Confidence at least `0.5`, and not `not_stated`    |
+| Customer spend cap           | Choice | Confidence at least `0.5`, and not `not_stated`    |
+| What is metered              | Choice | Confidence at least `0.5`, and not `none_stated`   |
 
-A price question asks whether the page offers the plan at the quoted price, for the proposed period and billing term, as the proposed kind. A feature question asks whether the page states the quoted values for that feature. Below `0.80` a claim goes to review as `uncertain`, and at or below `0.20` as `rejected`.
+A price question asks what the quoted amount is for its plan: a flat or per-seat price billed monthly or annually, a usage rate, an add-on, a free plan, a custom quote, or not this plan's price. The period comes from the quoted text. A price without an amount publishes only as a free or custom price whose text says so. A feature question asks whether the page states the quoted values for that feature. A price or feature row that does not publish goes to review with its reason. A monetization answer that does not publish is simply absent.
 
 Every other profile field is derived in code from the published prices and features: free plan, contact sales, numeric limits, fixed subscription, per-seat, usage, credit and add-on charges, and price disclosure. Jev is not asked about them.
+
+Monetization numbers are computed from the published facts and are shown only when the facts settle them:
+
+- Annual discount per plan and its median, from plans with both a monthly-billed and an annual-billed price of the same kind.
+- Entry price and price ladder, from each paid plan's monthly price or annual monthly equivalent, when all tiers share one currency.
+- Included unit price, a plan's monthly price over the absolute quantity a feature row includes of the metered unit, per unit and per 1,000. Relative values such as `10x` or `Unlimited` are skipped.
+- Overage markup, a usage rate per unit over the included unit price of its plan, or of the cheapest tier for rates that apply to all plans, when units and currency match.
 
 The public directory shows only accepted claims. The owner view lists every claim that did not publish, with its reason. Raw extraction output and Jev answers stay with the captured version in its Durable Object.
 
 ## Scope and versions
 
-The rubric is version 12 and the commercial snapshot is `pricing-snapshot-v4`. Earlier captures remain historical under their original rubric and snapshot version.
+The rubric is version 13 and the commercial snapshot is `pricing-snapshot-v4`. Earlier captures remain historical under their original rubric and snapshot version.
 
 Current comparisons require an active page, the current rubric, exact Jev model version `jev-1.13.0`, and a capture from the last 14 days. The time limit does not establish that a vendor kept its terms unchanged.
 

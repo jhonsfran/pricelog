@@ -1,15 +1,11 @@
 import {
   JEV_CHOICE_KEYS,
-  JEV_SIGNAL_KEYS,
+  JEV_CHOICE_RULES,
   PRICING_CHOICE_CATALOG,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
-  PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
   PRICING_RUBRIC_FINGERPRINT,
-  CHOICE_CONFIDENCE_THRESHOLD,
-  TAG_PROBABILITY_THRESHOLD,
-  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
@@ -17,12 +13,6 @@ type ChoiceQuestion = {
   type: "choice";
   instructions: string;
   criteria: Readonly<Record<string, string>>;
-};
-
-type NoulQuestion = {
-  type: "noul";
-  instructions: string;
-  criteria: { true: string; false: string };
 };
 
 /** Maps a catalog to questions while keeping each literal key in the result type. */
@@ -45,19 +35,10 @@ function mapCatalog<Key extends string, Entry, Question>(
 const profileCatalog = Object.fromEntries(
   JEV_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
 ) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof JEV_CHOICE_KEYS)[number]>;
-const flagCatalog = Object.fromEntries(
-  JEV_SIGNAL_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
-) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof JEV_SIGNAL_KEYS)[number]>;
 const choiceQuestions = mapCatalog(profileCatalog, (entry): ChoiceQuestion => ({
   type: "choice",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: entry.options,
-}));
-
-const noulQuestions = mapCatalog(flagCatalog, (entry): NoulQuestion => ({
-  type: "noul",
-  instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
-  criteria: { true: entry.whenTrue, false: entry.whenFalse },
 }));
 
 export const PRICING_INTELLIGENCE_RUBRIC = {
@@ -65,10 +46,7 @@ export const PRICING_INTELLIGENCE_RUBRIC = {
   version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
   model: "typesafe/jev",
   scope: PRICING_PAGE_SCOPE,
-  questions: {
-    ...choiceQuestions,
-    ...noulQuestions,
-  },
+  questions: choiceQuestions,
 } as const;
 
 /**
@@ -82,11 +60,7 @@ export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.
     model: EXPECTED_JEV_MODEL,
     scope: PRICING_PAGE_SCOPE,
     questions,
-    publication: {
-      choice: CHOICE_CONFIDENCE_THRESHOLD,
-      stated: TAG_PROBABILITY_THRESHOLD,
-      notEstablished: NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
-    },
+    publication: JEV_CHOICE_RULES,
   };
 }
 export async function rubricFingerprint(contract: unknown = rubricContract()) {

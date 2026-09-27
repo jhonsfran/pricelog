@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import {
   PRICING_CHOICE_CATALOG,
-  PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_RUBRIC_FINGERPRINT,
@@ -18,10 +17,21 @@ import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "
 describe("pricing rubric", () => {
   const rubric = PRICING_INTELLIGENCE_RUBRIC;
 
-  it("asks Jev only the product category and free trial profile questions", () => {
+  it("asks Jev the product category and the three monetization questions", () => {
     expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
-    expect(rubric.version).toBe(12);
-    expect(Object.keys(rubric.questions)).toEqual(["product_category", "has_free_trial"]);
+    expect(rubric.version).toBe(13);
+    expect(Object.keys(rubric.questions)).toEqual([
+      "product_category",
+      "limit_behavior",
+      "spend_cap",
+      "metered_unit",
+    ]);
+    expect(Object.values(rubric.questions).map((question) => question.type)).toEqual([
+      "choice",
+      "choice",
+      "choice",
+      "choice",
+    ]);
   });
 
   it("takes the question text Jev evaluates from the public catalogs", () => {
@@ -30,14 +40,17 @@ describe("pricing rubric", () => {
       `${PRICING_PAGE_SCOPE} ${category.question}`,
     );
     expect(rubric.questions.product_category.criteria).toEqual(category.options);
-    const trial = PRICING_SIGNAL_CATALOG.has_free_trial;
-    expect(rubric.questions.has_free_trial.instructions).toBe(
-      `${PRICING_PAGE_SCOPE} ${trial.question}`,
+    expect(Object.keys(rubric.questions.limit_behavior.criteria)).toEqual([
+      "hard_stop",
+      "pay_as_you_go",
+      "auto_upgrade",
+      "buy_credits",
+      "not_stated",
+    ]);
+    expect(Object.keys(rubric.questions.spend_cap.criteria)).toEqual(["yes", "no", "not_stated"]);
+    expect(rubric.questions.metered_unit.instructions).toBe(
+      `${PRICING_PAGE_SCOPE} ${PRICING_CHOICE_CATALOG.metered_unit.question}`,
     );
-    expect(rubric.questions.has_free_trial.criteria).toEqual({
-      true: trial.whenTrue,
-      false: trial.whenFalse,
-    });
   });
 
   it("keeps the rubric identity independent of the extraction pipeline", () => {

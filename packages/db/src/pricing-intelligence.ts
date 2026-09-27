@@ -1,10 +1,12 @@
 export const PRICING_RUBRIC_FINGERPRINT =
-  "5e5636270d248f54cf19ade639b3ff2fae8101f21c97c4463c52bc21aa8c1dc6";
-export const PRICING_INTELLIGENCE_RUBRIC_ID = `pricing-intelligence-v12-${PRICING_RUBRIC_FINGERPRINT.slice(0, 12)}`;
-export const PRICING_INTELLIGENCE_RUBRIC_VERSION = 12;
+  "6e181856a72827f53024d716cf62adc2934b61e450ab381b916ed3af25774f52";
+export const PRICING_INTELLIGENCE_RUBRIC_ID = `pricing-intelligence-v13-${PRICING_RUBRIC_FINGERPRINT.slice(0, 12)}`;
+export const PRICING_INTELLIGENCE_RUBRIC_VERSION = 13;
 export const CHOICE_CONFIDENCE_THRESHOLD = 0.75;
 export const TAG_PROBABILITY_THRESHOLD = 0.8;
 export const NOT_ESTABLISHED_PROBABILITY_THRESHOLD = 0.2;
+/** Monetization answers publish on a majority, like each price and feature fact. */
+export const STATED_CHOICE_THRESHOLD = 0.5;
 
 /**
  * The single source of truth for every field the commercial profile shows. Jev answers only
@@ -15,6 +17,7 @@ export const NOT_ESTABLISHED_PROBABILITY_THRESHOLD = 0.2;
 
 /** Ordered presentation groups for the commercial profile. */
 export const PRICING_CHOICE_GROUPS = [
+  { key: "monetization", label: "Monetization" },
   { key: "access", label: "Access and disclosure" },
   { key: "audience", label: "Audience" },
 ] as const;
@@ -54,15 +57,6 @@ export const PRODUCT_CATEGORY_OPTIONS = {
 const DERIVED = "Derived from the published prices; Jev confirmed each price.";
 
 const PROFILE_SIGNAL_CATALOG = {
-  has_free_trial: {
-    label: "Free trial",
-    tag: "free-trial",
-    priority: 2,
-    source: "jev",
-    question: "Does the page offer a time-limited free trial of a paid product?",
-    whenTrue: "A time-limited free trial is offered.",
-    whenFalse: "No time-limited free trial is offered or the page does not establish one.",
-  },
   has_free_plan: {
     label: "Free plan",
     tag: "free-plan",
@@ -156,6 +150,49 @@ export const PRICING_CHOICE_CATALOG = {
       none: "No published plan states a price.",
     },
   },
+  limit_behavior: {
+    label: "When included usage runs out",
+    group: "monetization",
+    source: "jev",
+    question:
+      "What happens when a plan's included usage runs out, as the page states it? Choose not_stated when the page does not say.",
+    options: {
+      hard_stop: "Usage stops until the next billing period.",
+      pay_as_you_go: "Extra usage is charged automatically as overage.",
+      auto_upgrade: "The customer is moved, or asked to move, to a higher plan.",
+      buy_credits: "The customer must buy extra credits or usage packs.",
+      not_stated: "The page does not state what happens when included usage runs out.",
+    },
+  },
+  spend_cap: {
+    label: "Customer spend cap",
+    group: "monetization",
+    source: "jev",
+    question:
+      "Can the customer set a spending limit or cap on usage charges, as the page states it? Choose not_stated when the page does not say.",
+    options: {
+      yes: "The customer can set a spending limit or cap on usage charges.",
+      no: "The page states that usage charges cannot be capped.",
+      not_stated: "The page does not state whether usage charges can be capped.",
+    },
+  },
+  metered_unit: {
+    label: "What is metered",
+    group: "monetization",
+    source: "jev",
+    question:
+      "What main unit do the plans meter and include allowances of? Choose none_stated when the plans meter no unit.",
+    options: {
+      credits: "Credits.",
+      tokens: "Tokens.",
+      minutes: "Minutes of use, such as call or video minutes.",
+      runs_tasks: "Runs, tasks, executions, workflows or calls.",
+      messages: "Messages, emails or conversations.",
+      seats: "Seats or users only.",
+      outcomes: "Resolutions or other successful results.",
+      none_stated: "The plans do not meter a unit.",
+    },
+  },
   product_category: {
     label: "Product category",
     group: "audience",
@@ -171,8 +208,24 @@ export const PRICING_SIGNAL_CATALOG = {
 } as const;
 
 /** The only profile questions Jev answers. Everything else in the catalogs is derived. */
-export const JEV_CHOICE_KEYS = ["product_category"] as const;
-export const JEV_SIGNAL_KEYS = ["has_free_trial"] as const;
+export const JEV_CHOICE_KEYS = [
+  "product_category",
+  "limit_behavior",
+  "spend_cap",
+  "metered_unit",
+] as const;
+export type JevChoiceKey = (typeof JEV_CHOICE_KEYS)[number];
+
+/** When a Jev choice publishes: its confidence floor and the options that mean "not said". */
+export const JEV_CHOICE_RULES: Record<
+  JevChoiceKey,
+  { threshold: number; absent: readonly string[] }
+> = {
+  product_category: { threshold: CHOICE_CONFIDENCE_THRESHOLD, absent: ["unknown"] },
+  limit_behavior: { threshold: STATED_CHOICE_THRESHOLD, absent: ["not_stated"] },
+  spend_cap: { threshold: STATED_CHOICE_THRESHOLD, absent: ["not_stated"] },
+  metered_unit: { threshold: STATED_CHOICE_THRESHOLD, absent: ["none_stated"] },
+};
 
 export type PricingChoiceKey = keyof typeof PRICING_CHOICE_CATALOG;
 export type PricingSignalKey = keyof typeof PRICING_SIGNAL_CATALOG;

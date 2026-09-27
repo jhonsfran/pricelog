@@ -1,9 +1,12 @@
 import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import {
   CHARGING_SIGNAL_KEYS,
+  JEV_CHOICE_RULES,
+  PRICING_CHOICE_CATALOG,
   getPricingSignalMetadata,
   pricingSignalCoverage,
 } from "@my-better-t-app/api/pricing-intelligence";
+import { formatToken } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
@@ -20,8 +23,10 @@ export const Route = createFileRoute("/benchmarks")({
   component: BenchmarksPage,
   validateSearch: parseComparisonSearch,
 });
+const MONETIZATION_KEYS = ["limit_behavior", "spend_cap", "metered_unit"] as const;
 const topicOptions = [
   { value: "charging_structure", label: "How products charge" },
+  { value: "monetization", label: "How products monetize" },
   { value: "prices", label: "Published prices" },
 ];
 
@@ -173,6 +178,36 @@ function BenchmarksPage() {
               </PracticeChart>
             </section>
           ) : null}
+          {topic === "monetization"
+            ? MONETIZATION_KEYS.map((key) => {
+                const share = selected.choiceShares[key] ?? { answered: 0, options: {} };
+                const comparable = selected.pageCount >= minimum;
+                return (
+                  <PracticeChart
+                    key={key}
+                    title={PRICING_CHOICE_CATALOG[key].label}
+                    question={PRICING_CHOICE_CATALOG[key].question}
+                    rows={Object.entries(share.options)
+                      .filter(([option]) => !JEV_CHOICE_RULES[key].absent.includes(option))
+                      .map(([option, count]): ChartRow => {
+                        const fraction = selected.pageCount ? count / selected.pageCount : 0;
+                        return {
+                          key: option,
+                          label: formatToken(option),
+                          fill: fraction,
+                          display: comparable ? `${Math.round(fraction * 100)}%` : `${count}`,
+                          filter: {
+                            choiceKey: key,
+                            choiceValue: option,
+                            cohort,
+                          } satisfies DirectoryFilter,
+                        };
+                      })}
+                    footnote={`Denominator: all ${selected.pageCount} eligible pages in this category. ${selected.pageCount - share.answered} pages do not state it or have no confident answer.`}
+                  />
+                );
+              })
+            : null}
           {topic === "prices" ? (
             <NumericBenchmarkPanel
               prices={selected.numericPrices}

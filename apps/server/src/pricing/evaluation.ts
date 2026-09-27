@@ -1,7 +1,6 @@
 import {
-  CHOICE_CONFIDENCE_THRESHOLD,
   JEV_CHOICE_KEYS,
-  JEV_SIGNAL_KEYS,
+  JEV_CHOICE_RULES,
   PRICING_CHOICE_CATALOG,
   PRICING_SIGNAL_CATALOG,
   TAG_PROBABILITY_THRESHOLD,
@@ -33,8 +32,9 @@ export type PublicEvaluation = {
 };
 
 /**
- * The page profile: Jev's two answers (product category, free trial) plus the fields that
- * follow from the published snapshot. Derived fields are certain, so they carry 1 or 0.
+ * The page profile: Jev's answers (product category and the monetization questions) plus the
+ * fields that follow from the published snapshot. Derived fields are certain, so they carry 1
+ * or 0. A Jev answer below its threshold, or one saying the page does not state it, is absent.
  */
 export function buildPublicEvaluation(
   answers: JevAnswer[],
@@ -43,9 +43,10 @@ export function buildPublicEvaluation(
   const byKey = new Map(answers.map((answer) => [answer.key, answer]));
   const choices: PageChoice[] = JEV_CHOICE_KEYS.flatMap((key) => {
     const answer = byKey.get(key);
+    const rule = JEV_CHOICE_RULES[key];
     return answer?.type === "choice" &&
-      answer.confidence >= CHOICE_CONFIDENCE_THRESHOLD &&
-      answer.choice !== "unknown" &&
+      answer.confidence >= rule.threshold &&
+      !rule.absent.includes(answer.choice) &&
       Object.hasOwn(PRICING_CHOICE_CATALOG[key].options, answer.choice)
       ? [
           {
@@ -57,10 +58,7 @@ export function buildPublicEvaluation(
         ]
       : [];
   });
-  const signals: PageSignal[] = JEV_SIGNAL_KEYS.flatMap((key) => {
-    const answer = byKey.get(key);
-    return answer?.type === "noul" ? [{ key, probability: answer.noul }] : [];
-  });
+  const signals: PageSignal[] = [];
   if (snapshot?.status === "collected") {
     const { price_disclosure, ...derived } = deriveProfile(snapshot);
     choices.push({

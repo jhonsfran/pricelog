@@ -5,14 +5,18 @@ import type {
 } from "@my-better-t-app/api/pricing-snapshot";
 import { formatToken } from "@/lib/format";
 import { DataCell, DataRow, DataTable, RowHeader } from "./data-table";
+import { MonetizationMetrics } from "./monetization-metrics";
 import { Panel } from "./panel";
 
 export function CommercialSnapshot({
   snapshot,
   review,
+  meteredUnit,
 }: {
   snapshot: PublishedSnapshot;
   review?: SnapshotReview[] | null;
+  /** The metered unit Jev established, which picks the feature row an included price uses. */
+  meteredUnit?: string;
 }) {
   return (
     <>
@@ -30,6 +34,7 @@ export function CommercialSnapshot({
             {snapshot.currency_visible ? (
               <p>Visible currency: {snapshot.currency_visible}</p>
             ) : null}
+            <MonetizationMetrics snapshot={snapshot} meteredUnit={meteredUnit} />
             {snapshot.offers.length ? (
               <DataTable columns={["Plan", "Verified prices"]}>
                 {snapshot.offers.map((offer) => (

@@ -10,7 +10,7 @@ export const CATEGORY_OPTIONS = [
   { value: "category:model_apis", label: "Model APIs" },
 ];
 
-export type ComparisonTopic = "charging_structure" | "prices";
+export type ComparisonTopic = "charging_structure" | "monetization" | "prices";
 export type ComparisonSearch = { cohort?: string; topic?: ComparisonTopic };
 
 export function parseCategorySearch(search: Record<string, unknown>): { cohort?: string } {
@@ -18,9 +18,9 @@ export function parseCategorySearch(search: Record<string, unknown>): { cohort?:
 }
 
 export function parseComparisonSearch(search: Record<string, unknown>): ComparisonSearch {
-  const topic = ["charging_structure", "prices"].find((value) => value === search.topic) as
-    | ComparisonTopic
-    | undefined;
+  const topic = ["charging_structure", "monetization", "prices"].find(
+    (value) => value === search.topic,
+  ) as ComparisonTopic | undefined;
   return {
     ...parseCategorySearch(search),
     // Router search merges with raw URL values. Override invalid values explicitly.

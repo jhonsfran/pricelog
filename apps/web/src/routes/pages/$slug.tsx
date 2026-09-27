@@ -99,7 +99,10 @@ function PublicPageProfile() {
         </p>
       ) : null}
       {item.snapshot ? (
-        <CommercialSnapshot snapshot={item.snapshot} />
+        <CommercialSnapshot
+          snapshot={item.snapshot}
+          meteredUnit={item.choices.find((choice) => choice.key === "metered_unit")?.choice}
+        />
       ) : (
         <>
           <NumericPricesPanel prices={item.numericPrices} sourceUrl={item.sourceUrl} />
