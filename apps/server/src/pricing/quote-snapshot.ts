@@ -182,8 +182,13 @@ export function groundExtraction(stateText: string, extraction: Extraction): Gro
   const prices: GroundedPrice[] = [];
   const features: GroundedFeature[] = [];
 
+  const seen = new Set<string>();
   extraction.prices.forEach((price, index) => {
     const path = `extraction.prices.${index}`;
+    // The same line for the same plan is one fact, whichever state repeats it.
+    const key = `${price.plan ?? ""}\u0000${normalize(price.text)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
     if (!found(price.text) || (price.plan !== null && !found(price.plan)))
       return review.push({
         path,
@@ -308,17 +313,20 @@ function periodOf(text: string, kind: PriceKind): PricePeriod {
  */
 export const FACT_THRESHOLD = 0.5;
 
-/** An empty price list from a page that shows amounts is a failed answer, not an answer. */
+/**
+ * A price list that is empty for a page showing amounts, or that mostly repeats one line (a model
+ * stuck in a loop), is a failed answer; the next model is asked instead.
+ */
 export function missedPrices(
   part: string,
   value: Record<string, unknown>,
   source: string,
 ): boolean {
-  return (
-    part === "prices" &&
-    !(value.prices as unknown[] | undefined)?.length &&
-    (source.match(PRICE_LITERAL) ?? []).length > 0
-  );
+  if (part !== "prices") return false;
+  const prices = (value.prices as { plan?: unknown; text?: unknown }[] | undefined) ?? [];
+  if (!prices.length) return (source.match(PRICE_LITERAL) ?? []).length > 0;
+  const distinct = new Set(prices.map((price) => `${price.plan}\u0000${price.text}`)).size;
+  return prices.length >= 20 && distinct * 2 < prices.length;
 }
 
 export const isFactKey = (key: string) => /^(?:price|feature)_\d+$/.test(key);

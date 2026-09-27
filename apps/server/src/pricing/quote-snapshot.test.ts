@@ -214,6 +214,19 @@ describe("quote snapshot", () => {
     expect(missedPrices("prices", { prices: [] }, "## Enterprise\nContact sales")).toBe(false);
     expect(missedPrices("prices", { prices: [{ text: "$20 / mo" }] }, "$20 / mo")).toBe(false);
     expect(missedPrices("features", { features: [] }, "$20 / mo")).toBe(false);
+    const looping = Array.from({ length: 30 }, () => ({ plan: null, text: "$0.09" }));
+    expect(missedPrices("prices", { prices: looping }, "$0.09")).toBe(true);
+  });
+
+  it("asks Jev once for a price line the model repeated", () => {
+    const grounded = groundExtraction(POLYLANE_STATE, {
+      prices: [price("Starter", "$80 /month"), price("Starter", "$80 /month", "billing=Yearly")],
+      features: [],
+    });
+    expect(grounded.prices.map((item) => [item.plan, item.text])).toEqual([
+      ["Starter", "$80 /month"],
+    ]);
+    expect(factQuestions(grounded).map((question) => question.key)).toEqual(["price_0"]);
   });
 
   it("sends claims Jev did not confirm to review with the reason", () => {
