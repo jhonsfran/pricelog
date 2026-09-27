@@ -10,7 +10,7 @@
   "$schema": "https://r2.better-t-stack.dev/schema.json",
   "version": "3.44.1",
   "createdAt": "2026-09-19T22:33:08.397Z",
-  "reproducibleCommand": "pnpm create better-t-stack@latest my-better-t-app --frontend tanstack-start --backend hono --runtime workers --database sqlite --orm drizzle --api orpc --auth better-auth --payments none --addons evlog husky oxlint skills turborepo --examples none --db-setup d1 --web-deploy cloudflare --server-deploy cloudflare --git --package-manager pnpm --install",
+  "reproducibleCommand": "pnpm create better-t-stack@latest pricelog --frontend tanstack-start --backend hono --runtime workers --database sqlite --orm drizzle --api orpc --auth better-auth --payments none --addons evlog husky oxlint skills turborepo --examples none --db-setup d1 --web-deploy cloudflare --server-deploy cloudflare --git --package-manager pnpm --install",
   "database": "sqlite",
   "orm": "drizzle",
   "backend": "hono",

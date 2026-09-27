@@ -1,5 +1,5 @@
-import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@my-better-t-app/api/pricing-facts";
-import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/api/pricing-intelligence";
+import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@pricelog/api/pricing-facts";
+import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@pricelog/api/pricing-intelligence";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";

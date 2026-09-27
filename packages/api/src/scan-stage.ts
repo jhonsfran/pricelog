@@ -1,1 +1,1 @@
-export * from "@my-better-t-app/db/scan-stage";
+export * from "@pricelog/db/scan-stage";

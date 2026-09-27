@@ -1,4 +1,4 @@
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
 
 // Jev 1.13 accepts 64k tokens for the complete request and 32k tokens for the
 // state plus the longest question. The Worker does not have Jev's tokenizer,

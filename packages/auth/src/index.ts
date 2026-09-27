@@ -1,6 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
-import type { Database } from "@my-better-t-app/db";
-import * as schema from "@my-better-t-app/db/schema/auth";
+import type { Database } from "@pricelog/db";
+import * as schema from "@pricelog/db/schema/auth";
 import { betterAuth } from "better-auth";
 
 export type AuthConfig = {

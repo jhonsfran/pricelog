@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Database } from "@my-better-t-app/db";
-import type { Observation } from "@my-better-t-app/api/pricing-history";
-import { activePageBatches } from "@my-better-t-app/api/pricing-history-store";
-import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import type { Database } from "@pricelog/db";
+import type { Observation } from "@pricelog/api/pricing-history";
+import { activePageBatches } from "@pricelog/api/pricing-history-store";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { runWeeklyComparisons } from "./weekly-comparisons";
 
-vi.mock("@my-better-t-app/api/pricing-history-store", () => ({
+vi.mock("@pricelog/api/pricing-history-store", () => ({
   activePageBatches: vi.fn(),
 }));
 

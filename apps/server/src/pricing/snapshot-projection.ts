@@ -3,8 +3,8 @@ import {
   type NumericCurrency,
   type NumericOffer,
   type NumericPrices,
-} from "@my-better-t-app/db/numeric-prices";
-import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+} from "@pricelog/db/numeric-prices";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { parseAmount } from "./quote-snapshot";
 
 const CURRENCIES: readonly NumericCurrency[] = ["USD", "EUR", "GBP"];

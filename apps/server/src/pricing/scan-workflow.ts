@@ -1,4 +1,4 @@
-import { createDb } from "@my-better-t-app/db";
+import { createDb } from "@pricelog/db";
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 
 import { captureThroughBotCheck, type CaptureSnapshot } from "./capture-session";
@@ -9,7 +9,7 @@ import {
   trimCookieConsentMarkdown,
   trimPricingMarkdown,
 } from "./source-cleanup";
-import { PRICING_PIPELINE_ID, unavailableSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import { PRICING_PIPELINE_ID, unavailableSnapshot } from "@pricelog/db/pricing-snapshot";
 import { numericPricesFromSnapshot } from "./snapshot-projection";
 import {
   CAPTURE_STATE_SCRIPT,

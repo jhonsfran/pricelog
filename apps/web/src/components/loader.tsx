@@ -1,4 +1,4 @@
-import { Spinner } from "@my-better-t-app/ui/components/spinner";
+import { Spinner } from "@pricelog/ui/components/spinner";
 
 export default function Loader() {
   return (

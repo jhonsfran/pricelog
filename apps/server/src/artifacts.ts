@@ -1,6 +1,6 @@
-import { isPageOperator, parseOperatorEmails } from "@my-better-t-app/api/operators";
-import { pageAccessCondition } from "@my-better-t-app/api/routers/pages";
-import { page } from "@my-better-t-app/db/schema/pages";
+import { isPageOperator, parseOperatorEmails } from "@pricelog/api/operators";
+import { pageAccessCondition } from "@pricelog/api/routers/pages";
+import { page } from "@pricelog/db/schema/pages";
 import { and, eq } from "drizzle-orm";
 import type { Context } from "hono";
 

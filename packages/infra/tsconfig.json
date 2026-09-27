@@ -1,4 +1,4 @@
 {
-  "extends": "@my-better-t-app/config/tsconfig.base.json",
+  "extends": "@pricelog/config/tsconfig.base.json",
   "include": ["alchemy.run.ts"]
 }

@@ -1,5 +1,5 @@
-import { Badge } from "@my-better-t-app/ui/components/badge";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+import { Badge } from "@pricelog/ui/components/badge";
+import { cn } from "@pricelog/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { formatDay } from "@/lib/time";

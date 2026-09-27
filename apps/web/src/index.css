@@ -4,7 +4,7 @@
 @import "@fontsource-variable/inter/opsz.css";
 @import "@fontsource-variable/jetbrains-mono/index.css";
 
-@import "@my-better-t-app/ui/globals.css";
+@import "@pricelog/ui/globals.css";
 
 /* Everything Pricelog knows is a stack of captures of the same page, so a
    sheet shows the edges of older captures behind it, up and to the right. */

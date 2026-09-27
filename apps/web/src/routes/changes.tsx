@@ -1,4 +1,4 @@
-import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
+import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@pricelog/api/benchmark";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
 import { Lede, PageHeader, PageShell } from "@/components/page";

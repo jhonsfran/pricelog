@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { confirmChanges, diffSnapshots } from "./snapshot-changes";
 
 const base: PublishedSnapshot = {

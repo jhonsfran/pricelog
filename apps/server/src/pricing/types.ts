@@ -1,4 +1,4 @@
-import type { ScanRunStage } from "@my-better-t-app/db/scan-stage";
+import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
 export type RunTrigger = "initial" | "scheduled" | "manual";
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";

@@ -1,5 +1,5 @@
-import { createDb } from "@my-better-t-app/db";
-import type { ScanPipelineStage } from "@my-better-t-app/db/scan-stage";
+import { createDb } from "@pricelog/db";
+import type { ScanPipelineStage } from "@pricelog/db/scan-stage";
 import { publishPageProjection, type PagePublication } from "./publication";
 import {
   COMPARISON_VERSION,
@@ -7,12 +7,12 @@ import {
   type Comparison,
   type StoredObservation,
   type WeeklyPageHistory,
-} from "@my-better-t-app/api/pricing-history";
+} from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
-import type { PublishedSnapshot, SnapshotReview } from "@my-better-t-app/db/pricing-snapshot";
+import type { PublishedSnapshot, SnapshotReview } from "@pricelog/db/pricing-snapshot";
 import { DurableObject } from "cloudflare:workers";
-import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
+import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
+import { descendingCursorCondition } from "@pricelog/api/pagination";
 import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";

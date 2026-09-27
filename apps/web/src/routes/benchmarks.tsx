@@ -1,11 +1,11 @@
-import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
+import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@pricelog/api/benchmark";
 import {
   CHARGING_SIGNAL_KEYS,
   JEV_CHOICE_RULES,
   PRICING_CHOICE_CATALOG,
   getPricingSignalMetadata,
   pricingSignalCoverage,
-} from "@my-better-t-app/api/pricing-intelligence";
+} from "@pricelog/api/pricing-intelligence";
 import { formatToken } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";

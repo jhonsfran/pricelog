@@ -1,4 +1,4 @@
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/api/pricing-facts";
+import { EXPECTED_JEV_MODEL } from "@pricelog/api/pricing-facts";
 import {
   CHOICE_CONFIDENCE_THRESHOLD,
   JEV_CHOICE_KEYS,
@@ -6,7 +6,7 @@ import {
   PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
   STATED_CHOICE_THRESHOLD,
-} from "@my-better-t-app/api/pricing-intelligence";
+} from "@pricelog/api/pricing-intelligence";
 import { createFileRoute } from "@tanstack/react-router";
 import { DataCell, DataRow, DataTable, RowHeader } from "@/components/data-table";
 import { formatToken } from "@/lib/format";

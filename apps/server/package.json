@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^1.4.0",
-    "@my-better-t-app/api": "workspace:*",
-    "@my-better-t-app/auth": "workspace:*",
-    "@my-better-t-app/db": "workspace:*",
+    "@pricelog/api": "workspace:*",
+    "@pricelog/auth": "workspace:*",
+    "@pricelog/db": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
@@ -28,8 +28,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
-    "@my-better-t-app/config": "workspace:*",
-    "@my-better-t-app/infra": "workspace:*",
+    "@pricelog/config": "workspace:*",
+    "@pricelog/infra": "workspace:*",
     "@types/node": "catalog:",
     "drizzle-kit": "1.0.0-rc.4",
     "tsdown": "^0.23.0",

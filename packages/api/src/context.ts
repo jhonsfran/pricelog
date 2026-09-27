@@ -1,6 +1,6 @@
-import type { Session } from "@my-better-t-app/auth";
-import type { Database } from "@my-better-t-app/db";
-import type { ScanRunStage } from "@my-better-t-app/db/scan-stage";
+import type { Session } from "@pricelog/auth";
+import type { Database } from "@pricelog/db";
+import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
 import type { Comparison, WeeklyPageHistory } from "./pricing-history";
 

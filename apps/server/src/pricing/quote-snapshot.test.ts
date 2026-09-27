@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveProfile } from "@my-better-t-app/db/pricing-snapshot";
+import { deriveProfile } from "@pricelog/db/pricing-snapshot";
 import {
   cellStatus,
   decideSnapshot,

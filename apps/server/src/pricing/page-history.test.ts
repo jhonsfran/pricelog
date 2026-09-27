@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { PageStore } from "./page-store";
 import { publishPageProjection } from "./publication";
-import { COMPARISON_VERSION } from "@my-better-t-app/api/pricing-history";
+import { COMPARISON_VERSION } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
 
 vi.mock("./publication", () => ({ publishPageProjection: vi.fn() }));

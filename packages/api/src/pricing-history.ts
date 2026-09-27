@@ -1,9 +1,9 @@
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
-import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
+import type { PageChoice, PageSignal } from "@pricelog/db/schema/pages";
 import {
   PRICING_SNAPSHOT_VERSION,
   type PublishedSnapshot,
-} from "@my-better-t-app/db/pricing-snapshot";
+} from "@pricelog/db/pricing-snapshot";
 import { cohortsForPage } from "./benchmark";
 
 export const COMPARISON_VERSION = "snapshot-diff-v1";

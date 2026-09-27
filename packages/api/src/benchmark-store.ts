@@ -1,7 +1,7 @@
-import type { Database } from "@my-better-t-app/db";
-import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@my-better-t-app/db/measurement-policy";
-import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/db/pricing-intelligence";
-import { benchmarkSnapshot, page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import type { Database } from "@pricelog/db";
+import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@pricelog/db/measurement-policy";
+import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@pricelog/db/pricing-intelligence";
+import { benchmarkSnapshot, page, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { and, asc, count, eq, gt, gte, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 
 import { buildBenchmarkSnapshots, type BenchmarkPage, type BenchmarkSnapshot } from "./benchmark";

@@ -6,8 +6,8 @@ import {
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
   PRICING_PAGE_SCOPE,
   PRICING_RUBRIC_FINGERPRINT,
-} from "@my-better-t-app/db/pricing-intelligence";
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
+} from "@pricelog/db/pricing-intelligence";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
 
 type ChoiceQuestion = {
   type: "choice";

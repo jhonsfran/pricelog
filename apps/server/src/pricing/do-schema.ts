@@ -1,6 +1,6 @@
-import type { Comparison } from "@my-better-t-app/api/pricing-history";
+import type { Comparison } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
-import { SCAN_RUN_STAGES } from "@my-better-t-app/db/scan-stage";
+import { SCAN_RUN_STAGES } from "@pricelog/db/scan-stage";
 import type { RunEvent } from "./types";
 import { sql } from "drizzle-orm";
 import {

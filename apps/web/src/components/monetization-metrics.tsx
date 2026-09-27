@@ -1,4 +1,4 @@
-import { monetizationMetrics, type PublishedSnapshot } from "@my-better-t-app/api/pricing-snapshot";
+import { monetizationMetrics, type PublishedSnapshot } from "@pricelog/api/pricing-snapshot";
 import { DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 
 const money = (amount: number, currency: string) =>

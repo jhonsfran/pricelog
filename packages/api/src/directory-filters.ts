@@ -1,4 +1,4 @@
-import { pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import { pagePublicSummary } from "@pricelog/db/schema/pages";
 import { or, sql } from "drizzle-orm";
 
 import { AI_APPLICATIONS_COHORT, ALL_COHORT } from "./benchmark";

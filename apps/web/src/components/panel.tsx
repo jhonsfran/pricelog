@@ -4,8 +4,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@my-better-t-app/ui/components/card";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+} from "@pricelog/ui/components/card";
+import { cn } from "@pricelog/ui/lib/utils";
 import { Children, type ComponentProps, type ReactNode } from "react";
 
 /**

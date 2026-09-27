@@ -1,7 +1,7 @@
-import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { SCAN_STAGE_DETAILS } from "@my-better-t-app/api/scan-stage";
-import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
+import { SCAN_STAGE_DETAILS } from "@pricelog/api/scan-stage";
+import { Button, buttonVariants } from "@pricelog/ui/components/button";
+import { cn } from "@pricelog/ui/lib/utils";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, ExternalLink, Play } from "lucide-react";

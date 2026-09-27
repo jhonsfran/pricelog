@@ -1,5 +1,5 @@
-import { AI_APPLICATIONS_COHORT, cohortLabel } from "@my-better-t-app/api/benchmark";
-import { AI_APPLICATION_CATEGORY_OPTIONS } from "@my-better-t-app/api/pricing-intelligence";
+import { AI_APPLICATIONS_COHORT, cohortLabel } from "@pricelog/api/benchmark";
+import { AI_APPLICATION_CATEGORY_OPTIONS } from "@pricelog/api/pricing-intelligence";
 
 export const CATEGORY_OPTIONS = [
   { value: AI_APPLICATIONS_COHORT, label: "All AI applications" },

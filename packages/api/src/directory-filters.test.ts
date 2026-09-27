@@ -1,5 +1,5 @@
 import { createClient } from "@libsql/client";
-import { page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import { page, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { describe, expect, it } from "vitest";

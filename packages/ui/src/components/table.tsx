@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+import { cn } from "@pricelog/ui/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (

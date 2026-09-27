@@ -1,10 +1,10 @@
-import { monthlyEquivalent, PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
+import { monthlyEquivalent, PRICE_SAMPLE_MINIMUM } from "@pricelog/api/numeric-prices";
 import { serverUrl } from "@/lib/url";
 import type {
   NumericOffer,
   NumericPrices,
   NumericPriceBenchmark,
-} from "@my-better-t-app/api/numeric-prices";
+} from "@pricelog/api/numeric-prices";
 import { Link } from "@tanstack/react-router";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { Disclosure, Evidence, Notice, SectionHeading, StatRow } from "./page";

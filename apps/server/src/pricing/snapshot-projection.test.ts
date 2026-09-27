@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { numericPricesFromSnapshot } from "./snapshot-projection";
 
 const price = (price_raw: string, amount: number, billing: "monthly" | "annual" | "unknown") => ({

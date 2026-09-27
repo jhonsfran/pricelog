@@ -4,8 +4,8 @@ import type {
   PageChoice,
   PageSignal,
   NumericPriceBenchmark,
-} from "@my-better-t-app/db/schema/pages";
-import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
+} from "@pricelog/db/schema/pages";
+import type { NumericPrices } from "@pricelog/db/numeric-prices";
 import { buildNumericBenchmark } from "./numeric-prices";
 
 import {

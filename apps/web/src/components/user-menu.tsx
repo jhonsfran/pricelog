@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
+import { Button, buttonVariants } from "@pricelog/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,9 +7,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@my-better-t-app/ui/components/dropdown-menu";
-import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+} from "@pricelog/ui/components/dropdown-menu";
+import { Skeleton } from "@pricelog/ui/components/skeleton";
+import { cn } from "@pricelog/ui/lib/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { UserRound } from "lucide-react";
 

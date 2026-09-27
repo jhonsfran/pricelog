@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { URL } from "node:url";
-import { createDb } from "@my-better-t-app/db";
+import { createDb } from "@pricelog/db";
 import { describe, expect, it } from "vitest";
 import { publishOwnerProjection, publishPageProjection, type PagePublication } from "./publication";
 

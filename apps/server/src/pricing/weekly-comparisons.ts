@@ -1,7 +1,7 @@
-import type { Database } from "@my-better-t-app/db";
-import type { PageMonitorService } from "@my-better-t-app/api/context";
-import { COMPARISON_VERSION, pairWeeklyObservations } from "@my-better-t-app/api/pricing-history";
-import { activePageBatches } from "@my-better-t-app/api/pricing-history-store";
+import type { Database } from "@pricelog/db";
+import type { PageMonitorService } from "@pricelog/api/context";
+import { COMPARISON_VERSION, pairWeeklyObservations } from "@pricelog/api/pricing-history";
+import { activePageBatches } from "@pricelog/api/pricing-history-store";
 import { confirmChanges, diffSnapshots } from "./snapshot-changes";
 
 export async function runWeeklyComparisons(

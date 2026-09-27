@@ -1,5 +1,5 @@
 {
-  "extends": "@my-better-t-app/config/tsconfig.base.json",
+  "extends": "@pricelog/config/tsconfig.base.json",
   "references": [{ "path": "../../packages/api" }],
   "compilerOptions": {
     "noEmit": true,

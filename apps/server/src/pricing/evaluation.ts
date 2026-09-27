@@ -5,14 +5,14 @@ import {
   PRICING_SIGNAL_CATALOG,
   TAG_PROBABILITY_THRESHOLD,
   type PricingSignalKey,
-} from "@my-better-t-app/db/pricing-intelligence";
-import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
-import type { NumericPrices } from "@my-better-t-app/db/numeric-prices";
+} from "@pricelog/db/pricing-intelligence";
+import type { PageChoice, PageSignal } from "@pricelog/db/schema/pages";
+import type { NumericPrices } from "@pricelog/db/numeric-prices";
 import {
   deriveProfile,
   type PublishedSnapshot,
   type SnapshotReview,
-} from "@my-better-t-app/db/pricing-snapshot";
+} from "@pricelog/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
 

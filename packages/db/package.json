@@ -1,5 +1,5 @@
 {
-  "name": "@my-better-t-app/db",
+  "name": "@pricelog/db",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -19,7 +19,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@my-better-t-app/config": "workspace:*",
+    "@pricelog/config": "workspace:*",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "catalog:",
     "varlock": "catalog:",

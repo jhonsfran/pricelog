@@ -1,6 +1,6 @@
-import { Badge } from "@my-better-t-app/ui/components/badge";
-import { Spinner } from "@my-better-t-app/ui/components/spinner";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+import { Badge } from "@pricelog/ui/components/badge";
+import { Spinner } from "@pricelog/ui/components/spinner";
+import { cn } from "@pricelog/ui/lib/utils";
 import { Link, createLink } from "@tanstack/react-router";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";

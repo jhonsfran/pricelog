@@ -1,5 +1,5 @@
-import type { VerifiedPricingChange } from "@my-better-t-app/api/pricing-history";
-import type { PublishedPrice, PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import type { VerifiedPricingChange } from "@pricelog/api/pricing-history";
+import type { PublishedPrice, PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 
 const KIND_LABELS: Record<string, string> = {
   flat: "price",

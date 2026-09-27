@@ -22,18 +22,18 @@ import {
   parseDirectoryFilter,
 } from "@/lib/directory-filter";
 import { orpc } from "@/utils/orpc";
-import { AI_APPLICATIONS_COHORT } from "@my-better-t-app/api/benchmark";
-import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { Button, buttonVariants } from "@my-better-t-app/ui/components/button";
-import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
+import { AI_APPLICATIONS_COHORT } from "@pricelog/api/benchmark";
+import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
+import { Button, buttonVariants } from "@pricelog/ui/components/button";
+import { Field, FieldLabel } from "@pricelog/ui/components/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@my-better-t-app/ui/components/input-group";
-import { Kbd } from "@my-better-t-app/ui/components/kbd";
-import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+} from "@pricelog/ui/components/input-group";
+import { Kbd } from "@pricelog/ui/components/kbd";
+import { Skeleton } from "@pricelog/ui/components/skeleton";
+import { cn } from "@pricelog/ui/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Search, X } from "lucide-react";

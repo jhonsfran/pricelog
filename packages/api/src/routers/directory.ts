@@ -1,4 +1,4 @@
-import { page, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import { page, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { z } from "zod";
 
@@ -214,7 +214,7 @@ export function directoryPopulationCondition(input?: {
 }
 
 export async function readExamples(
-  db: import("@my-better-t-app/db").Database,
+  db: import("@pricelog/db").Database,
   cohort: string,
   numericOnly = false,
   now = new Date(),

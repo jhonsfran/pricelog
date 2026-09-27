@@ -1,5 +1,5 @@
-import type { PageMonitorService } from "@my-better-t-app/api/context";
-import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
+import type { PageMonitorService } from "@pricelog/api/context";
+import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
 
 import { ENV } from "../env.server";
 import { normalizePricingUrl, resolveDnsAddresses } from "./url";

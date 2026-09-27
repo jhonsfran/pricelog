@@ -28,7 +28,7 @@ Add pure decision coverage that proves an existing page owned by the caller must
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test -- pages.test.ts
+pnpm --filter @pricelog/api test -- pages.test.ts
 pnpm --filter server test -- page-store.test.ts
 ```
 
@@ -139,7 +139,7 @@ Use `useInfiniteQuery` with oRPC `infiniteOptions` for the public directory. Fla
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test -- pages.test.ts
+pnpm --filter @pricelog/api test -- pages.test.ts
 pnpm --filter server test -- page-store.test.ts
 pnpm --filter web check-types
 ```

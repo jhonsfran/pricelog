@@ -5,8 +5,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@my-better-t-app/ui/components/table";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+} from "@pricelog/ui/components/table";
+import { cn } from "@pricelog/ui/lib/utils";
 import type { ComponentProps, ReactNode } from "react";
 
 /**

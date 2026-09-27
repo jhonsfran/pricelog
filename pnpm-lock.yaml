@@ -239,7 +239,7 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260918.1
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:packages/config
       '@types/node':
@@ -275,13 +275,13 @@ importers:
       '@cloudflare/puppeteer':
         specifier: ^1.4.0
         version: 1.4.0
-      '@my-better-t-app/api':
+      '@pricelog/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@my-better-t-app/auth':
+      '@pricelog/auth':
         specifier: workspace:*
         version: link:../../packages/auth
-      '@my-better-t-app/db':
+      '@pricelog/db':
         specifier: workspace:*
         version: link:../../packages/db
       '@orpc/openapi':
@@ -318,10 +318,10 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260918.1
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@my-better-t-app/infra':
+      '@pricelog/infra':
         specifier: workspace:*
         version: link:../../packages/infra
       '@types/node':
@@ -348,10 +348,10 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@my-better-t-app/api':
+      '@pricelog/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@my-better-t-app/ui':
+      '@pricelog/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@orpc/client':
@@ -415,7 +415,7 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@tanstack/react-query-devtools':
@@ -454,10 +454,10 @@ importers:
 
   packages/api:
     dependencies:
-      '@my-better-t-app/auth':
+      '@pricelog/auth':
         specifier: workspace:*
         version: link:../auth
-      '@my-better-t-app/db':
+      '@pricelog/db':
         specifier: workspace:*
         version: link:../db
       '@orpc/client':
@@ -482,7 +482,7 @@ importers:
       '@libsql/client':
         specifier: 0.18.0
         version: 0.18.0
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -497,7 +497,7 @@ importers:
       '@better-auth/drizzle-adapter':
         specifier: 1.7.5
         version: 1.7.5(@better-auth/core@1.7.5(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.29.6)(nanostores@1.5.3))(@better-auth/utils@0.4.2)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260918.1)(@effect/sql-d1@4.0.0-rc.116(effect@4.0.0-rc.115))(@effect/sql-sqlite-do@4.0.0-rc.116(effect@4.0.0-rc.115))(@electric-sql/pglite@0.3.15)(@libsql/client@0.18.0)(effect@4.0.0-rc.115)(valibot@1.2.0(typescript@6.0.3))(zod@4.6.5))
-      '@my-better-t-app/db':
+      '@pricelog/db':
         specifier: workspace:*
         version: link:../db
       better-auth:
@@ -510,7 +510,7 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../config
       typescript:
@@ -534,7 +534,7 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../config
       drizzle-kit:
@@ -562,7 +562,7 @@ importers:
       '@effect/platform-node':
         specifier: 4.0.0-rc.115
         version: 4.0.0-rc.115(effect@4.0.0-rc.115)(redis@6.2.1)
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../config
       alchemy:
@@ -617,7 +617,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
     devDependencies:
-      '@my-better-t-app/config':
+      '@pricelog/config':
         specifier: workspace:*
         version: link:../config
       '@tailwindcss/postcss':

@@ -2,7 +2,7 @@ import type {
   PublishedPrice,
   PublishedSnapshot,
   SnapshotReview,
-} from "@my-better-t-app/api/pricing-snapshot";
+} from "@pricelog/api/pricing-snapshot";
 import { formatToken } from "@/lib/format";
 import { DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { MonetizationMetrics } from "./monetization-metrics";

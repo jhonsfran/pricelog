@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NumericOffer, NumericPrices } from "@my-better-t-app/db/numeric-prices";
+import type { NumericOffer, NumericPrices } from "@pricelog/db/numeric-prices";
 import { buildNumericBenchmark, monthlyEquivalent } from "./numeric-prices";
 
 const offer = (amount: string, patch: Partial<NumericOffer> = {}): NumericOffer => ({

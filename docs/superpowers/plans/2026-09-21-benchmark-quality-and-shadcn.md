@@ -126,8 +126,8 @@ Call `log.error` in the scheduled job catch block, preserve the original `Error`
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/db test
-pnpm --filter @my-better-t-app/api test
+pnpm --filter @pricelog/db test
+pnpm --filter @pricelog/api test
 pnpm --filter server test
 pnpm --filter server check-types
 ```
@@ -170,7 +170,7 @@ expect(buildPublicEvaluation([choiceAnswer({ confidence: 0.75 })]).choices).toHa
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test
+pnpm --filter @pricelog/api test
 pnpm --filter server test
 pnpm --filter web check-types
 ```
@@ -210,7 +210,7 @@ Run `pnpm dlx shadcn@latest add field toggle-group`. Read both generated files a
 
 - [ ] **Step 4: Verify the UI package**
 
-Run `pnpm --filter @my-better-t-app/ui check-types`.
+Run `pnpm --filter @pricelog/ui check-types`.
 
 Expected: type check passes.
 

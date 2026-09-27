@@ -1,5 +1,5 @@
-import type { Database } from "@my-better-t-app/db";
-import { page, pageOwnerState, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import type { Database } from "@pricelog/db";
+import { page, pageOwnerState, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { PublicEvaluation } from "./evaluation";

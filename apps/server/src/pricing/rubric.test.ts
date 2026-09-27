@@ -7,11 +7,11 @@ import {
   PRICING_PAGE_SCOPE,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_RUBRIC_FINGERPRINT,
-} from "@my-better-t-app/db/pricing-intelligence";
+} from "@pricelog/db/pricing-intelligence";
 import {
   PRICING_PIPELINE_ID,
   SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
-} from "@my-better-t-app/db/pricing-snapshot";
+} from "@pricelog/db/pricing-snapshot";
 import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "./rubric";
 
 describe("pricing rubric", () => {

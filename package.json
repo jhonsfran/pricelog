@@ -1,5 +1,5 @@
 {
-  "name": "my-better-t-app",
+  "name": "pricelog",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -13,10 +13,10 @@
     "check-types": "turbo run check-types",
     "dev:web": "pnpm --filter web dev:bare",
     "dev:server": "turbo run dev:bare -F hono --",
-    "db:generate": "turbo run db:generate -F @my-better-t-app/db --",
+    "db:generate": "turbo run db:generate -F @pricelog/db --",
     "db:generate:do": "pnpm --filter server db:generate:do",
-    "deploy": "turbo run deploy -F @my-better-t-app/infra --",
-    "destroy": "turbo run destroy -F @my-better-t-app/infra --",
+    "deploy": "turbo run deploy -F @pricelog/infra --",
+    "destroy": "turbo run destroy -F @pricelog/infra --",
     "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
     "check": "oxlint && oxfmt --write",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
-    "@my-better-t-app/config": "workspace:*",
+    "@pricelog/config": "workspace:*",
     "@types/node": "catalog:",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",

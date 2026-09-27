@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { createDb } from "@my-better-t-app/db";
+import { createDb } from "@pricelog/db";
 import { ScanWorkflow } from "./scan-workflow";
 import { PRICING_INTELLIGENCE_RUBRIC } from "./rubric";
 import { EXTRACTION_MODELS } from "./quote-snapshot";
 
 const [QWEN, LLAMA] = EXTRACTION_MODELS;
-import { PRICING_PIPELINE_ID } from "@my-better-t-app/db/pricing-snapshot";
+import { PRICING_PIPELINE_ID } from "@pricelog/db/pricing-snapshot";
 import type { PersistedQuestion } from "./types";
 
 vi.mock("cloudflare:workers", () => ({ WorkflowEntrypoint: class {} }));
@@ -14,7 +14,7 @@ const captureThroughBotCheck = vi.fn();
 vi.mock("./capture-session", () => ({
   captureThroughBotCheck: (...args: unknown[]) => captureThroughBotCheck(...args),
 }));
-vi.mock("@my-better-t-app/db", () => ({ createDb: vi.fn() }));
+vi.mock("@pricelog/db", () => ({ createDb: vi.fn() }));
 vi.mock("./url", () => ({
   normalizePricingUrl: async () => ({
     canonicalUrl: "https://example.com/pricing",

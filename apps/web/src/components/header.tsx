@@ -1,11 +1,11 @@
-import { Button } from "@my-better-t-app/ui/components/button";
+import { Button } from "@pricelog/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@my-better-t-app/ui/components/dropdown-menu";
+} from "@pricelog/ui/components/dropdown-menu";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { parseCategorySearch } from "@/lib/comparison-search";

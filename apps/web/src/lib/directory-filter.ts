@@ -1,9 +1,9 @@
-import { ALL_COHORT, cohortLabel } from "@my-better-t-app/api/benchmark";
+import { ALL_COHORT, cohortLabel } from "@pricelog/api/benchmark";
 import { formatToken } from "./format";
 import {
   getPricingChoiceLabel,
   getPricingSignalMetadata,
-} from "@my-better-t-app/api/pricing-intelligence";
+} from "@pricelog/api/pricing-intelligence";
 
 /**
  * The shape a practices chart hands to the directory. Field names match the

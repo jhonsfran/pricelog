@@ -4,10 +4,10 @@ import {
   PRICING_CHOICE_CATALOG,
   PRICING_CHOICE_GROUPS,
   PRICING_SIGNAL_CATALOG,
-} from "@my-better-t-app/db/pricing-intelligence";
-import type { BenchmarkSignalShare } from "@my-better-t-app/db/schema/pages";
+} from "@pricelog/db/pricing-intelligence";
+import type { BenchmarkSignalShare } from "@pricelog/db/schema/pages";
 
-export * from "@my-better-t-app/db/pricing-intelligence";
+export * from "@pricelog/db/pricing-intelligence";
 
 export function getPricingChoiceLabel(key: string): string {
   return isPricingChoiceKey(key) ? PRICING_CHOICE_CATALOG[key].label : formatPricingKey(key);

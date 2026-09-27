@@ -12,11 +12,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@my-better-t-app/ui/components",
-    "utils": "@my-better-t-app/ui/lib/utils",
-    "hooks": "@my-better-t-app/ui/hooks",
-    "lib": "@my-better-t-app/ui/lib",
-    "ui": "@my-better-t-app/ui/components"
+    "components": "@pricelog/ui/components",
+    "utils": "@pricelog/ui/lib/utils",
+    "hooks": "@pricelog/ui/hooks",
+    "lib": "@pricelog/ui/lib",
+    "ui": "@pricelog/ui/components"
   },
   "menuColor": "default",
   "menuAccent": "subtle",

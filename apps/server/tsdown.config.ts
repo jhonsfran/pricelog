@@ -9,7 +9,7 @@ export default defineConfig({
     ".sql": "text",
   },
   deps: {
-    alwaysBundle: [/@my-better-t-app\/.*/],
+    alwaysBundle: [/@pricelog\/.*/],
     neverBundle: ["cloudflare:workers"],
   },
 });

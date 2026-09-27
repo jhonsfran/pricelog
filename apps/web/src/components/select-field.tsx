@@ -1,11 +1,11 @@
-import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
+import { Field, FieldLabel } from "@pricelog/ui/components/field";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@my-better-t-app/ui/components/select";
+} from "@pricelog/ui/components/select";
 
 export function SelectField({
   id,

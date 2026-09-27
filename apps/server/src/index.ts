@@ -1,6 +1,6 @@
-import { storeBenchmarks } from "@my-better-t-app/api/benchmark-store";
-import { appRouter } from "@my-better-t-app/api/routers/index";
-import { parseAllowedOrigins } from "@my-better-t-app/auth";
+import { storeBenchmarks } from "@pricelog/api/benchmark-store";
+import { appRouter } from "@pricelog/api/routers/index";
+import { parseAllowedOrigins } from "@pricelog/auth";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";

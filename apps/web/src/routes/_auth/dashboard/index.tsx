@@ -1,11 +1,11 @@
-import { Field, FieldLabel } from "@my-better-t-app/ui/components/field";
+import { Field, FieldLabel } from "@pricelog/ui/components/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@my-better-t-app/ui/components/input-group";
-import { Skeleton } from "@my-better-t-app/ui/components/skeleton";
+} from "@pricelog/ui/components/input-group";
+import { Skeleton } from "@pricelog/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";

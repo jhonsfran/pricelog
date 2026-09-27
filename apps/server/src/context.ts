@@ -1,5 +1,5 @@
-import type { Context as ApiContext } from "@my-better-t-app/api/context";
-import { parseOperatorEmails } from "@my-better-t-app/api/operators";
+import type { Context as ApiContext } from "@pricelog/api/context";
+import { parseOperatorEmails } from "@pricelog/api/operators";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";

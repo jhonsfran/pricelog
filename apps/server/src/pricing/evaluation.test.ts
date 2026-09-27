@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CHOICE_CONFIDENCE_THRESHOLD } from "@my-better-t-app/db/pricing-intelligence";
-import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
+import { CHOICE_CONFIDENCE_THRESHOLD } from "@pricelog/db/pricing-intelligence";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
 import { buildPublicEvaluation } from "./evaluation";

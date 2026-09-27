@@ -10,8 +10,8 @@ import {
   type PublishedPrice,
   type PublishedSnapshot,
   type SnapshotReview,
-} from "@my-better-t-app/db/pricing-snapshot";
-import { NOT_ESTABLISHED_PROBABILITY_THRESHOLD } from "@my-better-t-app/db/pricing-intelligence";
+} from "@pricelog/db/pricing-snapshot";
+import { NOT_ESTABLISHED_PROBABILITY_THRESHOLD } from "@pricelog/db/pricing-intelligence";
 import { choiceQuestion, evidenceQuestion } from "./jev-decisions";
 import type { JevAnswer, PersistedQuestion } from "./types";
 

@@ -1,1 +1,1 @@
-export * from "@my-better-t-app/db/pricing-snapshot";
+export * from "@pricelog/db/pricing-snapshot";

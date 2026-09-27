@@ -1,6 +1,6 @@
-import type { FactUnit, NumericFact, PricingFacts } from "@my-better-t-app/api/pricing-facts";
+import type { FactUnit, NumericFact, PricingFacts } from "@pricelog/api/pricing-facts";
 import { serverUrl } from "@/lib/url";
-import { getPricingChoiceLabel } from "@my-better-t-app/api/pricing-intelligence";
+import { getPricingChoiceLabel } from "@pricelog/api/pricing-intelligence";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { formatToken } from "@/lib/format";
 import { answerTone } from "./intelligence-profile";

@@ -6,8 +6,8 @@ import {
   groupPricingChoices,
   pricingTagPriority,
   TAG_PROBABILITY_THRESHOLD,
-} from "@my-better-t-app/api/pricing-intelligence";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+} from "@pricelog/api/pricing-intelligence";
+import { cn } from "@pricelog/ui/lib/utils";
 import { formatToken } from "@/lib/format";
 import type { ReactNode } from "react";
 import { Definitions, Disclosure, SectionHeading, Tag } from "./page";
