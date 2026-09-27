@@ -19,23 +19,16 @@ vi.mock("./url", () => ({
   resolveDnsAddresses: vi.fn(),
 }));
 
-const OFFERS = {
-  offers: [{ name: "Pro", prices: [{ text: "$20 per month", state: "default" }], limits: [] }],
-};
-const RATES = {
-  rates: [{ name: "Extra emails", price: "$0.90", per: "/ 1,000", offer: null, state: "default" }],
+const PRICES = {
+  prices: [
+    { plan: "Pro", text: "$20 per month", state: "default" },
+    { plan: null, text: "Extra emails | $0.90 | / 1,000", state: "default" },
+  ],
 };
 const CHOICES: Record<string, string> = {
-  buying_motion: "self_serve",
-  price_disclosure: "full",
-  primary_customer_segment: "small_business",
-  primary_market: "developer_tools",
   product_category: "coding_assistants",
-  price_0_role: "base_price",
-  price_0_billing: "monthly",
-  price_0_period: "month",
-  price_0_unit: "flat",
-  rate_0_role: "overage_rate",
+  price_0: "flat_monthly",
+  price_1: "usage",
 };
 const STATE_HTML = `<h1>Pricing</h1><script type="application/json" id="pricelog-state">${JSON.stringify(
   {
@@ -136,10 +129,8 @@ function setup(
         if (failure === "extraction" || (failure === "primary" && model === QWEN))
           return { response: "{truncated" };
         const properties = input.response_format!.json_schema.properties;
-        if ("offers" in properties)
-          return { response: OFFERS, usage: { prompt_tokens: 100, completion_tokens: 20 } };
-        if ("rates" in properties)
-          return { response: RATES, usage: { prompt_tokens: 100, completion_tokens: 10 } };
+        if ("prices" in properties)
+          return { response: PRICES, usage: { prompt_tokens: 100, completion_tokens: 20 } };
         return { response: { features: [] }, usage: { prompt_tokens: 100, completion_tokens: 5 } };
       }
       if (failure === "evaluation") throw new Error("Evaluation failed");
@@ -150,11 +141,11 @@ function setup(
             Object.entries(input.questions!).map(([key, question]) => [
               key,
               question.type === "noul"
-                ? { noul: key === "has_free_plan" ? 0.95 : 0.05 }
+                ? { noul: /^feature_\d+$/.test(key) ? 0.95 : 0.05 }
                 : {
-                    choice: CHOICES[key],
+                    choice: CHOICES[key] ?? "flat_monthly",
                     confidence: 0.9,
-                    probabilities: { [CHOICES[key]!]: 0.9 },
+                    probabilities: { [CHOICES[key] ?? "flat_monthly"]: 0.9 },
                   },
             ]),
           ),
@@ -235,8 +226,14 @@ describe("scan publication boundaries", () => {
     expect(scan.archivedMarkdown()).toBe(
       "## state: default\n# Pricing\n## Pro\n$20 per month\nExtra emails | $0.90 | / 1,000\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month",
     );
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([LLAMA, QWEN, QWEN, "typesafe/jev"]);
-    expect(scan.ai.mock.calls[3]?.[1].state).toBe(scan.archivedMarkdown());
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([QWEN, QWEN, "typesafe/jev"]);
+    expect(scan.ai.mock.calls[2]?.[1].state).toBe(scan.archivedMarkdown());
+    expect(Object.keys(scan.ai.mock.calls[2]?.[1].questions ?? {})).toEqual([
+      "product_category",
+      "has_free_trial",
+      "price_0",
+      "price_1",
+    ]);
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
@@ -246,42 +243,43 @@ describe("scan publication boundaries", () => {
           version: "numeric-prices-v1",
           model: "jev-1.13.0",
         }),
-        draft: JSON.stringify({ offers: OFFERS, features: { features: [] }, rates: RATES }),
+        draft: JSON.stringify({ prices: PRICES, features: { features: [] } }),
+        signals: expect.arrayContaining([
+          { key: "has_free_trial", probability: 0.05 },
+          { key: "charges_fixed_subscription", probability: 1 },
+          { key: "charges_direct_usage", probability: 1 },
+        ]),
         snapshot: {
-          version: "pricing-snapshot-v3",
+          version: "pricing-snapshot-v4",
           status: "collected",
           billing_view: "monthly",
           currency_visible: "USD",
-          flags: expect.objectContaining({ has_free_plan: true, has_free_trial: false }),
           offers: [
             {
               name: "Pro",
               prices: [
                 {
-                  role: "base_price",
+                  kind: "flat",
                   price_raw: "$20 per month",
                   price_numeric: 20,
                   period: "month",
-                  unit: "flat",
                   billing: "monthly",
                   state: "default",
                 },
               ],
             },
           ],
-          features: [],
-          rates: [
+          shared_prices: [
             {
-              name: "Extra emails",
-              price_raw: "$0.90",
+              kind: "usage",
+              price_raw: "Extra emails | $0.90 | / 1,000",
               price_numeric: 0.9,
-              currency: "USD",
-              per: "/ 1,000",
-              offer: null,
-              role: "overage_rate",
+              period: "usage",
+              billing: "usage",
               state: "default",
             },
           ],
+          features: [],
         },
         review: [
           { path: "currency_visible", reason: "mismatch", value: "USD shown; EUR requested" },
@@ -300,6 +298,25 @@ describe("scan publication boundaries", () => {
     );
   });
 
+  it("adds the prices the page declares as schema.org data to the archived text", async () => {
+    const declared = `<script type="application/ld+json">${JSON.stringify({
+      "@type": "Offer",
+      name: "Pro",
+      price: "20",
+      priceCurrency: "USD",
+    })}</script>`;
+    const scan = setup(
+      undefined,
+      "# Pricing\nPro: $20 per month",
+      undefined,
+      STATE_HTML + declared,
+    );
+    await scan.run();
+    expect(scan.archivedMarkdown()).toBe(
+      "## state: default\n# Pricing\n## Pro\n$20 per month\nExtra emails | $0.90 | / 1,000\n\n## state: billing=Yearly\n(within: ## Pro)\n$16 per month\n\n## state: structured data\nPro: 20 USD",
+    );
+  });
+
   it("reuses the previous evaluation without model calls when the content is unchanged", async () => {
     const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, STATE_HTML);
     const previous = {
@@ -311,15 +328,14 @@ describe("scan publication boundaries", () => {
         signals: [],
         tags: [],
         snapshot: {
-          version: "pricing-snapshot-v3",
+          version: "pricing-snapshot-v4",
           status: "collected",
-          flags: {},
           offers: [{ name: "Pro", prices: [] }],
           features: [],
         },
         review: [],
       },
-      answers: [{ key: "has_free_plan", type: "noul", noul: 0.95 }],
+      answers: [{ key: "has_free_trial", type: "noul", noul: 0.95 }],
     };
     scan.store.findReusableEvaluation.mockResolvedValue(previous);
     await scan.run();
@@ -360,11 +376,10 @@ describe("scan publication boundaries", () => {
       "run",
       expect.objectContaining({ stage: "archive", kind: "warning" }),
     );
-    expect(scan.ai.mock.calls[0]?.[1].messages?.[1]?.content).toBe("# Pricing\nPro: $20 per month");
-    expect(scan.ai.mock.calls[1]?.[1].messages?.[1]?.content).toBe(
+    expect(scan.ai.mock.calls[0]?.[1].messages?.[1]?.content).toBe(
       "# Pricing\nPro: $20 per month\n\n/no_think",
     );
-    expect(scan.ai.mock.calls[3]?.[1].state).toBe("# Pricing\nPro: $20 per month");
+    expect(scan.ai.mock.calls[2]?.[1].state).toBe("# Pricing\nPro: $20 per month");
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
@@ -393,11 +408,10 @@ describe("scan publication boundaries", () => {
     expect(scan.archivedMarkdown()).toContain("### Business\n\n$90\n\nper month");
   });
 
-  it("asks Llama for a table part when Qwen returns broken JSON", async () => {
+  it("asks Llama for each part when Qwen returns broken JSON", async () => {
     const scan = setup("primary");
     await scan.run();
     expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      LLAMA,
       QWEN,
       QWEN,
       LLAMA,
@@ -439,14 +453,7 @@ describe("scan publication boundaries", () => {
   it("publishes an unavailable snapshot with a review item when extraction fails", async () => {
     const scan = setup("extraction");
     await scan.run();
-    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([
-      LLAMA,
-      QWEN,
-      QWEN,
-      QWEN,
-      LLAMA,
-      LLAMA,
-    ]);
+    expect(scan.ai.mock.calls.map(([model]) => model)).toEqual([QWEN, QWEN, LLAMA, LLAMA]);
     expect(scan.store.persistEvaluation).toHaveBeenCalledWith(
       "run",
       expect.objectContaining({
@@ -469,7 +476,7 @@ describe("scan publication boundaries", () => {
   it("does not persist or publish answers when Jev fails", async () => {
     const scan = setup("evaluation");
     await expect(scan.run()).rejects.toThrow("Evaluation failed");
-    expect(scan.ai).toHaveBeenCalledTimes(4);
+    expect(scan.ai).toHaveBeenCalledTimes(3);
     expect(scan.store.persistAnswers).not.toHaveBeenCalled();
     expect(scan.store.persistEvaluation).not.toHaveBeenCalled();
     expect(scan.store.publishPending).not.toHaveBeenCalled();

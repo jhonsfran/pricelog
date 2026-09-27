@@ -10,9 +10,8 @@ import {
 
 const now = new Date("2026-09-21T12:00:00Z");
 const SNAPSHOT = {
-  version: "pricing-snapshot-v3" as const,
+  version: "pricing-snapshot-v4" as const,
   status: "collected" as const,
-  flags: {},
   offers: [],
   features: [],
 };
@@ -32,7 +31,7 @@ function observation(
     choices: [],
     signals: [],
     snapshot: SNAPSHOT,
-    pipeline: "pricing-snapshot-v3-aaaaaaaaaaaa",
+    pipeline: "pricing-snapshot-v4-aaaaaaaaaaaa",
     name: "Example",
     slug: "example",
     ...overrides,
@@ -94,14 +93,14 @@ describe("weekly pricing history", () => {
     const changedPipeline = {
       ...after,
       rubricId: "v5",
-      pipeline: "pricing-snapshot-v3-bbbbbbbbbbbb",
+      pipeline: "pricing-snapshot-v4-bbbbbbbbbbbb",
     };
     expect(pairWeeklyObservations([before, changedPipeline], "all", now).pairs).toEqual([
       { before, after: changedPipeline },
     ]);
     const older = {
       ...before,
-      snapshot: { ...SNAPSHOT, version: "pricing-snapshot-v2" as unknown as "pricing-snapshot-v3" },
+      snapshot: { ...SNAPSHOT, version: "pricing-snapshot-v3" as unknown as "pricing-snapshot-v4" },
     };
     expect(pairWeeklyObservations([older, after], "all", now)).toMatchObject({
       pairs: [],

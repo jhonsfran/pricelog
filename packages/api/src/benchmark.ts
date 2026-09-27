@@ -43,32 +43,20 @@ export type BenchmarkSnapshot = {
 
 export const ALL_COHORT = "all";
 export const AI_APPLICATIONS_COHORT = "ai_applications";
-export const AI_NATIVE_COHORT = "ai_native";
-
-/** `market_developer_tools` -> `market:developer_tools`. */
-function marketCohort(signalKey: string) {
-  return `market:${signalKey.slice("market_".length)}`;
-}
 
 export function cohortLabel(cohort: string): string {
   if (cohort === AI_APPLICATIONS_COHORT) return "AI applications";
   if (cohort === ALL_COHORT) return "All current pages";
-  if (cohort === AI_NATIVE_COHORT) return "AI-native products";
   if (cohort.startsWith("category:")) {
     return cohort
       .slice("category:".length)
       .replaceAll("_", " ")
       .replace(/^./, (letter) => letter.toUpperCase());
   }
-  if (cohort.startsWith("market:")) {
-    const signalKey = `market_${cohort.slice("market:".length)}`;
-    const signal = PRICING_SIGNAL_CATALOG[signalKey as keyof typeof PRICING_SIGNAL_CATALOG];
-    if (signal) return signal.label;
-  }
   return cohort;
 }
 
-/** Each page has one product category and can have multiple discovery tags. */
+/** Each page belongs to all pages and, when Jev classified it, to its product category. */
 export function cohortsForPage(page: BenchmarkPage): string[] {
   const cohorts = [ALL_COHORT];
   const category = page.choices.find((choice) => choice.key === "product_category")?.choice;
@@ -82,11 +70,6 @@ export function cohortsForPage(page: BenchmarkPage): string[] {
     if (Object.hasOwn(AI_APPLICATION_CATEGORY_OPTIONS, category)) {
       cohorts.push(AI_APPLICATIONS_COHORT);
     }
-  }
-  for (const signal of page.signals) {
-    if (signal.probability < TAG_PROBABILITY_THRESHOLD) continue;
-    if (signal.key === "is_ai_native") cohorts.push(AI_NATIVE_COHORT);
-    else if (signal.key.startsWith("market_")) cohorts.push(marketCohort(signal.key));
   }
   return cohorts;
 }

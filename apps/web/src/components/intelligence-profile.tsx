@@ -1,13 +1,11 @@
 import {
   getPricingChoiceLabel,
   CHARGING_SIGNAL_KEYS,
-  PRACTICE_CHOICE_KEYS,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   getPricingSignalMetadata,
   groupPricingChoices,
   pricingTagPriority,
   TAG_PROBABILITY_THRESHOLD,
-  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
 import { cn } from "@my-better-t-app/ui/lib/utils";
 import { formatToken } from "@/lib/format";
@@ -39,51 +37,36 @@ export function IntelligenceProfile({
   rubricId?: string;
   children?: ReactNode;
 }) {
+  const stated = (key: string) =>
+    (signals.find((signal) => signal.key === key)?.probability ?? 0) >= TAG_PROBABILITY_THRESHOLD;
+  const charges = CHARGING_SIGNAL_KEYS.filter(stated);
   const positiveSignals = signals.flatMap((signal) => {
     const metadata = getPricingSignalMetadata(signal.key);
-    return signal.probability >= TAG_PROBABILITY_THRESHOLD && metadata?.showInProfile
+    return stated(signal.key) && metadata && !charges.some((key) => key === signal.key)
       ? [{ ...signal, label: metadata.label }]
       : [];
   });
-  // Ten flat classifications read as a wall. Grouped, a founder can find the
-  // two that bear on the decision they are making right now.
   const current = rubricId === PRICING_INTELLIGENCE_RUBRIC_ID;
-  const groups = groupPricingChoices(
-    current
-      ? [
-          ...choices,
-          ...PRACTICE_CHOICE_KEYS.filter(
-            (key) => !choices.some((choice) => choice.key === key),
-          ).map((key) => ({ key, choice: "uncertain", confidence: 0 })),
-        ]
-      : choices,
-  );
+  const groups = groupPricingChoices(choices);
 
   return (
     <Panel layered role="region" aria-labelledby="intelligence-title">
       <SectionHeading id="intelligence-title" title="Commercial profile" className="min-h-0" />
-      {current ? (
+      {!current ? (
+        <p className="text-muted-foreground">
+          Historical rubric. These answers do not enter current comparisons.
+        </p>
+      ) : charges.length ? (
         <ChoiceGroup
           label="Charging structure"
-          note="Components can overlap. Not established describes the page, not product absence."
-          items={CHARGING_SIGNAL_KEYS.map((key) => {
-            const probability = signals.find((signal) => signal.key === key)?.probability;
-            const state =
-              probability === undefined
-                ? "uncertain"
-                : probability >= TAG_PROBABILITY_THRESHOLD
-                  ? "stated"
-                  : probability <= NOT_ESTABLISHED_PROBABILITY_THRESHOLD
-                    ? "not_established"
-                    : "uncertain";
-            return { key, label: getPricingSignalMetadata(key)?.label ?? key, choice: state };
-          })}
+          note="Derived from the prices Jev verified. A page can charge in several ways."
+          items={charges.map((key) => ({
+            key,
+            label: getPricingSignalMetadata(key)?.label ?? key,
+            choice: "stated",
+          }))}
         />
-      ) : (
-        <p className="text-muted-foreground">
-          Historical rubric. These answers do not enter current practice comparisons.
-        </p>
-      )}
+      ) : null}
       {groups.map((group) => (
         <ChoiceGroup
           key={group.key}

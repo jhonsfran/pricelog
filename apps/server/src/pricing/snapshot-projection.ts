@@ -20,7 +20,7 @@ export function numericPricesFromSnapshot(
   const offers: NumericOffer[] = [];
   for (const offer of snapshot.status === "collected" ? snapshot.offers : []) {
     for (const price of offer.prices) {
-      if (price.role !== "base_price" && price.role !== "seat_price") continue;
+      if (price.kind !== "flat" && price.kind !== "per_seat") continue;
       if (price.price_numeric === null) continue;
       if (price.period !== "month" && price.period !== "year") continue;
       const billing =
@@ -32,7 +32,7 @@ export function numericPricesFromSnapshot(
       if (!currency || !CURRENCIES.includes(currency)) continue;
       offers.push({
         billing,
-        chargeUnit: price.role === "seat_price" || price.unit === "per_seat" ? "seat" : "flat",
+        chargeUnit: price.kind === "per_seat" ? "seat" : "flat",
         amount: String(price.price_numeric),
         currency,
         amountPeriod: price.period,

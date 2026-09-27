@@ -10,19 +10,17 @@ vi.mock("@my-better-t-app/api/pricing-history-store", () => ({
 }));
 
 const snapshot = (amount: number): PublishedSnapshot => ({
-  version: "pricing-snapshot-v3",
+  version: "pricing-snapshot-v4",
   status: "collected",
-  flags: {},
   offers: [
     {
       name: "Starter",
       prices: [
         {
-          role: "base_price",
+          kind: "flat",
           price_raw: `$${amount}/month`,
           price_numeric: amount,
           period: "month",
-          unit: "flat",
           billing: "monthly",
           state: "default",
         },
@@ -97,7 +95,7 @@ describe("weekly comparisons", () => {
       status: "reviewed",
       changes: [
         {
-          key: "price:Starter:base_price:monthly:month:flat",
+          key: "price:Starter:flat:monthly:month",
           label: "Starter monthly price",
           kind: "commercial",
           beforeLabel: "$80/month",

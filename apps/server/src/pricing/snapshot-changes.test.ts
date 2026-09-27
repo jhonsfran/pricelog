@@ -3,19 +3,17 @@ import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
 import { confirmChanges, diffSnapshots } from "./snapshot-changes";
 
 const base: PublishedSnapshot = {
-  version: "pricing-snapshot-v3",
+  version: "pricing-snapshot-v4",
   status: "collected",
-  flags: { has_free_plan: true },
   offers: [
     {
       name: "Starter",
       prices: [
         {
-          role: "base_price",
+          kind: "flat",
           price_raw: "$80/month",
           price_numeric: 80,
           period: "month",
-          unit: "flat",
           billing: "monthly",
           state: "default",
         },
@@ -36,10 +34,9 @@ describe("snapshot diff", () => {
     expect(diffSnapshots(base, structuredClone(base))).toEqual([]);
   });
 
-  it("reports a price change, an added rate, a removed plan, a feature change and a flag flip", () => {
+  it("reports a price change, an added shared price, a removed plan and a feature change", () => {
     const after: PublishedSnapshot = {
       ...structuredClone(base),
-      flags: { has_free_plan: false },
       offers: [
         {
           name: "Starter",
@@ -52,15 +49,13 @@ describe("snapshot diff", () => {
           availability: [{ offer: "Starter", status: "limited", limit_raw: "10" }],
         },
       ],
-      rates: [
+      shared_prices: [
         {
-          name: "Extra emails",
-          price_raw: "$0.90 / 1,000",
+          kind: "usage",
+          price_raw: "Extra emails: $0.90 / 1,000",
           price_numeric: 0.9,
-          currency: "USD",
-          per: "/ 1,000",
-          offer: null,
-          role: "overage_rate",
+          period: "usage",
+          billing: "usage",
           state: "default",
         },
       ],
@@ -76,15 +71,6 @@ describe("snapshot diff", () => {
         afterEvidence: "10",
       },
       {
-        key: "flag:has_free_plan",
-        label: "has free plan",
-        kind: "disclosure",
-        beforeLabel: "Yes",
-        afterLabel: "No",
-        beforeEvidence: "Stated on the page",
-        afterEvidence: "Not stated",
-      },
-      {
         key: "offer:Legacy",
         label: "Legacy plan",
         kind: "commercial",
@@ -94,7 +80,7 @@ describe("snapshot diff", () => {
         afterEvidence: "",
       },
       {
-        key: "price:Starter:base_price:monthly:month:flat",
+        key: "price:Starter:flat:monthly:month",
         label: "Starter monthly price",
         kind: "commercial",
         beforeLabel: "$80/month",
@@ -103,13 +89,13 @@ describe("snapshot diff", () => {
         afterEvidence: "$90/month",
       },
       {
-        key: "rate:all:Extra emails:/ 1,000",
-        label: "Extra emails rate",
+        key: "rate:all:Extra emails: / 1,000:usage",
+        label: "Extra emails: / 1,000 (all plans)",
         kind: "commercial",
         beforeLabel: "Not listed",
-        afterLabel: "$0.90 / 1,000",
+        afterLabel: "Extra emails: $0.90 / 1,000",
         beforeEvidence: "",
-        afterEvidence: "$0.90 / 1,000",
+        afterEvidence: "Extra emails: $0.90 / 1,000",
       },
     ]);
   });

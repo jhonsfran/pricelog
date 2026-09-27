@@ -1,5 +1,4 @@
 import type { NumericCurrency, NumericUsageUnit } from "./numeric-prices";
-import type { PRACTICE_CHOICE_CATALOG } from "./pricing-intelligence";
 
 export const FACT_EXTRACTION_FINGERPRINT =
   "873c9f890a561b9c41384286b7edb559f87ae10c379fff9dcb66bdcdc609fdc8";
@@ -45,7 +44,7 @@ export type NumericFact = {
 };
 export type OfferPolicy = {
   offer: string;
-  key: keyof typeof PRACTICE_CHOICE_CATALOG;
+  key: string;
   choice: string;
   confidence: number;
   probabilities: Record<string, number>;

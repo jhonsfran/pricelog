@@ -1,4 +1,6 @@
 import {
+  JEV_CHOICE_KEYS,
+  JEV_SIGNAL_KEYS,
   PRICING_CHOICE_CATALOG,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
@@ -9,7 +11,6 @@ import {
   TAG_PROBABILITY_THRESHOLD,
   NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/db/pricing-intelligence";
-import { PROFILE_CHOICE_KEYS, PROFILE_FLAG_KEYS } from "@my-better-t-app/db/pricing-snapshot";
 import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
 
 type ChoiceQuestion = {
@@ -37,16 +38,16 @@ function mapCatalog<Key extends string, Entry, Question>(
 }
 
 /**
- * Every question is derived from the shared catalog rather than restated here,
- * so the text Jev evaluates is byte-identical to the methodology Pricelog
- * publishes. Adding a question to the catalog adds it to the prompt.
+ * Jev answers only the profile questions the catalog marks as Jev's; every other profile field
+ * is derived from the published snapshot. The text Jev evaluates is byte-identical to the
+ * methodology Pricelog publishes.
  */
 const profileCatalog = Object.fromEntries(
-  PROFILE_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
-) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof PROFILE_CHOICE_KEYS)[number]>;
+  JEV_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
+) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof JEV_CHOICE_KEYS)[number]>;
 const flagCatalog = Object.fromEntries(
-  PROFILE_FLAG_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
-) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof PROFILE_FLAG_KEYS)[number]>;
+  JEV_SIGNAL_KEYS.map((key) => [key, PRICING_SIGNAL_CATALOG[key]]),
+) as Pick<typeof PRICING_SIGNAL_CATALOG, (typeof JEV_SIGNAL_KEYS)[number]>;
 const choiceQuestions = mapCatalog(profileCatalog, (entry): ChoiceQuestion => ({
   type: "choice",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,

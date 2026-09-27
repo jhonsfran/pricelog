@@ -1,73 +1,78 @@
 import { describe, expect, it } from "vitest";
-import {
-  CHOICE_CONFIDENCE_THRESHOLD,
-  TAG_PROBABILITY_THRESHOLD,
-} from "@my-better-t-app/db/pricing-intelligence";
+import { CHOICE_CONFIDENCE_THRESHOLD } from "@my-better-t-app/db/pricing-intelligence";
+import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
 import { buildPublicEvaluation } from "./evaluation";
 
-describe("public pricing evaluation", () => {
-  it("accepts confident controlled choices", () => {
-    const result = buildPublicEvaluation([
-      choiceAnswer("buying_motion", "self_serve", 0.82),
-      choiceAnswer("primary_market", "unknown", 0.99),
-      choiceAnswer("primary_customer_segment", "enterprise", 0.7),
-    ]);
+const SNAPSHOT: PublishedSnapshot = {
+  version: "pricing-snapshot-v4",
+  status: "collected",
+  offers: [
+    {
+      name: "Pro",
+      prices: [
+        {
+          kind: "per_seat",
+          price_raw: "$20/user/month",
+          price_numeric: 20,
+          period: "month",
+          billing: "monthly",
+          state: "default",
+        },
+      ],
+    },
+  ],
+  features: [],
+};
 
+describe("public pricing evaluation", () => {
+  it("keeps Jev's category and free trial answers and derives the rest from the snapshot", () => {
+    const result = buildPublicEvaluation(
+      [
+        choiceAnswer("product_category", "coding_assistants", 0.9),
+        { key: "has_free_trial", type: "noul", noul: 0.93 },
+        { key: "is_ai_native", type: "noul", noul: 0.99 },
+      ],
+      SNAPSHOT,
+    );
     expect(result.choices).toEqual([
       {
-        key: "buying_motion",
-        choice: "self_serve",
-        confidence: 0.82,
-        probabilities: { self_serve: 0.82, unknown: 0.18 },
+        key: "product_category",
+        choice: "coding_assistants",
+        confidence: 0.9,
+        probabilities: { coding_assistants: 0.9, unknown: 0.1 },
       },
+      { key: "price_disclosure", choice: "full", confidence: 1, probabilities: { full: 1 } },
     ]);
+    expect(result.signals).toEqual([
+      { key: "has_free_trial", probability: 0.93 },
+      { key: "has_free_plan", probability: 0 },
+      { key: "requires_sales_contact", probability: 0 },
+      { key: "publishes_numeric_limits", probability: 0 },
+      { key: "charges_fixed_subscription", probability: 0 },
+      { key: "charges_per_seat", probability: 1 },
+      { key: "charges_direct_usage", probability: 0 },
+      { key: "charges_credit_wallet", probability: 0 },
+      { key: "charges_ai_addon", probability: 0 },
+    ]);
+    expect(result.tags).toEqual(["per-seat", "free-trial"]);
   });
 
-  it("uses the shared confidence boundary for controlled choices", () => {
-    const result = buildPublicEvaluation([
-      choiceAnswer("buying_motion", "sales_led", CHOICE_CONFIDENCE_THRESHOLD - 0.001),
-      choiceAnswer("primary_market", "finance", CHOICE_CONFIDENCE_THRESHOLD),
-    ]);
-
-    expect(result.choices).toEqual([
-      expect.objectContaining({ key: "primary_market", choice: "finance" }),
-    ]);
+  it("drops a category below the confidence boundary or marked unknown", () => {
+    expect(
+      buildPublicEvaluation([
+        choiceAnswer("product_category", "voice_agents", CHOICE_CONFIDENCE_THRESHOLD - 0.001),
+      ]).choices,
+    ).toEqual([]);
+    expect(
+      buildPublicEvaluation([choiceAnswer("product_category", "unknown", 0.99)]).choices,
+    ).toEqual([]);
   });
 
-  it("retains explicit nondisclosure and raw probabilities but omits ambiguity", () => {
-    const accepted = choiceAnswer("failed_run_policy", "not_disclosed", 0.91);
-    const result = buildPublicEvaluation([
-      accepted,
-      choiceAnswer("customer_spend_cap", "unknown", 0.99),
-      choiceAnswer("purchased_credit_expiry", "expires", 0.5),
-      choiceAnswer("credit_conversion", "invented", 0.99),
-      { key: "charges_credit_wallet", type: "noul", noul: 0.1 },
-    ]);
-    expect(result.choices).toEqual([
-      expect.objectContaining({
-        key: "failed_run_policy",
-        choice: "not_disclosed",
-        probabilities: accepted.type === "choice" ? accepted.probabilities : {},
-      }),
-    ]);
-    expect(result.signals).toEqual([{ key: "charges_credit_wallet", probability: 0.1 }]);
-    expect(result.tags).toEqual([]);
-  });
-
-  it("publishes only catalog signals and tags positive high-probability signals", () => {
-    const result = buildPublicEvaluation([
-      { key: "is_ai_native", type: "noul", noul: 0.91 },
-      { key: "offers_autonomous_agent", type: "noul", noul: 0.79 },
-      { key: "market_developer_tools", type: "noul", noul: 0.94 },
-      { key: "has_free_plan", type: "noul", noul: 0.97 },
-      { key: "unmapped_signal", type: "noul", noul: 0.99 },
-    ]);
-
-    expect(result.signals).toHaveLength(4);
-    expect(result.tags).toEqual(["ai-native", "developer-tools", "free-plan"]);
-    expect(TAG_PROBABILITY_THRESHOLD).toBe(0.8);
+  it("derives nothing from an unavailable snapshot", () => {
+    const result = buildPublicEvaluation([], { ...SNAPSHOT, status: "unavailable" });
+    expect(result).toEqual({ choices: [], signals: [], tags: [] });
   });
 });
 

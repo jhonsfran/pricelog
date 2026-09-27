@@ -3,30 +3,27 @@ import type { PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
 import { numericPricesFromSnapshot } from "./snapshot-projection";
 
 const price = (price_raw: string, amount: number, billing: "monthly" | "annual" | "unknown") => ({
-  role: "base_price" as const,
+  kind: "flat" as const,
   price_raw,
   price_numeric: amount,
   period: "month" as const,
-  unit: "flat" as const,
   billing,
   state: "default",
 });
 
 const snapshot: PublishedSnapshot = {
-  version: "pricing-snapshot-v3",
+  version: "pricing-snapshot-v4",
   status: "collected",
   billing_view: "monthly",
-  flags: {},
   offers: [
     {
       name: "Free",
       prices: [
         {
-          role: "free_plan",
+          kind: "free",
           price_raw: "$0/month",
           price_numeric: 0,
           period: "month",
-          unit: "flat",
           billing: "unknown",
           state: "default",
         },
@@ -38,11 +35,9 @@ const snapshot: PublishedSnapshot = {
     },
     {
       name: "Team",
-      prices: [
-        { ...price("€20 per user/month", 20, "unknown"), role: "seat_price", unit: "per_seat" },
-      ],
+      prices: [{ ...price("€20 per user/month", 20, "unknown"), kind: "per_seat" }],
     },
-    { name: "Enterprise", prices: [{ ...price("Custom", 0, "unknown"), role: "custom_price" }] },
+    { name: "Enterprise", prices: [{ ...price("Custom", 0, "unknown"), kind: "custom" }] },
   ],
   features: [],
 };

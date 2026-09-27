@@ -1,39 +1,16 @@
-import type { NumericFactRole } from "./pricing-facts";
-
-export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v3" as const;
+export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v4" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "c1c8f199211f5394eda45a74d0a23670bcbac3214700ac023fee83e2e72c5521";
+  "6771806800fcf932bc7107d661a94dba57b2e309c463b8d0337afe8776f9bf08";
 /** Identifies the capture and extraction code that produced a snapshot. */
 export const PRICING_PIPELINE_ID = `${PRICING_SNAPSHOT_VERSION}-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`;
 
-export const PROFILE_CHOICE_KEYS = [
-  "buying_motion",
-  "price_disclosure",
-  "primary_customer_segment",
-  "primary_market",
-  "product_category",
-] as const;
+export const PRICE_KINDS = ["flat", "per_seat", "usage", "add_on", "free", "custom"] as const;
+export const PRICE_PERIODS = ["month", "year", "one_time", "usage", "none"] as const;
+export const PRICE_BILLINGS = ["monthly", "annual", "one_time", "usage", "unknown"] as const;
 
-export const PROFILE_FLAG_KEYS = [
-  "has_free_plan",
-  "has_free_trial",
-  "requires_card_for_free",
-  "requires_sales_contact",
-  "shows_enterprise_plan",
-  "publishes_numeric_limits",
-  "has_usage_calculator",
-  "is_ai_native",
-  "offers_copilot",
-  "offers_autonomous_agent",
-  "offers_agent_platform",
-  "offers_agent_workforce",
-  "has_usage_visibility",
-] as const;
-
-export type ProfileChoiceKey = (typeof PROFILE_CHOICE_KEYS)[number];
-export type ProfileFlagKey = (typeof PROFILE_FLAG_KEYS)[number];
-export type PriceRole = NumericFactRole | "free_plan" | "custom_price";
-export type PriceBilling = "monthly" | "annual" | "one_time" | "usage" | "unknown";
+export type PriceKind = (typeof PRICE_KINDS)[number];
+export type PricePeriod = (typeof PRICE_PERIODS)[number];
+export type PriceBilling = (typeof PRICE_BILLINGS)[number];
 export type BillingView = "monthly" | "annual" | "unknown";
 export type FeatureStatus =
   | "included"
@@ -43,36 +20,19 @@ export type FeatureStatus =
   | "contact"
   | "unknown";
 
-/** One price quoted from a captured UI state and classified by Jev. */
+/** One price the extraction model quoted from the page and Jev confirmed as a whole claim. */
 export type PublishedPrice = {
-  role: PriceRole;
+  kind: PriceKind;
   price_raw: string;
   price_numeric: number | null;
-  period: "month" | "year" | "one_time" | "unknown";
-  unit: "per_seat" | "flat" | "usage" | "custom" | "unknown";
+  period: PricePeriod;
   billing: PriceBilling;
   state: string;
 };
 
 export type PublishedOffer = {
   name: string;
-  is_highlighted?: boolean;
-  is_free?: boolean;
-  is_contact_sales?: boolean;
-  audience_blurb?: string;
   prices: PublishedPrice[];
-};
-
-/** A usage, overage, add-on or credit-pack price that no plan card carries. */
-export type PublishedRate = {
-  name: string;
-  price_raw: string;
-  price_numeric: number;
-  currency: string | null;
-  per: string | null;
-  offer: string | null;
-  role: "usage_rate" | "overage_rate" | "addon_price" | "credit_pack_price";
-  state: string;
 };
 
 export type PublishedFeature = {
@@ -85,10 +45,10 @@ export type PublishedSnapshot = {
   status: "collected" | "unavailable";
   billing_view?: BillingView;
   currency_visible?: string;
-  flags: Partial<Record<ProfileFlagKey, boolean>>;
   offers: PublishedOffer[];
+  /** Usage, overage, add-on and credit prices that apply to no single plan. */
+  shared_prices?: PublishedPrice[];
   features: PublishedFeature[];
-  rates?: PublishedRate[];
   reason?: string;
 };
 
@@ -111,9 +71,50 @@ export function unavailableSnapshot(reason: string): PublishedSnapshot {
   return {
     version: PRICING_SNAPSHOT_VERSION,
     status: "unavailable",
-    flags: {},
     offers: [],
     features: [],
     reason,
+  };
+}
+
+export type DerivedProfile = {
+  price_disclosure: "full" | "partial" | "none";
+  has_free_plan: boolean;
+  requires_sales_contact: boolean;
+  publishes_numeric_limits: boolean;
+  charges_fixed_subscription: boolean;
+  charges_per_seat: boolean;
+  charges_direct_usage: boolean;
+  charges_credit_wallet: boolean;
+  charges_ai_addon: boolean;
+};
+
+/** Profile fields that follow from the published facts, so Jev is not asked about them. */
+export function deriveProfile(snapshot: PublishedSnapshot): DerivedProfile {
+  const planPrices = snapshot.offers.flatMap((offer) => offer.prices ?? []);
+  const prices = [...planPrices, ...(snapshot.shared_prices ?? [])];
+  const has = (kind: PriceKind) => prices.some((price) => price.kind === kind);
+  const priced = snapshot.offers.filter((offer) =>
+    (offer.prices ?? []).some((price) => price.kind !== "custom"),
+  ).length;
+  const quoted = snapshot.offers.filter((offer) =>
+    (offer.prices ?? []).some((price) => price.kind === "custom"),
+  ).length;
+  return {
+    price_disclosure:
+      priced === 0 ? "none" : quoted > 0 || priced < snapshot.offers.length ? "partial" : "full",
+    has_free_plan: planPrices.some((price) => price.kind === "free" || price.price_numeric === 0),
+    requires_sales_contact: has("custom"),
+    publishes_numeric_limits: snapshot.features.some((feature) =>
+      feature.availability.some((cell) => /\d/.test(cell.limit_raw ?? "")),
+    ),
+    charges_fixed_subscription: has("flat"),
+    charges_per_seat: has("per_seat"),
+    charges_direct_usage: has("usage"),
+    charges_credit_wallet: prices.some(
+      (price) =>
+        (price.kind === "usage" || price.kind === "add_on") && /credit/i.test(price.price_raw),
+    ),
+    charges_ai_addon: has("add_on"),
   };
 }

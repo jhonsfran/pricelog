@@ -63,23 +63,6 @@ function formatPricingKey(value: string): string {
   return formatted ? formatted[0]!.toUpperCase() + formatted.slice(1) : "Unknown";
 }
 
-/** Separate disclosed policy answers from unknown applicability and explicit inapplicability. */
-export function pricingPolicyCoverage(
-  pageCount: number,
-  share?: { answered: number; options: Record<string, number> },
-) {
-  const classified = share?.answered ?? 0;
-  const notApplicable = share?.options.not_applicable ?? 0;
-  const notDisclosed = share?.options.not_disclosed ?? 0;
-  const unknown = share?.options.unknown ?? 0;
-  return {
-    disclosed: Math.max(0, classified - notApplicable - notDisclosed - unknown),
-    uncertain: Math.max(0, pageCount - classified) + unknown,
-    notApplicable,
-    notDisclosed,
-  };
-}
-
 /** Uncertain observations stay in the denominator for claims about the measured pages. */
 export function pricingSignalCoverage(pageCount: number, share?: BenchmarkSignalShare) {
   const counts = share ?? { stated: 0, notEstablished: 0, uncertain: pageCount };

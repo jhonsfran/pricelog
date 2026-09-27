@@ -1,27 +1,29 @@
 import type { VerifiedPricingChange } from "@my-better-t-app/api/pricing-history";
-import type {
-  PublishedPrice,
-  PublishedRate,
-  PublishedSnapshot,
-} from "@my-better-t-app/db/pricing-snapshot";
+import type { PublishedPrice, PublishedSnapshot } from "@my-better-t-app/db/pricing-snapshot";
 
-const ROLE_LABELS: Record<string, string> = {
-  base_price: "price",
-  seat_price: "per-seat price",
-  free_plan: "free plan",
-  custom_price: "custom price",
+const KIND_LABELS: Record<string, string> = {
+  flat: "price",
+  per_seat: "per-seat price",
+  usage: "usage rate",
+  add_on: "add-on",
+  free: "free plan",
+  custom: "custom price",
 };
 
 const priceKey = (offer: string, price: PublishedPrice) =>
-  `price:${offer}:${price.role}:${price.billing}:${price.period}:${price.unit}`;
+  `price:${offer}:${price.kind}:${price.billing}:${price.period}`;
 const priceLabel = (offer: string, price: PublishedPrice) =>
-  [offer, price.billing === "unknown" ? "" : price.billing, ROLE_LABELS[price.role] ?? price.role]
+  [offer, price.billing === "unknown" ? "" : price.billing, KIND_LABELS[price.kind] ?? price.kind]
     .filter(Boolean)
     .join(" ");
-const rateKey = (rate: PublishedRate) =>
-  `rate:${rate.offer ?? "all"}:${rate.name}:${rate.per ?? ""}`;
-const rateLabel = (rate: PublishedRate) =>
-  `${rate.name}${rate.offer ? ` (${rate.offer})` : ""} rate`;
+/** A shared price is identified by its quote without the amount, e.g. "Extra emails: / 1,000". */
+const sharedLabel = (price: PublishedPrice) =>
+  price.price_raw
+    .replace(/[$€£¥]\s?\d[\d,.]*|\d[\d,.]*\s?(?:USD|EUR|GBP|€)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+const sharedKey = (price: PublishedPrice) =>
+  `rate:all:${sharedLabel(price) || price.kind}:${price.period}`;
 
 /** Groups quotes by key; a key can hold several quotes, such as a price and its "free forever" line. */
 function group<Item>(items: Item[], keyOf: (item: Item) => string) {
@@ -85,10 +87,10 @@ export function diffSnapshots(
       priceLabel(items[0]!.offer, items[0]!),
     ),
     ...compareGroups(
-      group(before.rates ?? [], rateKey),
-      group(after.rates ?? [], rateKey),
+      group(before.shared_prices ?? [], sharedKey),
+      group(after.shared_prices ?? [], sharedKey),
       "commercial",
-      (items) => rateLabel(items[0]!),
+      (items) => `${sharedLabel(items[0]!) || KIND_LABELS[items[0]!.kind]} (all plans)`,
     ),
   );
 
@@ -117,20 +119,6 @@ export function diffSnapshots(
       afterLabel: describe(current),
       beforeEvidence: previous.cell.limit_raw ?? describe(previous),
       afterEvidence: current.cell.limit_raw ?? describe(current),
-    });
-  }
-
-  for (const [flag, value] of Object.entries(after.flags)) {
-    const previous = before.flags[flag as keyof typeof before.flags];
-    if (previous === undefined || value === undefined || previous === value) continue;
-    changes.push({
-      key: `flag:${flag}`,
-      label: flag.replaceAll("_", " "),
-      kind: "disclosure",
-      beforeLabel: previous ? "Yes" : "No",
-      afterLabel: value ? "Yes" : "No",
-      beforeEvidence: previous ? "Stated on the page" : "Not stated",
-      afterEvidence: value ? "Stated on the page" : "Not stated",
     });
   }
 

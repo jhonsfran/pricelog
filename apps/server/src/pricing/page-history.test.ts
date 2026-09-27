@@ -174,7 +174,7 @@ async function scanned(
   sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run(runId);
 }
 
-const PIPELINE = "pricing-snapshot-v3-aaaaaaaaaaaa";
+const PIPELINE = "pricing-snapshot-v4-aaaaaaaaaaaa";
 const COLLECTED = {
   rubricId: "pricing-intelligence-v10",
   model: "jev-1.13.0",
@@ -183,9 +183,8 @@ const COLLECTED = {
   tags: [],
   pipeline: PIPELINE,
   snapshot: {
-    version: "pricing-snapshot-v3" as const,
+    version: "pricing-snapshot-v4" as const,
     status: "collected" as const,
-    flags: {},
     offers: [{ name: "Pro", prices: [] }],
     features: [],
   },
@@ -238,7 +237,7 @@ describe("unchanged page reuse", () => {
           "second",
           "same",
           "pricing-intelligence-v10",
-          "pricing-snapshot-v3-bbbbbbbbbbbb",
+          "pricing-snapshot-v4-bbbbbbbbbbbb",
         ),
       ).toBeNull();
     } finally {
@@ -270,10 +269,10 @@ describe("page-local pricing history", () => {
     try {
       await seed();
       await seed();
-      sqlite.exec("UPDATE question SET instructions = 'changed' WHERE key = 'buying_motion'");
+      sqlite.exec("UPDATE question SET instructions = 'changed' WHERE key = 'product_category'");
       await expect(seed()).rejects.toThrow("immutable");
       expect(
-        sqlite.prepare("SELECT instructions FROM question WHERE key = 'buying_motion'").get()
+        sqlite.prepare("SELECT instructions FROM question WHERE key = 'product_category'").get()
           ?.instructions,
       ).toBe("changed");
     } finally {

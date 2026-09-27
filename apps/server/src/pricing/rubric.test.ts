@@ -11,8 +11,6 @@ import {
 } from "@my-better-t-app/db/pricing-intelligence";
 import {
   PRICING_PIPELINE_ID,
-  PROFILE_CHOICE_KEYS,
-  PROFILE_FLAG_KEYS,
   SNAPSHOT_IMPLEMENTATION_FINGERPRINT,
 } from "@my-better-t-app/db/pricing-snapshot";
 import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "./rubric";
@@ -20,29 +18,26 @@ import { PRICING_INTELLIGENCE_RUBRIC, rubricFingerprint, rubricContract } from "
 describe("pricing rubric", () => {
   const rubric = PRICING_INTELLIGENCE_RUBRIC;
 
-  it("uses the new immutable version and only v1 profile questions", () => {
+  it("asks Jev only the product category and free trial profile questions", () => {
     expect(rubric.id).toBe(PRICING_INTELLIGENCE_RUBRIC_ID);
-    expect(rubric.version).toBe(11);
-    expect(Object.keys(rubric.questions).sort()).toEqual(
-      [...PROFILE_CHOICE_KEYS, ...PROFILE_FLAG_KEYS].sort(),
-    );
-    expect(rubric.questions).not.toHaveProperty("credit_conversion");
-    expect(rubric.questions).not.toHaveProperty("charges_fixed_subscription");
+    expect(rubric.version).toBe(12);
+    expect(Object.keys(rubric.questions)).toEqual(["product_category", "has_free_trial"]);
   });
 
-  it("derives every profile question from the public catalogs", () => {
-    for (const key of PROFILE_CHOICE_KEYS) {
-      const question = rubric.questions[key];
-      const entry = PRICING_CHOICE_CATALOG[key];
-      expect(question.instructions).toBe(`${PRICING_PAGE_SCOPE} ${entry.question}`);
-      expect(question.criteria).toEqual(entry.options);
-    }
-    for (const key of PROFILE_FLAG_KEYS) {
-      const question = rubric.questions[key];
-      const entry = PRICING_SIGNAL_CATALOG[key];
-      expect(question.instructions).toBe(`${PRICING_PAGE_SCOPE} ${entry.question}`);
-      expect(question.criteria).toEqual({ true: entry.whenTrue, false: entry.whenFalse });
-    }
+  it("takes the question text Jev evaluates from the public catalogs", () => {
+    const category = PRICING_CHOICE_CATALOG.product_category;
+    expect(rubric.questions.product_category.instructions).toBe(
+      `${PRICING_PAGE_SCOPE} ${category.question}`,
+    );
+    expect(rubric.questions.product_category.criteria).toEqual(category.options);
+    const trial = PRICING_SIGNAL_CATALOG.has_free_trial;
+    expect(rubric.questions.has_free_trial.instructions).toBe(
+      `${PRICING_PAGE_SCOPE} ${trial.question}`,
+    );
+    expect(rubric.questions.has_free_trial.criteria).toEqual({
+      true: trial.whenTrue,
+      false: trial.whenFalse,
+    });
   });
 
   it("keeps the rubric identity independent of the extraction pipeline", () => {
@@ -50,7 +45,7 @@ describe("pricing rubric", () => {
     expect(contract).not.toContain(SNAPSHOT_IMPLEMENTATION_FINGERPRINT);
     expect(contract).not.toContain("@cf/");
     expect(PRICING_PIPELINE_ID).toBe(
-      `pricing-snapshot-v3-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`,
+      `pricing-snapshot-v4-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`,
     );
   });
 

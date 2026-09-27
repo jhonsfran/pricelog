@@ -1,19 +1,15 @@
 import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@my-better-t-app/api/benchmark";
 import {
   CHARGING_SIGNAL_KEYS,
-  PRACTICE_CHOICE_KEYS,
-  getPricingChoiceMetadata,
   getPricingSignalMetadata,
-  pricingPolicyCoverage,
   pricingSignalCoverage,
 } from "@my-better-t-app/api/pricing-intelligence";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { CategoryPicker } from "@/components/category-picker";
-import { formatToken } from "@/lib/format";
 import { SelectField } from "@/components/select-field";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
-import { Definitions, Lede, Notice, PageHeader, PageShell, StatRow } from "@/components/page";
+import { Lede, Notice, PageHeader, PageShell, StatRow } from "@/components/page";
 import { PracticeChart, type ChartRow } from "@/components/practice-chart";
 import { RelativeTime } from "@/components/relative-time";
 import type { DirectoryFilter } from "@/lib/directory-filter";
@@ -26,10 +22,6 @@ export const Route = createFileRoute("/benchmarks")({
 });
 const topicOptions = [
   { value: "charging_structure", label: "How products charge" },
-  ...PRACTICE_CHOICE_KEYS.map((key) => ({
-    value: key,
-    label: getPricingChoiceMetadata(key)!.label,
-  })),
   { value: "prices", label: "Published prices" },
 ];
 
@@ -179,50 +171,6 @@ function BenchmarksPage() {
                   );
                 })}
               </PracticeChart>
-            </section>
-          ) : null}
-          {PRACTICE_CHOICE_KEYS.some((key) => key === topic) ? (
-            <section className="pt-6">
-              <div className="grid gap-1">
-                {PRACTICE_CHOICE_KEYS.filter((key) => key === topic).map((key) => {
-                  const metadata = getPricingChoiceMetadata(key)!;
-                  const share = selected.choiceShares[key];
-                  const coverage = pricingPolicyCoverage(selected.pageCount, share);
-                  const comparable = selected.pageCount >= minimum;
-                  const rows = Object.entries(share?.options ?? {})
-                    .filter(([option]) => option !== "not_applicable" && option !== "unknown")
-                    .map(([option, count]): ChartRow => ({
-                      key: option,
-                      label: formatToken(option),
-                      fill: selected.pageCount > 0 ? count / selected.pageCount : 0,
-                      display: comparable
-                        ? `${Math.round((count / selected.pageCount) * 100)}%`
-                        : `${count}`,
-                      filter: {
-                        choiceKey: key,
-                        choiceValue: option,
-                        cohort,
-                      } satisfies DirectoryFilter,
-                    }));
-                  return (
-                    <PracticeChart
-                      key={key}
-                      title={metadata.label}
-                      question={metadata.question}
-                      rows={rows}
-                      footnote={`Denominator: all ${selected.pageCount} eligible pages. ${coverage.disclosed} disclose a policy · ${coverage.notDisclosed} do not disclose it · ${coverage.notApplicable} explicitly not applicable · ${coverage.uncertain} uncertain. Nondisclosure does not establish applicability.`}
-                    >
-                      <Definitions
-                        items={Object.entries(metadata.options).map(([option, description]) => ({
-                          key: option,
-                          term: formatToken(option),
-                          detail: description,
-                        }))}
-                      />
-                    </PracticeChart>
-                  );
-                })}
-              </div>
             </section>
           ) : null}
           {topic === "prices" ? (

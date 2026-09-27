@@ -2,13 +2,10 @@ import { EXPECTED_JEV_MODEL } from "@my-better-t-app/api/pricing-facts";
 import {
   CHOICE_CONFIDENCE_THRESHOLD,
   PRICING_CHOICE_CATALOG,
-  PRICING_CHOICE_GROUPS,
   PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
   TAG_PROBABILITY_THRESHOLD,
-  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
 } from "@my-better-t-app/api/pricing-intelligence";
-import { PROFILE_CHOICE_KEYS, PROFILE_FLAG_KEYS } from "@my-better-t-app/api/pricing-snapshot";
 import { createFileRoute } from "@tanstack/react-router";
 import { DataCell, DataRow, DataTable, RowHeader } from "@/components/data-table";
 import { formatToken } from "@/lib/format";
@@ -35,85 +32,94 @@ function MethodologyPage() {
           a market census. A missing disclosure does not prove that a feature is absent.
         </p>
         <p>
-          Chromium saves rendered HTML, Markdown, and a full-page screenshot. The capture dismisses
-          known cookie panels and keeps visible price labels from accessible page content. The
-          archive is the evidence for each scan.
+          Chromium saves the rendered HTML, the visible text of each pricing state (for example
+          monthly and yearly), and a full-page screenshot. Prices the page declares as schema.org
+          data are added to that text. The archive is the evidence for each scan.
         </p>
         <h2>How a claim becomes public</h2>
-        <p>
-          Browser Run reads the captured HTML and proposes a structured draft. Jev then answers
-          questions against trimmed Markdown from that same capture. The draft is never Jev's
-          source. Each question checks one proposed claim about a current offer or the page profile.
-        </p>
         <ul>
+          <li>An extraction model copies every price and feature line from the captured text.</li>
+          <li>Code keeps only quotes that appear word for word in that text.</li>
           <li>
-            Page choices need a matching Jev answer at {CHOICE_CONFIDENCE_THRESHOLD} confidence.
+            Jev answers one yes/no question per price (plan, amount, period, billing, kind) and one
+            per feature row. A claim publishes at {TAG_PROBABILITY_THRESHOLD} probability or more;
+            anything else goes to review.
           </li>
-          <li>Positive yes/no claims need at least {TAG_PROBABILITY_THRESHOLD} probability.</li>
-          <li>Negative claims need at most {NOT_ESTABLISHED_PROBABILITY_THRESHOLD} probability.</li>
           <li>
-            Prices need a verified offer, exact visible label, role, period, unit, and matching
-            numeric value.
+            Jev also classifies the product category, accepted at {CHOICE_CONFIDENCE_THRESHOLD}{" "}
+            confidence, and whether the page offers a free trial.
           </li>
-          <li>Feature availability uses a closed set of answers for each offer.</li>
+          <li>Every other profile field is derived from the verified prices and features.</li>
         </ul>
         <p>
-          The public page shows accepted claims. The page owner sees claims that need review. If
-          extraction has no valid draft, the commercial snapshot is unavailable and no Jev check
-          runs for it. These thresholds are acceptance rules, not measured accuracy.
+          The public page shows accepted claims. The page owner also sees the claims that need
+          review. These thresholds are acceptance rules, not measured accuracy.
         </p>
         <h2>Source and comparisons</h2>
         <p>{PRICING_PAGE_SCOPE}</p>
         <p>
           Current comparisons require the current rubric, exactly {EXPECTED_JEV_MODEL}, and a
-          capture from the last 14 days. Older captures remain historical. The new offer snapshot
-          does not feed the old numeric benchmark until a compatible calculation is defined.
+          capture from the last 14 days. Older captures remain historical.
         </p>
       </section>
 
       <section className="pt-10">
-        <SectionHeading
-          title="Page choices"
-          meta={`${PROFILE_CHOICE_KEYS.length} questions`}
-          className="border-b"
-        />
-        {PRICING_CHOICE_GROUPS.filter((group) => group.key !== "practices").map((group) => (
-          <div key={group.key} className="pt-6">
-            <h4 className="text-sm tracking-normal">{group.label}</h4>
-            {PROFILE_CHOICE_KEYS.filter(
-              (key) => PRICING_CHOICE_CATALOG[key].group === group.key,
-            ).map((key) => {
-              const entry = PRICING_CHOICE_CATALOG[key];
-              return (
-                <article className="grid gap-3 border-b border-gray-4 py-5" key={key}>
-                  <h3 className="text-base">{entry.label}</h3>
-                  <p>{entry.question}</p>
-                  <Definitions
-                    items={Object.entries(entry.options).map(([option, description]) => ({
-                      key: option,
-                      term: formatToken(option),
-                      detail: description,
-                    }))}
-                  />
-                </article>
-              );
-            })}
-          </div>
-        ))}
+        <SectionHeading title="Questions Jev answers" meta="4 kinds" className="border-b" />
+        <DataTable columns={["Question", "What Jev is asked"]} className="min-w-0">
+          <DataRow>
+            <RowHeader className="w-48 max-sm:w-32">Each price</RowHeader>
+            <DataCell>
+              Does the page offer this plan at this price, for this period and billing term, as this
+              kind of price (flat, per seat, usage, add-on, free or custom quote)?
+            </DataCell>
+          </DataRow>
+          <DataRow>
+            <RowHeader className="w-48 max-sm:w-32">Each feature row</RowHeader>
+            <DataCell>Does the page state these values of this feature for these plans?</DataCell>
+          </DataRow>
+          <DataRow>
+            <RowHeader className="w-48 max-sm:w-32">
+              {PRICING_SIGNAL_CATALOG.has_free_trial.label}
+            </RowHeader>
+            <DataCell>{PRICING_SIGNAL_CATALOG.has_free_trial.question}</DataCell>
+          </DataRow>
+          <DataRow>
+            <RowHeader className="w-48 max-sm:w-32">
+              {PRICING_CHOICE_CATALOG.product_category.label}
+            </RowHeader>
+            <DataCell>
+              <p>{PRICING_CHOICE_CATALOG.product_category.question}</p>
+              <Definitions
+                items={Object.entries(PRICING_CHOICE_CATALOG.product_category.options).map(
+                  ([option, description]) => ({
+                    key: option,
+                    term: formatToken(option),
+                    detail: description,
+                  }),
+                )}
+              />
+            </DataCell>
+          </DataRow>
+        </DataTable>
       </section>
 
       <section className="pt-10">
-        <SectionHeading title="Page flags" meta={`${PROFILE_FLAG_KEYS.length} questions`} />
-        <DataTable columns={["Flag", "Question"]} className="min-w-0">
-          {PROFILE_FLAG_KEYS.map((key) => {
-            const entry = PRICING_SIGNAL_CATALOG[key];
-            return (
+        <SectionHeading title="Derived fields" meta="No Jev question" />
+        <DataTable columns={["Field", "Rule"]} className="min-w-0">
+          <DataRow>
+            <RowHeader className="w-48 max-sm:w-32">
+              {PRICING_CHOICE_CATALOG.price_disclosure.label}
+            </RowHeader>
+            <DataCell>{PRICING_CHOICE_CATALOG.price_disclosure.question}</DataCell>
+          </DataRow>
+          {Object.entries(PRICING_SIGNAL_CATALOG)
+            .filter(([, entry]) => entry.source === "derived")
+            .map(([key, entry]) => (
               <DataRow key={key}>
                 <RowHeader className="w-48 max-sm:w-32">{entry.label}</RowHeader>
                 <DataCell>{entry.question}</DataCell>
               </DataRow>
-            );
-          })}
+            ))}
         </DataTable>
       </section>
     </PageShell>

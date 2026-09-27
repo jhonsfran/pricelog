@@ -458,3 +458,38 @@ export function readCapturedState(html: string): CapturedState | null {
       payload.currency === "selected" || payload.currency === "already" ? payload.currency : "none",
   };
 }
+
+/**
+ * Prices the page declares as schema.org data (Offer, AggregateOffer), as one readable line
+ * per offer. It is more text for the extraction model to quote and for Jev to check.
+ */
+export function structuredPriceData(html: string, limit = 6_000): string | null {
+  const lines: string[] = [];
+  const visit = (node: unknown, currency?: string, parentName?: string): void => {
+    if (Array.isArray(node)) return node.forEach((item) => visit(item, currency, parentName));
+    if (!node || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    const ownCurrency = typeof record.priceCurrency === "string" ? record.priceCurrency : currency;
+    const name = typeof record.name === "string" ? record.name : parentName;
+    const price = record.price ?? record.lowPrice;
+    if ((typeof price === "string" || typeof price === "number") && name)
+      lines.push(`${name}: ${price} ${ownCurrency ?? ""}`.trim());
+    for (const value of Object.values(record))
+      if (value && typeof value === "object") visit(value, ownCurrency, name);
+  };
+  for (const match of html.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  )) {
+    try {
+      visit(JSON.parse(match[1]!));
+    } catch {
+      continue;
+    }
+  }
+  let text = "";
+  for (const line of new Set(lines)) {
+    if (text.length + line.length + 1 > limit) break;
+    text += text ? `\n${line}` : line;
+  }
+  return text ? `## state: structured data\n${text}` : null;
+}

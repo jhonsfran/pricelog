@@ -1,4 +1,8 @@
-import type { PublishedSnapshot, SnapshotReview } from "@my-better-t-app/api/pricing-snapshot";
+import type {
+  PublishedPrice,
+  PublishedSnapshot,
+  SnapshotReview,
+} from "@my-better-t-app/api/pricing-snapshot";
 import { formatToken } from "@/lib/format";
 import { DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { Panel } from "./panel";
@@ -27,46 +31,31 @@ export function CommercialSnapshot({
               <p>Visible currency: {snapshot.currency_visible}</p>
             ) : null}
             {snapshot.offers.length ? (
-              <DataTable columns={["Offer", "Published prices", "Details"]}>
+              <DataTable columns={["Plan", "Verified prices"]}>
                 {snapshot.offers.map((offer) => (
                   <DataRow key={offer.name}>
                     <RowHeader>{offer.name}</RowHeader>
                     <DataCell>
-                      {offer.prices.length
-                        ? offer.prices.map((price, index) => (
-                            <div key={`${price.price_raw}:${index}`}>
-                              {price.price_raw} · {formatToken(price.role)}
-                              {price.billing && price.billing !== "unknown"
-                                ? ` · billed ${formatToken(price.billing)}`
-                                : ""}
-                            </div>
-                          ))
-                        : "No verified price"}
-                    </DataCell>
-                    <DataCell>
-                      {offer.audience_blurb ? <div>{offer.audience_blurb}</div> : null}
-                      {offer.is_highlighted ? <div>Highlighted offer</div> : null}
-                      {offer.is_free ? <div>Free plan</div> : null}
-                      {offer.is_contact_sales ? <div>Contact sales</div> : null}
+                      {offer.prices.map((price, index) => (
+                        <PriceLine key={`${price.price_raw}:${index}`} price={price} />
+                      ))}
                     </DataCell>
                   </DataRow>
                 ))}
               </DataTable>
             ) : (
-              <p>No offer passed verification for this capture.</p>
+              <p>No price passed verification for this capture.</p>
             )}
-            {snapshot.rates?.length ? (
-              <DataTable columns={["Charge", "Price", "Applies to"]}>
-                {snapshot.rates.map((rate, index) => (
-                  <DataRow key={`${rate.name}:${index}`}>
-                    <RowHeader>{rate.name}</RowHeader>
-                    <DataCell>
-                      {rate.price_raw}
-                      {rate.per ? ` ${rate.per}` : ""} · {formatToken(rate.role)}
-                    </DataCell>
-                    <DataCell>{rate.offer ?? "All plans"}</DataCell>
-                  </DataRow>
-                ))}
+            {snapshot.shared_prices?.length ? (
+              <DataTable columns={["Applies to all plans", "Verified prices"]}>
+                <DataRow>
+                  <RowHeader>Usage and add-ons</RowHeader>
+                  <DataCell>
+                    {snapshot.shared_prices.map((price, index) => (
+                      <PriceLine key={`${price.price_raw}:${index}`} price={price} />
+                    ))}
+                  </DataCell>
+                </DataRow>
               </DataTable>
             ) : null}
             {snapshot.features.length ? (
@@ -105,5 +94,17 @@ export function CommercialSnapshot({
         </Panel>
       ) : null}
     </>
+  );
+}
+
+function PriceLine({ price }: { price: PublishedPrice }) {
+  return (
+    <div>
+      {price.price_raw}
+      {price.kind ? ` · ${formatToken(price.kind)}` : ""}
+      {price.billing && price.billing !== "unknown"
+        ? ` · billed ${formatToken(price.billing)}`
+        : ""}
+    </div>
   );
 }

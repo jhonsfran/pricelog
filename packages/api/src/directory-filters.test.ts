@@ -123,12 +123,11 @@ describe("directory filters", () => {
     ]);
   });
 
-  it("matches discovery cohorts and returns no pages for unknown cohorts", async () => {
+  it("returns no pages for retired or unknown cohorts", async () => {
     const db = await seed();
     expect(inCohort("all")).toBeUndefined();
-    expect(await ids(db, inCohort("market:developer_tools")!)).toEqual(["subscription-only"]);
-    expect(await ids(db, inCohort("ai_native")!)).toEqual(["subscription-only"]);
-    expect(await ids(db, inCohort("market:unknown")!)).toEqual([]);
+    expect(await ids(db, inCohort("market:developer_tools")!)).toEqual([]);
+    expect(await ids(db, inCohort("ai_native")!)).toEqual([]);
     expect(await ids(db, inCohort("category:not_a_real_category")!)).toEqual([]);
     expect(await ids(db, inCohort("category:not_disclosed")!)).toEqual([]);
   });

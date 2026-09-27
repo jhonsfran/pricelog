@@ -17,15 +17,17 @@ import {
   readCapturedState,
   regionSnapshotOptions,
   STATE_READY_SELECTOR,
+  structuredPriceData,
 } from "./capture-state";
 import {
-  classificationQuestions,
+  missedPrices,
   decideSnapshot,
   extractionRequest,
   type ExtractionModel,
   EXTRACTION_PARTS,
+  factQuestions,
   groundExtraction,
-  isClassificationKey,
+  isFactKey,
   parseExtraction,
   readExtraction,
 } from "./quote-snapshot";
@@ -155,14 +157,16 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         );
         const markdown = enrichedMarkdown;
         const captured = readCapturedState(html);
-        const content = captured?.text ?? markdown;
+        const pageText = captured?.text ?? markdown;
 
         const httpStatus = assertUsableCapture({
           httpStatus: snapshot.meta.status,
           title: snapshot.meta.title,
           html,
-          markdown: content,
+          markdown: pageText,
         });
+        const structured = structuredPriceData(html);
+        const content = structured ? `${pageText}\n\n${structured}` : pageText;
 
         const finalUrl = snapshot.meta.finalUrl ?? params.canonicalUrl;
         const normalized = await normalizePricingUrl(finalUrl, resolveDnsAddresses);
@@ -266,7 +270,10 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
                 for (const model of part.models) {
                   try {
                     const response = await ai.run(model, extractionRequest(model, part, source));
-                    return { value: parseExtraction(response), usage: readUsage(response), model };
+                    const value = parseExtraction(response);
+                    if (missedPrices(part.name, value, source))
+                      throw new Error("returned no prices for a page that shows amounts");
+                    return { value, usage: readUsage(response), model };
                   } catch (error) {
                     failure = error;
                     await store.recordEvent(params.runId, {
@@ -279,46 +286,32 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
                 throw failure;
               }),
             );
-            const [offersResult, ...optionalResults] = settled as [
+            const [pricesResult, featuresResult] = settled as [
               (typeof settled)[number],
-              ...(typeof settled)[number][],
+              (typeof settled)[number],
             ];
-            // Offers carry the prices, so only their failure retries the step.
-            if (offersResult.status === "rejected") throw offersResult.reason;
-            const offers = offersResult.value;
-            const [features, rates] = (await Promise.all(
-              optionalResults.map(async (result, index) => {
-                if (result.status === "fulfilled") return result.value;
-                const name = EXTRACTION_PARTS[index + 1]!.name;
-                await store.recordEvent(params.runId, {
-                  stage: "draft",
-                  kind: "warning",
-                  message: `The ${name} extraction failed; publishing without ${name}: ${String(result.reason).slice(0, 200)}`,
-                });
-                return { value: { [name]: [] }, usage: { input: 0, output: 0 } };
-              }),
-            )) as [typeof offers, typeof offers];
-            const parts = [offers, features, rates];
-            const extraction = readExtraction(offers.value, features.value, rates.value);
-            const tokens = parts.reduce(
-              (total, part) => ({
-                input: total.input + part.usage.input,
-                output: total.output + part.usage.output,
-              }),
-              { input: 0, output: 0 },
-            );
+            // Prices are the point of a scan, so only their failure retries the step.
+            if (pricesResult.status === "rejected") throw pricesResult.reason;
+            const prices = pricesResult.value;
+            if (featuresResult.status === "rejected")
+              await store.recordEvent(params.runId, {
+                stage: "draft",
+                kind: "warning",
+                message: `The features extraction failed; publishing without features: ${String(featuresResult.reason).slice(0, 200)}`,
+              });
+            const features =
+              featuresResult.status === "fulfilled"
+                ? featuresResult.value
+                : { value: { features: [] }, usage: { input: 0, output: 0 }, model: null };
+            const extraction = readExtraction(prices.value, features.value);
             await store.recordEvent(params.runId, {
               stage: "draft",
               kind: "completed",
-              message: `${[...new Set(parts.map((part) => part.model).filter(Boolean))].join(" + ")} quoted ${extraction.offers.length} offers, ${extraction.features.length} feature rows and ${extraction.rates.length} usage rates (${tokens.input} input and ${tokens.output} output tokens)`,
+              message: `${[...new Set([prices.model, features.model].filter(Boolean))].join(" + ")} quoted ${extraction.prices.length} prices and ${extraction.features.length} feature rows (${prices.usage.input + features.usage.input} input and ${prices.usage.output + features.usage.output} output tokens)`,
               inputBytes: new TextEncoder().encode(source).byteLength,
             });
             return {
-              raw: JSON.stringify({
-                offers: offers.value,
-                features: features.value,
-                rates: rates.value,
-              }),
+              raw: JSON.stringify({ prices: prices.value, features: features.value }),
               extraction,
               reason: null,
             };
@@ -353,7 +346,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
           );
           const answers = await decisions.run(source, [
             ...rubric.questions,
-            ...classificationQuestions(grounded.prices, grounded.rates),
+            ...factQuestions(grounded),
           ]);
           if (!decisions.model) throw new Error("Jev returned no model version");
           return { rubricId: rubric.id, model: decisions.model, answers, grounded, reason: null };
@@ -365,7 +358,7 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             kind: verified.model ? "completed" : "warning",
             message:
               verified.model && verified.grounded
-                ? `Grounded ${verified.grounded.prices.length} prices, ${verified.grounded.rates.length} usage rates, ${verified.grounded.cells.length} feature cells and ${verified.grounded.offers.length} offers (${verified.grounded.review.length} quotes not found on the page); Jev ${verified.model} answered ${verified.answers.length} questions`
+                ? `Grounded ${verified.grounded.prices.length} prices and ${verified.grounded.features.length} feature rows (${verified.grounded.review.length} quotes not found on the page or invalid); Jev ${verified.model} answered ${verified.answers.length} questions`
                 : `Jev skipped: ${verified.reason}`,
           });
         });
@@ -373,22 +366,21 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const evaluation = await step.do("project verified snapshot", RETRY, async () => {
           await store.setStage(params.runId, "project");
           if (verified.model && verified.grounded) {
-            const rubricAnswers = verified.answers.filter(
-              (answer) => !isClassificationKey(answer.key),
-            );
             const decision = decideSnapshot({
               stateText: await readSource(),
               billingView: capture.state?.billingView ?? "unknown",
               grounded: verified.grounded,
-              answers: verified.answers.filter((answer) => isClassificationKey(answer.key)),
-              rubricAnswers,
+              answers: verified.answers.filter((answer) => isFactKey(answer.key)),
               requestedCurrency: captureRegion(this.env).currency,
             });
             return {
               rubricId: verified.rubricId,
               model: verified.model,
               draft: extracted.raw,
-              ...buildPublicEvaluation(rubricAnswers),
+              ...buildPublicEvaluation(
+                verified.answers.filter((answer) => !isFactKey(answer.key)),
+                decision.snapshot,
+              ),
               snapshot: decision.snapshot,
               numericPrices: numericPricesFromSnapshot(decision.snapshot, verified.model),
               review: decision.review,
