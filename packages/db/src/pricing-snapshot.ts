@@ -1,6 +1,6 @@
 export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v4" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "2b07dbaf0e67fc94b39c1bfb3ad1ed00c7bdde5254672c6b23aab06aa115b7f1";
+  "ebcffaad1f9253455e9edd8131f9c75acc068b9180e6812ae0819e1f98ec2f86";
 /** Identifies the capture and extraction code that produced a snapshot. */
 export const PRICING_PIPELINE_ID = `${PRICING_SNAPSHOT_VERSION}-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`;
 

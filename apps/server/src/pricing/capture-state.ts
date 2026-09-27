@@ -17,10 +17,18 @@ export type CapturedState = {
 export const CAPTURE_STATE_SCRIPT = String.raw`
 (() => {
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'IFRAME', 'CANVAS', 'VIDEO', 'INPUT', 'SELECT', 'TEXTAREA']);
-  const CHROME = 'header, nav, footer, [role="navigation"], [role="banner"], [role="contentinfo"], [role="dialog"], [aria-modal="true"]';
+  const CHROME = 'nav, [role="navigation"], [role="banner"], [role="contentinfo"], [role="dialog"], [aria-modal="true"]';
+  // Site builders also use <header> and <footer> for page sections, pricing included, so they
+  // count as site chrome only when they show no amount.
   const BILLING = /^(monthly|yearly|annual(ly)?|annual billing|monthly billing|pay (monthly|yearly|annually)|billed (monthly|yearly|annually)|month|year)\b/i;
   const CONSENT = /\bcookies?\b|\bconsent\b|\bgdpr\b/i;
   const MONEY = /[$€£¥]\s?\d|\d\s?(?:€|USD|EUR)\b/;
+  const isChrome = (element) => element.matches(CHROME) ||
+    (element.matches('header, footer') && !MONEY.test(element.textContent || ''));
+  const inChromeTree = (element) => {
+    for (let node = element; node && node !== document.body; node = node.parentElement) if (isChrome(node)) return true;
+    return false;
+  };
   const MAX_STATES = 16;
   const MAX_STATE_CHARS = 8000;
   const MAX_TOTAL_CHARS = 40000;
@@ -94,7 +102,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     const children = element.shadowRoot ? [...element.shadowRoot.childNodes, ...element.childNodes] : [...element.childNodes];
     for (const node of children) {
       if (node.nodeType === 3) { line += node.textContent; continue; }
-      if (node.nodeType !== 1 || SKIP_TAGS.has(node.tagName) || node.matches(CHROME)) continue;
+      if (node.nodeType !== 1 || SKIP_TAGS.has(node.tagName) || isChrome(node)) continue;
       const style = getComputedStyle(node);
       if (!visible(node, style)) continue;
       if (node.tagName === 'BR') { flush(); continue; }
@@ -197,7 +205,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
   };
   const groups = new Map();
   for (const element of document.querySelectorAll('[role="tab"], [role="radio"], [role="switch"], input[type="radio"], button[aria-pressed], [aria-checked], input[type="range"], [role="slider"], button, label, [role="button"]')) {
-    if (element.closest(CHROME) || inConsent(element)) continue;
+    if (inChromeTree(element) || inConsent(element)) continue;
     const label = element.type === 'radio' && element.labels ? element.labels[0] : null;
     if (!shown(element) && !(label && shown(label))) continue;
     const text = controlText(element);
@@ -258,7 +266,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
       return 'selected';
     }
     const clickable = () => [...document.querySelectorAll('[role="option"], [role="menuitem"], [role="menuitemradio"], [role="radio"], [role="tab"], button, a, li, label')]
-      .filter((element) => shown(element) && !inConsent(element) && !navigates(element) && !element.closest(CHROME));
+      .filter((element) => shown(element) && !inConsent(element) && !navigates(element) && !inChromeTree(element));
     const findTarget = () => clickable().filter((element) => {
       const text = clean(element.innerText || element.getAttribute('aria-label') || '');
       if (text.length > 24 || !target.test(text)) return false;
@@ -370,8 +378,12 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     return text.length < 600 && !MONEY.test(text) && INTERSTITIAL.test(text + ' ' + document.title);
   };
   const start = async () => {
+    // Report a bot check at once: its redirect can come before the consent pass finishes.
+    if (looksLikeInterstitial()) {
+      publish({ version: 1, interstitial: true });
+      return;
+    }
     for (let waited = 0; !document.getElementById('pricelog-capture-ready') && waited < 6000; waited += 100) await sleep(100);
-    for (let waited = 0; looksLikeInterstitial() && waited < 4000; waited += 250) await sleep(250);
     if (looksLikeInterstitial()) {
       publish({ version: 1, interstitial: true });
       return;
