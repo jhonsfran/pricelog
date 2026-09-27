@@ -1,3 +1,5 @@
+import { isPageOperator, parseOperatorEmails } from "@my-better-t-app/api/operators";
+import { pageAccessCondition } from "@my-better-t-app/api/routers/pages";
 import { page } from "@my-better-t-app/db/schema/pages";
 import { and, eq } from "drizzle-orm";
 import type { Context } from "hono";
@@ -19,10 +21,15 @@ export async function serveArtifact(context: Context): Promise<Response> {
   const session = await (await createAuth(db)).api.getSession({ headers: context.req.raw.headers });
   if (!session?.user) return context.json({ error: "Unauthorized" }, 401);
 
+  // The same rule as the pages API: owners see their pages, operators see every page.
+  const operator = isPageOperator({
+    session,
+    operatorEmails: parseOperatorEmails(ENV.PAGE_OPERATOR_EMAILS),
+  });
   const [owned] = await db
     .select({ normalizedDomain: page.normalizedDomain })
     .from(page)
-    .where(and(eq(page.id, pageId), eq(page.ownerUserId, session.user.id)))
+    .where(pageAccessCondition(pageId, { userId: session.user.id, operator }))
     .limit(1);
   if (!owned) return context.notFound();
 
