@@ -11,6 +11,7 @@
     "env:generate": "varlock codegen"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
     "@my-better-t-app/api": "workspace:*",
     "@my-better-t-app/auth": "workspace:*",
     "@my-better-t-app/db": "workspace:*",

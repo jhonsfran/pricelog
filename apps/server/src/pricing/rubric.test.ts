@@ -62,6 +62,7 @@ it("requires a new pipeline id when extraction or validation code changes", () =
   for (const file of [
     "quote-snapshot.ts",
     "capture-state.ts",
+    "capture-session.ts",
     "jev-decisions.ts",
     "scan-workflow.ts",
     "source-cleanup.ts",

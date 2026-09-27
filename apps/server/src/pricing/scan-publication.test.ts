@@ -10,6 +10,10 @@ import { PRICING_PIPELINE_ID } from "@my-better-t-app/db/pricing-snapshot";
 import type { PersistedQuestion } from "./types";
 
 vi.mock("cloudflare:workers", () => ({ WorkflowEntrypoint: class {} }));
+const captureThroughBotCheck = vi.fn();
+vi.mock("./capture-session", () => ({
+  captureThroughBotCheck: (...args: unknown[]) => captureThroughBotCheck(...args),
+}));
 vi.mock("@my-better-t-app/db", () => ({ createDb: vi.fn() }));
 vi.mock("./url", () => ({
   normalizePricingUrl: async () => ({
@@ -429,10 +433,33 @@ describe("scan publication boundaries", () => {
     );
   });
 
-  it("captures again after a bot check instead of archiving it", async () => {
+  it("captures a page behind a bot check in a browser session after the redirect", async () => {
     const botCheck = `<p>Please wait</p><script type="application/json" id="pricelog-state">${JSON.stringify(
       { version: 1, interstitial: true },
     )}</script>`;
+    captureThroughBotCheck.mockResolvedValueOnce({
+      success: true,
+      result: { content: STATE_HTML, markdown: "Pricing", screenshot: "eA==" },
+      meta: { status: 200, title: "Pricing", finalUrl: "https://example.com/pricing" },
+    });
+    const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, botCheck);
+    await scan.run();
+    expect(scan.browser).toHaveBeenCalledTimes(1);
+    const [, input] = captureThroughBotCheck.mock.calls[0]!;
+    expect(input).toMatchObject({
+      url: "https://example.com/pricing",
+      readySelector: "#pricelog-state-ready",
+      headers: { "Accept-Language": "en-IE,en;q=0.9" },
+    });
+    expect((input as { scripts: string[] }).scripts).toHaveLength(3);
+    expect(scan.archivedMarkdown()).toContain("## state: billing=Yearly");
+  });
+
+  it("falls back to a fixed wait when the browser session fails", async () => {
+    const botCheck = `<p>Please wait</p><script type="application/json" id="pricelog-state">${JSON.stringify(
+      { version: 1, interstitial: true },
+    )}</script>`;
+    captureThroughBotCheck.mockRejectedValueOnce(new Error("session limit"));
     const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, [
       botCheck,
       "<h1>Pricing</h1>",
@@ -440,13 +467,6 @@ describe("scan publication boundaries", () => {
     await scan.run();
     expect(scan.browser).toHaveBeenCalledTimes(2);
     expect(scan.browser.mock.calls[1]?.[1]).toMatchObject({ waitForTimeout: 8_000 });
-    expect(scan.store.recordEvent).toHaveBeenCalledWith(
-      "run",
-      expect.objectContaining({
-        stage: "capture",
-        message: "The page showed a bot check first; capturing again after it resolves",
-      }),
-    );
     expect(scan.archivedMarkdown()).toBe("# Pricing\nPro: $20 per month");
   });
 

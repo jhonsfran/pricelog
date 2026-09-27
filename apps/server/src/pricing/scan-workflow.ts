@@ -1,6 +1,7 @@
 import { createDb } from "@my-better-t-app/db";
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 
+import { captureThroughBotCheck, type CaptureSnapshot } from "./capture-session";
 import { publishOwnerProjection } from "./publication";
 import { MAX_EVALUATION_SOURCE_BYTES } from "./evaluation-request";
 import {
@@ -45,11 +46,7 @@ import {
 } from "./scan-workflow-logic";
 import { resolveDnsAddresses } from "./url";
 
-type SnapshotResult = {
-  success: true;
-  result: { content?: string; screenshot?: string; markdown?: string; accessibilityTree?: unknown };
-  meta: { status?: number; title: string; finalUrl?: string };
-};
+type SnapshotResult = CaptureSnapshot;
 
 type JevBinding = {
   run(
@@ -131,20 +128,36 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         const interstitial =
           result.ok &&
           capturedInterstitial((JSON.parse(result.body) as SnapshotResult).result.content ?? "");
-        // A page that navigates away or blocks the script never signals, and a bot check
-        // redirects after the script ran; capture those after a fixed wait instead.
+        let snapshot: SnapshotResult | null = null;
+        // A bot check redirects after the one-shot snapshot injected its scripts, and a page that
+        // never signals may be doing the same; a session waits for the real page first.
         if (interstitial || (!result.ok && /selector|time(?:d )?out/i.test(result.body))) {
-          if (interstitial)
+          await store.recordEvent(params.runId, {
+            stage: "capture",
+            kind: "warning",
+            message: interstitial
+              ? "The page showed a bot check; capturing it in a browser session after the redirect"
+              : "The page state script did not signal; capturing it in a browser session",
+          });
+          snapshot = await captureThroughBotCheck(this.env.BROWSER, {
+            url: params.canonicalUrl,
+            headers: region.setExtraHTTPHeaders,
+            blocked: region.rejectRequestPattern,
+            scripts: snapshotOptions.addScriptTag.map((tag) => tag.content),
+            readySelector: STATE_READY_SELECTOR,
+          }).catch(async (error: unknown) => {
             await store.recordEvent(params.runId, {
               stage: "capture",
               kind: "warning",
-              message: "The page showed a bot check first; capturing again after it resolves",
+              message: `Browser session failed (${String(error).slice(0, 160)}); capturing after a fixed wait`,
             });
-          result = await attempt({ waitForTimeout: interstitial ? 8_000 : 5_000 });
+            result = await attempt({ waitForTimeout: 8_000 });
+            return null;
+          });
         }
-        if (!result.ok)
+        if (!snapshot && !result.ok)
           throw new Error(`Browser Run failed with ${result.status}: ${result.body.slice(0, 300)}`);
-        const snapshot = JSON.parse(result.body) as SnapshotResult;
+        snapshot ??= JSON.parse(result.body) as SnapshotResult;
         const html = snapshot.result.content;
         const rawMarkdown = snapshot.result.markdown;
         const screenshot = snapshot.result.screenshot;
