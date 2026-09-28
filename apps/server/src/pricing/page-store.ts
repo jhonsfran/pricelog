@@ -659,7 +659,15 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     requestedByUserId: string | null,
   ): Promise<PageRunDto> {
     const active = await this.getActiveRun();
-    if (active) return active;
+    if (active && !isStalled(active, Date.now())) return active;
+    // A deploy or crash can end a workflow without a terminal step; its run would block the page
+    // forever, so a run that stopped reporting progress gives way to the new one.
+    if (active)
+      await this.completeFailure(
+        active.id,
+        "scan_stalled",
+        "The scan stopped reporting progress and was replaced by a new scan",
+      );
 
     const [config] = await this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).limit(1);
     if (!config) throw new Error("PageStore is not initialized");
@@ -791,6 +799,18 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     await this.scheduleNextAlarm();
     return nextScanAt;
   }
+}
+
+/** Every live step records an event well within this; a run silent for longer has died. */
+export const STALLED_RUN_MS = 20 * 60_000;
+
+export function isStalled(run: PageRunDto, now: number): boolean {
+  const lastProgress = Math.max(
+    run.createdAt,
+    run.startedAt ?? 0,
+    ...run.events.map((event) => event.at),
+  );
+  return now - lastProgress > STALLED_RUN_MS;
 }
 
 type ReusableEvaluation = {
