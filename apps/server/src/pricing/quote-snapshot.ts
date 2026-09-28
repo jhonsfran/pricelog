@@ -86,7 +86,7 @@ export const EXTRACTION_PARTS = [
     }),
     prompt: `${COPY_RULES}
 List every current price on the page, in every state: plan prices, free and custom-priced plans, and usage, overage, add-on and credit prices. For each price:
-- plan: the exact plan name it belongs to, or null when it applies to all plans or no plan.
+- plan: the exact name of the plan the price belongs to, usually the plan heading closest above the price line (e.g. "### Team" gives "Team"). Use null only for prices that apply to every plan or to none, such as a separate usage-rate table.
 - text: the exact line including the amount (e.g. "$80 | /month", "Extra emails: $0.90 / 1,000", "Free", "Custom").
 - state: the state label the line appears under.
 Skip savings, crossed-out prices, calculator results, FAQs, testimonials and competitor prices.`,
@@ -227,7 +227,19 @@ const CURRENCIES: Record<string, string> = {
   EUR: "EUR",
   GBP: "GBP",
 };
-const NUMBER = String.raw`(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d*\.\d+|\d+)`;
+// Thousands groups ("2,000", "1.234,56"), a one- or two-digit decimal after "." or "," ("8.33",
+// "7,20"), long decimals ("0.0015") and whole numbers, in that order.
+const NUMBER = String.raw`(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?(?!\d)|\d+[.,]\d{1,2}(?!\d)|\d*\.\d+|\d+)`;
+
+/** Reads English and European digit groups; the last separator before one or two digits is the decimal mark. */
+function toNumber(digits: string): number {
+  const last = Math.max(digits.lastIndexOf("."), digits.lastIndexOf(","));
+  if (last === -1) return Number(digits);
+  const decimals = digits.length - last - 1;
+  if (decimals === 3 && /^\d{1,3}(?:[.,]\d{3})+$/.test(digits))
+    return Number(digits.replace(/[.,]/g, ""));
+  return Number(`${digits.slice(0, last).replace(/[.,]/g, "")}.${digits.slice(last + 1)}`);
+}
 const PREFIX_AMOUNT = new RegExp(
   String.raw`(US\$|A\$|C\$|\$|€|£|¥)\s*${NUMBER}\s*([KkMm](?![a-z]))?`,
 );
@@ -248,7 +260,7 @@ export function parseAmount(quote: string): Amount | null {
   if (!symbol || !digits) return null;
   const multiplier = !scale ? 1 : /k/i.test(scale) ? 1_000 : 1_000_000;
   return {
-    value: Math.round(Number(digits.replaceAll(",", "")) * multiplier * 1e6) / 1e6,
+    value: Math.round(toNumber(digits) * multiplier * 1e6) / 1e6,
     currency: CURRENCIES[symbol]!,
   };
 }

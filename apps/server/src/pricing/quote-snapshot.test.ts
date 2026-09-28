@@ -354,6 +354,20 @@ describe("quote snapshot", () => {
     ]);
   });
 
+  it("reads European decimal commas and thousands dots", () => {
+    expect(
+      ["7,20 € | /month", "1.234,56 €", "€ 12,50 per user", "€1,299", "$0.0015 / per run"].map(
+        parseAmount,
+      ),
+    ).toEqual([
+      { value: 7.2, currency: "EUR" },
+      { value: 1234.56, currency: "EUR" },
+      { value: 12.5, currency: "EUR" },
+      { value: 1299, currency: "EUR" },
+      { value: 0.0015, currency: "USD" },
+    ]);
+  });
+
   it("reads amounts and currencies from quoted labels", () => {
     expect(
       [
