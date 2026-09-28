@@ -1,4 +1,4 @@
-import { Button, buttonVariants } from "@pricelog/ui/components/button";
+import { Button } from "@pricelog/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,14 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@pricelog/ui/components/dropdown-menu";
 import { Skeleton } from "@pricelog/ui/components/skeleton";
-import { cn } from "@pricelog/ui/lib/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { UserRound } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
-
-// 44px targets on touch screens, the standard control height elsewhere.
-const trigger = "max-md:h-11 max-md:px-4";
 
 export default function UserMenu() {
   const navigate = useNavigate();
@@ -27,11 +23,7 @@ export default function UserMenu() {
   }
 
   if (!session) {
-    return (
-      <Link to="/login" className={cn(buttonVariants({ variant: "outline" }), trigger)}>
-        Sign in
-      </Link>
-    );
+    return null;
   }
 
   return (
@@ -40,7 +32,7 @@ export default function UserMenu() {
         render={
           <Button
             variant="outline"
-            className={trigger}
+            className="max-md:h-11 max-md:px-4"
             aria-label={`Account for ${session.user.name}`}
           />
         }

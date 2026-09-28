@@ -1,6 +1,7 @@
 import { isPageOperator, parseOperatorEmails } from "@pricelog/api/operators";
 import { pageAccessCondition } from "@pricelog/api/routers/pages";
 import { page } from "@pricelog/db/schema/pages";
+import { isAllowedEmail } from "@pricelog/auth";
 import { and, eq } from "drizzle-orm";
 import type { Context } from "hono";
 
@@ -19,7 +20,9 @@ export async function serveArtifact(context: Context): Promise<Response> {
 
   const db = getDb();
   const session = await (await createAuth(db)).api.getSession({ headers: context.req.raw.headers });
-  if (!session?.user) return context.json({ error: "Unauthorized" }, 401);
+  if (!session?.user || !isAllowedEmail(session.user.email, ENV.PAGE_OPERATOR_EMAILS)) {
+    return context.json({ error: "Unauthorized" }, 401);
+  }
 
   // The same rule as the pages API: owners see their pages, operators see every page.
   const operator = isPageOperator({

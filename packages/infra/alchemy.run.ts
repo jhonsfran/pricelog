@@ -13,6 +13,7 @@ export const db = Cloudflare.D1.Database("database", {
 export const artifacts = Cloudflare.R2.Bucket("pricing-artifacts");
 
 export const server = Cloudflare.Worker("server", {
+  domain: "api.usepricelog.com",
   main: "../../apps/server/src/index.ts",
   compatibility: {
     date: "2026-03-24",
@@ -56,6 +57,7 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const serverWorker = yield* server;
     const webWorker = yield* Cloudflare.Website.Vite("web", {
+      domain: "usepricelog.com",
       rootDir: "../../apps/web",
       compatibility: {
         flags: ["nodejs_compat"],
