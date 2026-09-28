@@ -13,9 +13,9 @@ import { Wordmark } from "./wordmark";
 import UserMenu from "./user-menu";
 
 const links = [
+  { to: "/", label: "Directory" },
   { to: "/benchmarks", label: "Compare pricing" },
   { to: "/changes", label: "Weekly changes" },
-  { to: "/", label: "Directory" },
 ] as const;
 
 export default function Header() {
