@@ -12,7 +12,7 @@ import { evlog, type EvlogVariables, useLogger } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { serveArtifact, servePublicSource } from "./artifacts";
+import { serveArtifact, servePublicScreenshot, servePublicSource } from "./artifacts";
 import { pageMonitorService } from "./pricing/service";
 import { runWeeklyComparisons } from "./pricing/weekly-comparisons";
 import { createContext } from "./context";
@@ -64,6 +64,7 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", async (c) => (await createAuth()).handler(c.req.raw));
 app.get("/api/pages/:pageId/runs/:runId/artifacts/:kind", serveArtifact);
 app.get("/api/public/pages/:pageId/runs/:runId/source", servePublicSource);
+app.get("/api/public/pages/:pageId/runs/:runId/screenshot", servePublicScreenshot);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

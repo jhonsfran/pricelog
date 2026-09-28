@@ -13,7 +13,8 @@ import type { PublishedSnapshot, SnapshotReview } from "@pricelog/db/pricing-sna
 import { DurableObject } from "cloudflare:workers";
 import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
 import { descendingCursorCondition } from "@pricelog/api/pagination";
-import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
+import type { PublicVersionSummary } from "@pricelog/api/page-versions";
+import { and, desc, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -41,6 +42,7 @@ import type {
   RunEvent,
   RunTrigger,
   ScanWorkflowParams,
+  StoredPublicVersion,
 } from "./types";
 import { artifactReference, nextAlarmAt, resolveRunCompletion } from "./page-store-logic";
 
@@ -327,16 +329,115 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
-    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
-    if (config?.pageId !== pageId) return null;
-    const row = this.db
-      .select({ version: pageVersion })
+    const row = this.publishedVersion(pageId, runId);
+    return row ? artifactReference(row.version, "content") : null;
+  }
+
+  /** The screenshot of a published version, under the same rule as its archived text. */
+  async getPublicScreenshot(pageId: string, runId: string): Promise<ArtifactReference | null> {
+    const row = this.publishedVersion(pageId, runId);
+    return row ? artifactReference(row.version, "screenshot") : null;
+  }
+
+  /** Published versions, newest first, each marked by whether its text differs from the one before. */
+  async listPublicVersions(pageId: string, limit = 100): Promise<PublicVersionSummary[]> {
+    if (!this.ownsPage(pageId)) return [];
+    const rows = this.db
+      .select({
+        runId: pageVersion.runId,
+        capturedAt: pageVersion.capturedAt,
+        contentSha256: pageVersion.contentSha256,
+        plans: sql<
+          number | null
+        >`json_array_length(${versionEvaluation.evaluation}, '$.snapshot.offers')`,
+      })
       .from(pageVersion)
       .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
       .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
-      .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
+      .where(eq(scanRun.status, "succeeded"))
+      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
+      .limit(limit + 1)
+      .all();
+    return rows.slice(0, limit).map((row, index) => {
+      const previous = rows[index + 1];
+      return {
+        runId: row.runId,
+        capturedAt: row.capturedAt,
+        textChanged: previous ? previous.contentSha256 !== row.contentSha256 : null,
+        plans: row.plans ?? 0,
+      };
+    });
+  }
+
+  /** One published version with the version before it, so the caller can verify what changed. */
+  async getPublicVersion(pageId: string, runId: string): Promise<StoredPublicVersion | null> {
+    const row = this.publishedVersion(pageId, runId);
+    if (!row) return null;
+    const { version, evaluated } = row;
+    const before = this.publishedVersions()
+      .where(
+        and(
+          eq(scanRun.status, "succeeded"),
+          or(
+            lt(pageVersion.capturedAt, version.capturedAt),
+            and(
+              eq(pageVersion.capturedAt, version.capturedAt),
+              lt(pageVersion.runId, version.runId),
+            ),
+          ),
+        ),
+      )
+      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
+      .limit(1)
       .get();
-    return row ? artifactReference(row.version, "content") : null;
+    const { choices, signals, tags, snapshot, numericPrices } = evaluated.evaluation;
+    return {
+      runId: version.runId,
+      capturedAt: version.capturedAt,
+      title: version.title,
+      finalUrl: version.finalUrl,
+      rubricId: evaluated.rubricId,
+      model: evaluated.model,
+      choices,
+      signals,
+      tags,
+      snapshot: snapshot ?? null,
+      // Decision history stays with the page version, as in the published summary.
+      numericPrices: numericPrices ? { ...numericPrices, audit: undefined } : null,
+      contentKey: version.contentKey,
+      previous: before
+        ? {
+            runId: before.version.runId,
+            capturedAt: before.version.capturedAt,
+            contentKey: before.version.contentKey,
+            model: before.evaluated.model,
+            snapshot: before.evaluated.evaluation.snapshot ?? null,
+          }
+        : null,
+    };
+  }
+
+  private ownsPage(pageId: string) {
+    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+    return config?.pageId === pageId;
+  }
+
+  /** A version is public once its run succeeded with an evaluation, the rule for every public read. */
+  private publishedVersions() {
+    return this.db
+      .select({ version: pageVersion, evaluated: versionEvaluation })
+      .from(pageVersion)
+      .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
+      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id));
+  }
+
+  private publishedVersion(pageId: string, runId: string) {
+    if (!this.ownsPage(pageId)) return null;
+    return (
+      this.publishedVersions()
+        .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
+        .get() ?? null
+    );
   }
 
   async getWeeklyHistory(pageId: string, now: number): Promise<WeeklyPageHistory> {

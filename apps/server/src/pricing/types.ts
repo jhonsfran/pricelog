@@ -1,3 +1,5 @@
+import type { PublicVersion } from "@pricelog/api/page-versions";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
 export type RunTrigger = "initial" | "scheduled" | "manual";
@@ -102,4 +104,16 @@ export type ArtifactReference = {
   key: string;
   contentType: string;
   filename: string;
+};
+
+/** A published version as the page store returns it: archive keys stay inside the worker. */
+export type StoredPublicVersion = Omit<PublicVersion, "previous" | "changes"> & {
+  contentKey: string;
+  previous: {
+    runId: string;
+    capturedAt: number;
+    contentKey: string;
+    model: string;
+    snapshot: PublishedSnapshot | null;
+  } | null;
 };

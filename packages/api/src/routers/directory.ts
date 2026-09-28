@@ -1,10 +1,11 @@
 import { page, pagePublicSummary } from "@pricelog/db/schema/pages";
-import { and, count, desc, eq, like, or } from "drizzle-orm";
+import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { AI_APPLICATIONS_COHORT, ALL_COHORT, cohortLabel, cohortsForPage } from "../benchmark";
 
 import { isPricingChoiceKey, isPricingSignalKey } from "../pricing-intelligence";
+import { publicScreenshotUrl } from "../page-versions";
 import { buildWeeklyReport, sourceUrl } from "../pricing-history";
 import { readWeeklyHistory } from "../pricing-history-store";
 import {
@@ -136,14 +137,64 @@ export const directoryRouter = {
         .where(and(eq(page.slug, input.slug), eq(page.state, "active")))
         .limit(1);
       if (!result) return null;
-      const source = await context.pageMonitor.getPublicSource(
-        result.normalizedDomain,
-        result.id,
-        result.runId,
-      );
-      const record = { ...result, sourceUrl: source ? sourceUrl(result.id, result.runId) : null };
+      const [source, versions] = await Promise.all([
+        context.pageMonitor.getPublicSource(result.normalizedDomain, result.id, result.runId),
+        context.pageMonitor.listPublicVersions(result.normalizedDomain, result.id),
+      ]);
+      const record = {
+        ...result,
+        sourceUrl: source ? sourceUrl(result.id, result.runId) : null,
+        versions,
+      };
       return record;
     }),
+
+  /** One published capture of a page, with the changes both archived pages confirm. */
+  version: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(255), runId: z.string().min(1).max(64) }))
+    .handler(async ({ context, input }) => {
+      const [published] = await context.db
+        .select({ id: page.id, normalizedDomain: page.normalizedDomain })
+        .from(page)
+        .where(and(eq(page.slug, input.slug), eq(page.state, "active")))
+        .limit(1);
+      if (!published) return null;
+      const version = await context.pageMonitor.getPublicVersion(
+        published.normalizedDomain,
+        published.id,
+        input.runId,
+      );
+      if (!version) return null;
+      return {
+        ...version,
+        sourceUrl: sourceUrl(published.id, version.runId),
+        screenshotUrl: publicScreenshotUrl(published.id, version.runId),
+        previousSourceUrl: version.previous
+          ? sourceUrl(published.id, version.previous.runId)
+          : null,
+      };
+    }),
+
+  /** The index in four numbers: pages, plans and prices on the latest captures, and when it last moved. */
+  overview: publicProcedure.handler(async ({ context }) => {
+    const snapshot = pagePublicSummary.snapshot;
+    const [row] = await context.db
+      .select({
+        pages: count(),
+        plans: sql<number>`coalesce(sum(json_array_length(${snapshot}, '$.offers')), 0)`,
+        prices: sql<number>`coalesce(sum((select sum(json_array_length(offer.value, '$.prices')) from json_each(${snapshot}, '$.offers') as offer)), 0) + coalesce(sum(json_array_length(${snapshot}, '$.shared_prices')), 0)`,
+        latestScanAt: sql<number | null>`max(${pagePublicSummary.scannedAt})`,
+      })
+      .from(page)
+      .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+      .where(eq(page.state, "active"));
+    return {
+      pages: row?.pages ?? 0,
+      plans: Number(row?.plans ?? 0),
+      prices: Number(row?.prices ?? 0),
+      latestScanAt: row?.latestScanAt ? new Date(Number(row.latestScanAt)) : null,
+    };
+  }),
 
   benchmarks: publicProcedure
     .input(

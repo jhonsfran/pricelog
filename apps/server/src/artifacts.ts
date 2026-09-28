@@ -58,22 +58,47 @@ export async function serveArtifact(context: Context): Promise<Response> {
   return new Response(object.body, { headers });
 }
 
-/** Only archived text for published pages is public. HTML and owner artifacts remain private. */
-export async function servePublicSource(context: Context): Promise<Response> {
-  const pageId = context.req.param("pageId");
-  const runId = context.req.param("runId");
-  if (!pageId || !runId) return context.notFound();
+async function publishedDomain(pageId: string) {
   const [published] = await getDb()
     .select({ normalizedDomain: page.normalizedDomain })
     .from(page)
     .where(and(eq(page.state, "active"), eq(page.id, pageId)))
     .limit(1);
-  if (!published) return context.notFound();
-  const source = await pageMonitorService.getPublicSource(
-    published.normalizedDomain,
-    pageId,
-    runId,
-  );
+  return published?.normalizedDomain ?? null;
+}
+
+/**
+ * The screenshot of a published version. It shows the same public page as the archived text,
+ * and a version never changes, so it caches for good. Captured HTML stays owner-only.
+ */
+export async function servePublicScreenshot(context: Context): Promise<Response> {
+  const pageId = context.req.param("pageId");
+  const runId = context.req.param("runId");
+  if (!pageId || !runId) return context.notFound();
+  const domain = await publishedDomain(pageId);
+  if (!domain) return context.notFound();
+  const screenshot = await pageMonitorService.getPublicScreenshot(domain, pageId, runId);
+  if (!screenshot) return context.notFound();
+  const object = await ENV.ARTIFACTS.get(screenshot.key);
+  if (!object) return context.notFound();
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": screenshot.contentType,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      ...(object.httpEtag ? { ETag: object.httpEtag } : {}),
+    },
+  });
+}
+
+/** Only archived text and screenshots of published pages are public. HTML stays private. */
+export async function servePublicSource(context: Context): Promise<Response> {
+  const pageId = context.req.param("pageId");
+  const runId = context.req.param("runId");
+  if (!pageId || !runId) return context.notFound();
+  const domain = await publishedDomain(pageId);
+  if (!domain) return context.notFound();
+  const source = await pageMonitorService.getPublicSource(domain, pageId, runId);
   if (!source) return context.notFound();
   const object = await ENV.ARTIFACTS.get(source.key);
   if (!object) return context.notFound();

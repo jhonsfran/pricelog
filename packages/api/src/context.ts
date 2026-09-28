@@ -2,6 +2,7 @@ import type { Session } from "@pricelog/auth";
 import type { Database } from "@pricelog/db";
 import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
+import type { PublicVersion, PublicVersionSummary } from "./page-versions";
 import type { Comparison, WeeklyPageHistory } from "./pricing-history";
 
 import type { DescendingTimestampCursor } from "./pagination";
@@ -37,6 +38,13 @@ export type PageMonitorService = {
     pageId: string,
     runId: string,
   ): Promise<{ key: string; contentType: string; filename: string } | null>;
+  getPublicScreenshot(
+    domain: string,
+    pageId: string,
+    runId: string,
+  ): Promise<{ key: string; contentType: string; filename: string } | null>;
+  listPublicVersions(domain: string, pageId: string): Promise<PublicVersionSummary[]>;
+  getPublicVersion(domain: string, pageId: string, runId: string): Promise<PublicVersion | null>;
   normalizeUrl(input: string): Promise<{ canonicalUrl: string; normalizedDomain: string }>;
   initializeAndStart(input: {
     pageId: string;

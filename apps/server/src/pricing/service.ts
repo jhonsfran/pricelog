@@ -2,7 +2,9 @@ import type { PageMonitorService } from "@pricelog/api/context";
 import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
 
 import { ENV } from "../env.server";
+import type { StoredPublicVersion } from "./types";
 import { normalizePricingUrl, resolveDnsAddresses } from "./url";
+import { verifiedVersionChanges } from "./version-changes";
 
 type StoreClient = {
   getWeeklyHistory: (
@@ -17,6 +19,12 @@ type StoreClient = {
     pageId: string,
     runId: string,
   ) => ReturnType<PageMonitorService["getPublicSource"]>;
+  getPublicScreenshot: (
+    pageId: string,
+    runId: string,
+  ) => ReturnType<PageMonitorService["getPublicScreenshot"]>;
+  listPublicVersions: (pageId: string) => ReturnType<PageMonitorService["listPublicVersions"]>;
+  getPublicVersion: (pageId: string, runId: string) => Promise<StoredPublicVersion | null>;
   initializeAndStart: PageMonitorService["initializeAndStart"];
   listRuns: (
     limit?: number,
@@ -43,6 +51,27 @@ export const pageMonitorService: PageMonitorService = {
   },
   getPublicSource(domain, pageId, runId) {
     return getStore(domain).getPublicSource(pageId, runId);
+  },
+  getPublicScreenshot(domain, pageId, runId) {
+    return getStore(domain).getPublicScreenshot(pageId, runId);
+  },
+  listPublicVersions(domain, pageId) {
+    return getStore(domain).listPublicVersions(pageId);
+  },
+  async getPublicVersion(domain, pageId, runId) {
+    const stored = await getStore(domain).getPublicVersion(pageId, runId);
+    if (!stored) return null;
+    const { contentKey, previous, ...version } = stored;
+    const changes = await verifiedVersionChanges(
+      previous,
+      { contentKey, model: version.model, snapshot: version.snapshot },
+      async (key) => (await ENV.ARTIFACTS.get(key))?.text() ?? null,
+    );
+    return {
+      ...version,
+      previous: previous ? { runId: previous.runId, capturedAt: previous.capturedAt } : null,
+      changes,
+    };
   },
   normalizeUrl(input) {
     return normalizePricingUrl(input, resolveDnsAddresses);
