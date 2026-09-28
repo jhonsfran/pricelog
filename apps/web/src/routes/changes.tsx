@@ -1,9 +1,9 @@
 import { AI_APPLICATIONS_COHORT, COHORT_MINIMUM } from "@pricelog/api/benchmark";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CategoryPicker } from "@/components/category-picker";
+import { ChipRow, chipClass } from "@/components/chips";
 import { Lede, PageHeader, PageShell } from "@/components/page";
-import { parseCategorySearch } from "@/lib/comparison-search";
 import { WeeklyChangesReport } from "@/components/weekly-changes-report";
+import { CATEGORY_OPTIONS, parseCategorySearch } from "@/lib/comparison-search";
 
 export const Route = createFileRoute("/changes")({
   component: ChangesPage,
@@ -17,34 +17,41 @@ export const Route = createFileRoute("/changes")({
  */
 function ChangesPage() {
   const { cohort = AI_APPLICATIONS_COHORT } = Route.useSearch();
-  const navigate = Route.useNavigate();
 
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Published pricing terms"
-        title="Weekly changes"
+        eyebrow="Weekly changes"
+        title="What changed last week"
         aside={
-          <Lede>
-            See which pricing terms changed between the last two complete weeks. Each change
-            includes dated sources and before-and-after text.
-          </Lede>
-        }
-      />
-      <div className="grid gap-5 py-6 md:grid-cols-2">
-        <CategoryPicker
-          value={cohort}
-          onChange={(value) => navigate({ search: { cohort: value }, resetScroll: false })}
-        />
-      </div>
-      <p className="flex flex-wrap items-baseline gap-x-4.5 gap-y-2 border-t border-gray-4 pt-3.5 font-mono text-xs text-muted-foreground">
-        <span>Verified against archived pricing pages</span>
-        <span className="md:ml-auto">
-          <Link to="/methodology" search={{ cohort }}>
+          <Link
+            to="/methodology"
+            search={{ cohort }}
+            className="font-mono text-xs text-muted-foreground underline decoration-gray-8 underline-offset-4 transition-colors hover:text-foreground md:justify-self-end"
+          >
             How comparisons are verified
           </Link>
-        </span>
-      </p>
+        }
+      >
+        <Lede>
+          Every change is checked against the archived pages of both weeks, with the text before and
+          after.
+        </Lede>
+      </PageHeader>
+      <ChipRow label="Product category">
+        {CATEGORY_OPTIONS.map((option) => (
+          <Link
+            key={option.value}
+            to="/changes"
+            search={{ cohort: option.value }}
+            resetScroll={false}
+            aria-current={option.value === cohort ? "true" : undefined}
+            className={chipClass(option.value === cohort)}
+          >
+            {option.label}
+          </Link>
+        ))}
+      </ChipRow>
       <WeeklyChangesReport cohort={cohort} minimum={COHORT_MINIMUM} />
     </PageShell>
   );

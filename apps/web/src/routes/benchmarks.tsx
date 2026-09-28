@@ -3,221 +3,209 @@ import {
   CHARGING_SIGNAL_KEYS,
   JEV_CHOICE_RULES,
   PRICING_CHOICE_CATALOG,
+  TAG_PROBABILITY_THRESHOLD,
   getPricingSignalMetadata,
   pricingSignalCoverage,
 } from "@pricelog/api/pricing-intelligence";
-import { formatToken } from "@/lib/format";
+import type { AppRouterClient } from "@pricelog/api/routers/index";
+import { Skeleton } from "@pricelog/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { CategoryPicker } from "@/components/category-picker";
-import { SelectField } from "@/components/select-field";
+import { ChipRow, chipClass, segmentClass, segmentGroup } from "@/components/chips";
 import { NumericBenchmarkPanel } from "@/components/numeric-prices";
-import { Lede, Notice, PageHeader, PageShell, StatRow } from "@/components/page";
+import { Lede, Notice, PageHeader, PageShell } from "@/components/page";
+import type { StackPage } from "@/components/page-stack";
 import { PracticeChart, type ChartRow } from "@/components/practice-chart";
 import { RelativeTime } from "@/components/relative-time";
+import {
+  CATEGORY_OPTIONS,
+  parseComparisonSearch,
+  type ComparisonTopic,
+} from "@/lib/comparison-search";
 import type { DirectoryFilter } from "@/lib/directory-filter";
-import { parseComparisonSearch, type ComparisonTopic } from "@/lib/comparison-search";
+import { formatToken } from "@/lib/format";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/benchmarks")({
   component: BenchmarksPage,
   validateSearch: parseComparisonSearch,
 });
+
+type Benchmarks = Awaited<ReturnType<AppRouterClient["directory"]["benchmarks"]>>;
+type Example = Benchmarks["examples"][number];
+
 const MONETIZATION_KEYS = ["limit_behavior", "spend_cap", "metered_unit"] as const;
-const topicOptions = [
-  { value: "charging_structure", label: "How products charge" },
-  { value: "monetization", label: "How products monetize" },
+const TOPICS: { value: ComparisonTopic; label: string }[] = [
+  { value: "charging_structure", label: "How they charge" },
+  { value: "monetization", label: "How they monetize" },
   { value: "prices", label: "Published prices" },
 ];
 
+const asStack = (examples: Example[]): StackPage[] =>
+  examples.map((page) => ({ slug: page.slug, domain: page.normalizedDomain }));
+
 function BenchmarksPage() {
   const { cohort = AI_APPLICATIONS_COHORT, topic = "charging_structure" } = Route.useSearch();
-  const navigate = Route.useNavigate();
   const benchmarks = useQuery(orpc.directory.benchmarks.queryOptions({ input: { cohort } }));
   const data = benchmarks.data;
   const selected = data?.selected;
-  const minimum = COHORT_MINIMUM;
-  // A bar links out carrying the cohort it was measured over, so the
-  // directory resolves the same population and the two counts agree.
+  const comparable = (selected?.pageCount ?? 0) >= COHORT_MINIMUM;
+  const examples = data?.examples ?? [];
+  const share = (count: number) =>
+    comparable && selected?.pageCount
+      ? `${Math.round((count / selected.pageCount) * 100)}%`
+      : `${count}`;
+
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Pricing practices"
-        title="Compare how AI products charge"
-        aside={
-          <Lede>
-            Choose a category and a pricing question. Inspect the published terms and the pages
-            behind each answer.
-          </Lede>
-        }
-      />
-      <div className="grid gap-5 py-6 md:grid-cols-2">
-        <CategoryPicker
-          value={cohort}
-          counts={data?.available}
-          onChange={(value) =>
-            navigate({ search: (previous) => ({ ...previous, cohort: value }), resetScroll: false })
-          }
-        />
-        <SelectField
-          id="pricing-question"
-          label="Pricing question"
-          value={topic}
-          options={topicOptions}
-          onChange={(value) =>
-            navigate({
-              search: (previous) => ({ ...previous, topic: value as ComparisonTopic }),
-              resetScroll: false,
-            })
-          }
-        />
-      </div>
-      {data ? (
-        <section aria-label="Sample coverage">
-          <StatRow
-            items={[
-              {
-                label: "Eligible pages",
-                value: (
-                  <>
-                    {data.coverage.eligible}
-                    <span className="text-base text-muted-foreground">
-                      {" "}
-                      / {data.coverage.total}
-                    </span>
-                  </>
-                ),
-              },
-              { label: "Outside capture window", value: data.coverage.stale },
-              { label: "Need a new analysis", value: data.coverage.incompatible },
-              { label: "Pending", value: data.coverage.pending },
-            ]}
-          />
-          <p className="mt-2.5 text-xs text-muted-foreground">
-            Eligible captures are from the past 14 days.
+      <PageHeader eyebrow="Pricing practices" title="Compare how AI products charge">
+        <Lede>
+          Pick a category and a question. Every answer opens the pages behind it, each with its
+          dated source.
+        </Lede>
+      </PageHeader>
+      <ChipRow label="Product category">
+        {CATEGORY_OPTIONS.map((option) => {
+          const count = data?.available.find((item) => item.cohort === option.value)?.pageCount;
+          return (
+            <Link
+              key={option.value}
+              to="/benchmarks"
+              search={(previous) => ({ ...previous, cohort: option.value })}
+              resetScroll={false}
+              aria-current={option.value === cohort ? "true" : undefined}
+              className={chipClass(option.value === cohort, data !== undefined && !count)}
+            >
+              {option.label}
+              {data ? (
+                <span className="font-mono text-2xs opacity-70 tabular-nums">{count ?? 0}</span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </ChipRow>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-gray-5 pb-4">
+        <nav aria-label="Pricing question" className={segmentGroup}>
+          {TOPICS.map((option) => (
+            <Link
+              key={option.value}
+              to="/benchmarks"
+              search={(previous) => ({ ...previous, topic: option.value })}
+              resetScroll={false}
+              aria-current={option.value === topic ? "true" : undefined}
+              className={segmentClass(option.value === topic)}
+            >
+              {option.label}
+            </Link>
+          ))}
+        </nav>
+        {data ? (
+          <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-xs text-muted-foreground tabular-nums [&>*+*]:before:mr-2.5 [&>*+*]:before:text-gray-8 [&>*+*]:before:inline-block [&>*+*]:before:content-['·']">
+            <span>
+              <strong className="font-medium text-foreground">{selected?.pageCount ?? 0}</strong>{" "}
+              pages here
+            </span>
+            <span>
+              {data.coverage.eligible} of {data.coverage.total} current
+            </span>
+            {data.coverage.pending ? <span>{data.coverage.pending} pending</span> : null}
+            {data.computedAt ? (
+              <span>
+                computed <RelativeTime value={data.computedAt} />
+              </span>
+            ) : null}
+            <Link to="/methodology" search={{ cohort }}>
+              How this is measured
+            </Link>
           </p>
-        </section>
+        ) : null}
+      </div>
+      {selected && !comparable && topic !== "prices" ? (
+        <p className="mt-4 text-xs text-warning-11">
+          Fewer than {COHORT_MINIMUM} pages in this category, so counts stand in for percentages.
+        </p>
       ) : null}
       {benchmarks.isLoading ? (
-        <Notice loading>Reading pricing practices…</Notice>
+        <div className="grid gap-4 pt-6" aria-hidden="true">
+          <Skeleton className="h-72" />
+        </div>
       ) : benchmarks.isError ? (
         <Notice>Pricing practices are not available.</Notice>
       ) : !selected ? (
-        <Notice>
-          No current observations in this category. Add a pricing page to start collecting it.
-        </Notice>
-      ) : (
-        <>
-          {/* One line of provenance. The caveats that used to sit here in
-              full are on the methodology page, one click away. */}
-          <p className="mt-6 flex flex-wrap items-baseline gap-x-4.5 gap-y-2 border-t border-gray-4 pt-3.5 font-mono text-xs text-muted-foreground">
-            <strong className="font-medium text-foreground tabular-nums">
-              {selected.pageCount} pages
-            </strong>
-            <span>
-              {data?.computedAt ? (
-                <>
-                  computed <RelativeTime value={data.computedAt} />
-                </>
-              ) : (
-                "from the latest successful captures"
-              )}
-            </span>
-            <span className="md:ml-auto">
-              <Link to="/methodology" search={{ cohort }}>
-                How this is measured
-              </Link>
-            </span>
-          </p>
-          {selected.pageCount < minimum && topic !== "prices" ? (
-            <p className="mt-3 text-xs text-warning-11">
-              Fewer than {minimum} pages in this category, so counts are shown in place of
-              percentages.
-            </p>
-          ) : null}
-          {topic === "charging_structure" ? (
-            <section className="pt-6">
+        <p className="mt-6 border border-dashed border-gray-6 px-5 py-6 text-sm text-muted-foreground">
+          No current captures in this category yet.{" "}
+          <Link to="/dashboard">Track a pricing page</Link> to start collecting it.
+        </p>
+      ) : topic === "charging_structure" ? (
+        <div className="pt-6">
+          <PracticeChart
+            title="How these products charge"
+            question="Pages that state each kind of charge. A page can state several."
+            total={comparable ? undefined : selected.pageCount}
+            rows={CHARGING_SIGNAL_KEYS.map((key): ChartRow => {
+              const metadata = getPricingSignalMetadata(key)!;
+              const coverage = pricingSignalCoverage(
+                selected.pageCount,
+                selected.signalShares[key],
+              );
+              return {
+                key,
+                label: metadata.label,
+                fill: coverage.fraction,
+                display: share(coverage.stated),
+                count: coverage.stated,
+                pages: asStack(
+                  examples.filter(
+                    (page) =>
+                      (page.signals.find((signal) => signal.key === key)?.probability ?? 0) >=
+                      TAG_PROBABILITY_THRESHOLD,
+                  ),
+                ),
+                filter: { signal: key, cohort } satisfies DirectoryFilter,
+              };
+            })}
+            footnote={`Out of ${selected.pageCount} current pages. Select an answer to see its pages.`}
+          />
+        </div>
+      ) : topic === "monetization" ? (
+        <div className="grid gap-4 pt-6">
+          {MONETIZATION_KEYS.map((key) => {
+            const answers = selected.choiceShares[key] ?? { answered: 0, options: {} };
+            return (
               <PracticeChart
-                title="How these products charge"
-                question="Share of all eligible pages in this category that state each charge. A page can state several."
-                rows={CHARGING_SIGNAL_KEYS.map((key): ChartRow => {
-                  const metadata = getPricingSignalMetadata(key)!;
-                  const share = pricingSignalCoverage(
-                    selected.pageCount,
-                    selected.signalShares[key],
-                  );
-                  const comparable = selected.pageCount >= minimum;
-                  return {
-                    key,
-                    label: `${metadata.label} · ${share.uncertain} uncertain`,
-                    fill: share.fraction,
-                    display: comparable
-                      ? `${Math.round(share.fraction * 100)}%`
-                      : `${share.stated}`,
-                    filter: { signal: key, cohort } satisfies DirectoryFilter,
-                  };
-                })}
-                footnote={`Denominator: all ${selected.pageCount} eligible pages in this category, including uncertain observations. Select a bar to list the pages that state the charge.`}
-              >
-                {CHARGING_SIGNAL_KEYS.map((key) => {
-                  const metadata = getPricingSignalMetadata(key)!;
-                  return (
-                    <div className="grid gap-1.5" key={key}>
-                      <h4 className="text-sm">{metadata.label}</h4>
-                      <p className="font-mono text-2xs text-muted-foreground tabular-nums">
-                        {selected.signalShares[key]?.stated ?? 0} stated ·{" "}
-                        {selected.signalShares[key]?.notEstablished ?? 0} not established ·{" "}
-                        {selected.signalShares[key]?.uncertain ?? selected.pageCount} uncertain
-                      </p>
-                      <p>{metadata.question}</p>
-                      <p className="text-muted-foreground">Stated: {metadata.whenTrue}</p>
-                      <p className="text-muted-foreground">Not established: {metadata.whenFalse}</p>
-                    </div>
-                  );
-                })}
-              </PracticeChart>
-            </section>
-          ) : null}
-          {topic === "monetization"
-            ? MONETIZATION_KEYS.map((key) => {
-                const share = selected.choiceShares[key] ?? { answered: 0, options: {} };
-                const comparable = selected.pageCount >= minimum;
-                return (
-                  <PracticeChart
-                    key={key}
-                    title={PRICING_CHOICE_CATALOG[key].label}
-                    question={PRICING_CHOICE_CATALOG[key].question}
-                    rows={Object.entries(share.options)
-                      .filter(([option]) => !JEV_CHOICE_RULES[key].absent.includes(option))
-                      .map(([option, count]): ChartRow => {
-                        const fraction = selected.pageCount ? count / selected.pageCount : 0;
-                        return {
-                          key: option,
-                          label: formatToken(option),
-                          fill: fraction,
-                          display: comparable ? `${Math.round(fraction * 100)}%` : `${count}`,
-                          filter: {
-                            choiceKey: key,
-                            choiceValue: option,
-                            cohort,
-                          } satisfies DirectoryFilter,
-                        };
-                      })}
-                    footnote={`Denominator: all ${selected.pageCount} eligible pages in this category. ${selected.pageCount - share.answered} pages do not state it or have no confident answer.`}
-                  />
-                );
-              })
-            : null}
-          {topic === "prices" ? (
-            <NumericBenchmarkPanel
-              prices={selected.numericPrices}
-              category={cohort.startsWith("category:")}
-              examples={data?.priceExamples ?? []}
-              pageCount={selected.pageCount}
-              cohort={cohort}
-            />
-          ) : null}
-        </>
+                key={key}
+                title={PRICING_CHOICE_CATALOG[key].label}
+                question={PRICING_CHOICE_CATALOG[key].question.replace(/ Choose \w+ when.*$/, "")}
+                total={comparable ? undefined : selected.pageCount}
+                rows={Object.entries(answers.options)
+                  .filter(([option]) => !JEV_CHOICE_RULES[key].absent.includes(option))
+                  .map(([option, count]): ChartRow => ({
+                    key: option,
+                    label: formatToken(option),
+                    fill: selected.pageCount ? count / selected.pageCount : 0,
+                    display: share(count),
+                    count,
+                    pages: asStack(
+                      examples.filter(
+                        (page) =>
+                          page.choices.find((choice) => choice.key === key)?.choice === option,
+                      ),
+                    ),
+                    filter: { choiceKey: key, choiceValue: option, cohort },
+                  }))}
+                footnote={`Out of ${selected.pageCount} current pages. ${selected.pageCount - answers.answered} do not say.`}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <NumericBenchmarkPanel
+          prices={selected.numericPrices}
+          category={cohort.startsWith("category:")}
+          examples={data?.priceExamples ?? []}
+          pageCount={selected.pageCount}
+          cohort={cohort}
+        />
       )}
     </PageShell>
   );
