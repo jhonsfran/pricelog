@@ -20,8 +20,9 @@ const STILL_CHECKING = `(() => {
 const toRegExp = (pattern: string) => new RegExp(pattern.slice(1, pattern.lastIndexOf("/")));
 
 /**
- * Captures a page behind a bot check that redirects. The one-shot snapshot injects its scripts
- * before the redirect, which wipes them; a session waits for the real page, then injects them.
+ * Captures a page the one-shot snapshot cannot: behind a bot check that redirects (which wipes
+ * the injected scripts) or under a Content-Security-Policy that blocks them. A session waits
+ * for the real page, allows the scripts, then injects them.
  */
 export async function captureThroughBotCheck(
   binding: unknown,
@@ -38,6 +39,8 @@ export async function captureThroughBotCheck(
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 1000 });
+    // Strict Content-Security-Policy pages (github.com) block the injected inline scripts.
+    await page.setBypassCSP(true);
     await page.setExtraHTTPHeaders(input.headers);
     const blocked = input.blocked.map(toRegExp);
     await page.setRequestInterception(true);

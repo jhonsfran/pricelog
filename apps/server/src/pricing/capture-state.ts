@@ -203,6 +203,9 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     }
     return false;
   };
+  const navigates = (element) => element.tagName === 'A' && element.getAttribute('href') && !/^(#|javascript:)/.test(element.getAttribute('href'));
+  const CALL_TO_ACTION = /^(?:start|try|get|buy|contact|talk|book|sign|log ?in|subscribe|upgrade|join|request|schedule|learn|see|view|read|download|choose|select)\b/i;
+  const plainGroups = new Map();
   const groups = new Map();
   for (const element of document.querySelectorAll('[role="tab"], [role="radio"], [role="switch"], input[type="radio"], button[aria-pressed], [aria-checked], input[type="range"], [role="slider"], button, label, [role="button"]')) {
     if (inChromeTree(element) || inConsent(element)) continue;
@@ -212,13 +215,21 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     const role = element.getAttribute('role');
     const stateful = ['tab', 'radio', 'switch', 'slider'].includes(role) || element.type === 'radio' || element.type === 'range' ||
       element.hasAttribute('aria-pressed') || element.hasAttribute('aria-checked');
-    if (!stateful && !BILLING.test(text)) continue;
     if (text.length > 40 && element.type !== 'range') continue;
+    if (!stateful && !BILLING.test(text)) {
+      // Tabs and segmented controls built from plain buttons, kept if they come in a small group.
+      if (element.matches('button, [role="button"]') && !navigates(element) && text && !CALL_TO_ACTION.test(text)) {
+        if (!plainGroups.has(element.parentElement)) plainGroups.set(element.parentElement, []);
+        plainGroups.get(element.parentElement).push({ element, text });
+      }
+      continue;
+    }
     const container = element.closest('[role="tablist"], [role="radiogroup"]') ||
       (element.type === 'radio' ? element.form || element.parentElement.parentElement : element.parentElement);
     if (!groups.has(container)) groups.set(container, []);
     groups.get(container).push({ element, text });
   }
+  for (const group of plainGroups.values()) if (group.length >= 2 && group.length <= 8) groups.set(group, group);
   const controlGroups = [...groups.values()];
   const billingGroups = controlGroups.filter((group) => group.some(({ text }) => BILLING.test(text)));
   const otherGroups = controlGroups.filter((group) => !billingGroups.includes(group)).slice(0, 4);
@@ -251,7 +262,6 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
   const currencyPattern = (code) => new RegExp('^(?:' + [code, escape(SYMBOLS[code] || code), NAMES[code]].filter(Boolean)
     .map((token) => '(?:' + token + ')').join('|') + ')(?:\\s*[(/-]?\\s*(?:' + escape(SYMBOLS[code] || code) + '|' + code + ')\\)?)?$', 'i');
   const anyCurrency = new RegExp('^(?:' + Object.keys(SYMBOLS).map((code) => code + '|' + escape(SYMBOLS[code])).join('|') + ')(?![a-z])', 'i');
-  const navigates = (element) => element.tagName === 'A' && element.getAttribute('href') && !/^(#|javascript:)/.test(element.getAttribute('href'));
   async function selectCurrency(code) {
     if (!code) return 'none';
     const target = currencyPattern(code);
@@ -297,6 +307,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     const base = snapshot();
     const billingView = /year|annual/i.test(selectedLabel()) ? 'annual' : /month/i.test(selectedLabel()) ? 'monthly' : 'unknown';
     const blocks = [{ label: 'default' + (selectedLabel() ? ' (selected: ' + selectedLabel() + ')' : ''), text: print(base, 0) }];
+    partial = { version: 1, billingView, currency, blocks };
     const seen = new Set([key(base)]);
     let total = blocks[0].text.length;
     let skipped = 0;
@@ -360,7 +371,13 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     return { version: 1, billingView, currency, blocks, skipped };
   }
 
+  // A very large page can outlast the capture's wait; publish what exists by then instead of nothing.
+  const TOTAL_BUDGET_MS = 20000;
+  let partial = null;
+  let published = false;
   const publish = (value) => {
+    if (published) return;
+    published = true;
     const data = document.createElement('script');
     data.type = 'application/json';
     data.id = '${STATE_ELEMENT_ID}';
@@ -378,6 +395,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     return text.length < 600 && !MONEY.test(text) && INTERSTITIAL.test(text + ' ' + document.title);
   };
   const start = async () => {
+    setTimeout(() => publish(partial || { version: 1, error: 'capture ran out of time' }), TOTAL_BUDGET_MS);
     // Report a bot check at once: its redirect can come before the consent pass finishes.
     if (looksLikeInterstitial()) {
       publish({ version: 1, interstitial: true });
