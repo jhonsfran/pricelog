@@ -376,7 +376,7 @@ function CategoryChips({ filter }: { filter: DirectoryFilter }) {
     ...CATEGORY_OPTIONS.filter((option) => option.value !== AI_APPLICATIONS_COHORT),
   ];
   return (
-    <ChipRow label="Filter by category" className="mt-5">
+    <ChipRow label="Filter by category" activeKey={filter.cohort} className="mt-5">
       {options.map((option) => {
         const active = filter.cohort === option.value;
         return (
@@ -386,6 +386,7 @@ function CategoryChips({ filter }: { filter: DirectoryFilter }) {
             search={{ ...filter, cohort: option.value }}
             resetScroll={false}
             aria-current={active ? "true" : undefined}
+            data-selected={active}
             className={chipClass(active)}
           >
             {option.label}

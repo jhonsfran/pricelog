@@ -184,7 +184,7 @@ export function NumericBenchmarkPanel({
                 key={`${group.currency}:${group.billing}:${group.chargeUnit}`}
                 className="grid content-start gap-4 border border-gray-5 bg-gray-2/40 px-5 py-4"
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4">
                   <div>
                     <h3 className="text-sm tracking-normal">
                       {group.currency} ·{" "}
@@ -252,7 +252,7 @@ export function NumericBenchmarkPanel({
                         {page.normalizedDomain}
                       </strong>
                     </span>
-                    <span className="flex flex-1 flex-wrap gap-1.5">
+                    <span className="flex flex-1 flex-wrap gap-1.5 max-sm:order-3 max-sm:basis-full">
                       {offers.slice(0, OFFER_CHIPS).map((offer, index) => (
                         <span
                           key={index}

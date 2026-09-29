@@ -98,7 +98,7 @@ export function PlanGrid({
       </div>
       {/* The table's edge spacing sits in the negative margin, so its first column lines up with
           the heading and nothing can show to the left of the sticky column. */}
-      <div className="relative -mx-2 mt-5">
+      <div className="relative -mx-2 mt-5 overflow-hidden">
         <div ref={scroller} className="overflow-x-auto pt-px pb-2">
           <table className="w-full border-separate border-spacing-x-2 border-spacing-y-0 text-left">
             <caption className="sr-only">Plans, prices and features</caption>

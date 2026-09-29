@@ -64,7 +64,7 @@ function BenchmarksPage() {
           dated source.
         </Lede>
       </PageHeader>
-      <ChipRow label="Product category">
+      <ChipRow label="Product category" activeKey={cohort} ready={data !== undefined}>
         {CATEGORY_OPTIONS.map((option) => {
           const count = data?.available.find((item) => item.cohort === option.value)?.pageCount;
           return (
@@ -74,6 +74,7 @@ function BenchmarksPage() {
               search={(previous) => ({ ...previous, cohort: option.value })}
               resetScroll={false}
               aria-current={option.value === cohort ? "true" : undefined}
+              data-selected={option.value === cohort}
               className={chipClass(option.value === cohort, data !== undefined && !count)}
             >
               {option.label}

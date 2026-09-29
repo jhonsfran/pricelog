@@ -1,18 +1,38 @@
 import { cn } from "@pricelog/ui/lib/utils";
 import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 
 /** A row of filter chips that scrolls sideways on a phone and wraps on a wide screen. */
 export function ChipRow({
   label,
+  activeKey,
+  ready,
   children,
   className,
 }: {
   label: string;
+  activeKey?: string;
+  ready?: boolean;
   children: ReactNode;
   className?: string;
 }) {
+  const row = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const container = row.current;
+    const active = container?.querySelector<HTMLElement>('[data-selected="true"]');
+    if (!container || !active) return;
+
+    const bounds = container.getBoundingClientRect();
+    const chosen = active.getBoundingClientRect();
+    if (chosen.left < bounds.left + 16 || chosen.right > bounds.right - 16) {
+      container.scrollLeft += chosen.left - bounds.left - 16;
+    }
+  }, [activeKey, ready]);
+
   return (
     <nav
+      ref={row}
       aria-label={label}
       className={cn(
         "-mx-6 flex gap-1.5 overflow-x-auto px-6 pb-1 max-sm:-mx-4 max-sm:px-4 md:flex-wrap",
@@ -37,7 +57,7 @@ export function chipClass(active: boolean, empty = false) {
 }
 
 /** A switch between a few views of the same thing. */
-export const segmentGroup = "inline-flex max-w-full overflow-x-auto border border-gray-6 p-0.5";
+export const segmentGroup = "inline-flex max-w-full flex-wrap border border-gray-6 p-0.5";
 
 export function segmentClass(active: boolean) {
   return cn(

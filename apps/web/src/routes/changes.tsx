@@ -38,7 +38,7 @@ function ChangesPage() {
           after.
         </Lede>
       </PageHeader>
-      <ChipRow label="Product category">
+      <ChipRow label="Product category" activeKey={cohort}>
         {CATEGORY_OPTIONS.map((option) => (
           <Link
             key={option.value}
@@ -46,6 +46,7 @@ function ChangesPage() {
             search={{ cohort: option.value }}
             resetScroll={false}
             aria-current={option.value === cohort ? "true" : undefined}
+            data-selected={option.value === cohort}
             className={chipClass(option.value === cohort)}
           >
             {option.label}

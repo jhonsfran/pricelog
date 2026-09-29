@@ -70,7 +70,7 @@ function MethodologyPage() {
 
       <section className="pt-10">
         <SectionHeading title="Questions Jev answers" meta="6 kinds" className="border-b" />
-        <DataTable columns={["Question", "What Jev is asked"]} className="min-w-0">
+        <DataTable columns={["Question", "What Jev is asked"]} className={methodologyTable}>
           <DataRow>
             <RowHeader className="w-48 max-sm:w-32">Each price</RowHeader>
             <DataCell>
@@ -107,7 +107,7 @@ function MethodologyPage() {
 
       <section className="pt-10">
         <SectionHeading title="Derived fields" meta="No Jev question" />
-        <DataTable columns={["Field", "Rule"]} className="min-w-0">
+        <DataTable columns={["Field", "Rule"]} className={methodologyTable}>
           <DataRow>
             <RowHeader className="w-48 max-sm:w-32">
               {PRICING_CHOICE_CATALOG.price_disclosure.label}
@@ -127,7 +127,7 @@ function MethodologyPage() {
 
       <section className="pt-10">
         <SectionHeading title="Monetization numbers" meta="Computed, no Jev question" />
-        <DataTable columns={["Number", "How it is computed"]} className="min-w-0">
+        <DataTable columns={["Number", "How it is computed"]} className={methodologyTable}>
           {MONETIZATION_NUMBERS.map(([label, rule]) => (
             <DataRow key={label}>
               <RowHeader className="w-48 max-sm:w-32">{label}</RowHeader>
@@ -161,3 +161,6 @@ const MONETIZATION_NUMBERS = [
 
 const prose =
   "grid max-w-prose gap-4 pt-9 text-base/7 text-gray-11 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:text-foreground [&_h2:first-child]:mt-0 [&_ul]:grid [&_ul]:list-disc [&_ul]:gap-2 [&_ul]:pl-5";
+
+const methodologyTable =
+  "min-w-0 max-sm:block max-sm:[&_thead]:sr-only max-sm:[&_tbody]:block max-sm:[&_tr]:block max-sm:[&_th]:block max-sm:[&_td]:block max-sm:[&_th]:w-full max-sm:[&_td]:w-full max-sm:[&_th]:pb-0 max-sm:[&_td]:pt-2";
