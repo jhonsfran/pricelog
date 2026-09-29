@@ -34,6 +34,69 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
       {
         title: "Pricelog — The open pricing index",
       },
+      {
+        name: "description",
+        content:
+          "The open pricing index for AI products. Compare prices, track changes, and explore captured pricing pages.",
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:site_name",
+        content: "Pricelog",
+      },
+      {
+        property: "og:title",
+        content: "Pricelog — The open pricing index",
+      },
+      {
+        property: "og:description",
+        content:
+          "The open pricing index for AI products. Compare prices, track changes, and explore captured pricing pages.",
+      },
+      {
+        property: "og:image",
+        content: "https://usepricelog.com/og.png",
+      },
+      {
+        property: "og:image:type",
+        content: "image/png",
+      },
+      {
+        property: "og:image:width",
+        content: "1200",
+      },
+      {
+        property: "og:image:height",
+        content: "630",
+      },
+      {
+        property: "og:image:alt",
+        content: "Pricelog. Pricing pages change quietly. We keep the record.",
+      },
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:title",
+        content: "Pricelog — The open pricing index",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "The open pricing index for AI products. Compare prices, track changes, and explore captured pricing pages.",
+      },
+      {
+        name: "twitter:image",
+        content: "https://usepricelog.com/og.png",
+      },
+      {
+        name: "twitter:image:alt",
+        content: "Pricelog. Pricing pages change quietly. We keep the record.",
+      },
     ],
     links: [
       {
