@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pricelog OG image source</title>
+    <style>
+      @font-face {
+        font-family: Inter;
+        src: url("./node_modules/@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "JetBrains Mono";
+        src: url("./node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2");
+        font-weight: 100 800;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        background: #111110;
+        color: #eeeeec;
+        font-family: Inter, sans-serif;
+        font-optical-sizing: auto;
+      }
+      .glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at 90% 45%, #e93d821c, transparent 55%);
+      }
+      header {
+        position: absolute;
+        top: 54px;
+        left: 64px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font:
+          600 23px "JetBrains Mono",
+          monospace;
+        letter-spacing: 3px;
+      }
+      .label {
+        position: absolute;
+        left: 64px;
+        top: 164px;
+        margin: 0;
+        color: #b5b3ad;
+        font:
+          400 15px "JetBrains Mono",
+          monospace;
+        letter-spacing: 1.6px;
+      }
+      h1 {
+        position: absolute;
+        left: 60px;
+        top: 214px;
+        margin: 0;
+        font-size: 78px;
+        font-weight: 650;
+        line-height: 1.03;
+        letter-spacing: -3.3px;
+      }
+      h1 span {
+        display: block;
+      }
+      .promise {
+        position: absolute;
+        left: 64px;
+        top: 406px;
+        margin: 0;
+        font-size: 47px;
+        font-weight: 500;
+        letter-spacing: -1.6px;
+        color: #a19f99;
+      }
+      .stack {
+        position: absolute;
+        left: 872px;
+        top: 192px;
+        width: 244px;
+        height: 266px;
+      }
+      .sheet {
+        position: absolute;
+        width: 204px;
+        height: 226px;
+        border: 1px solid #3b3936;
+        background: #161615;
+      }
+      .oldest {
+        top: 0;
+        left: 40px;
+        border-color: #2d2528;
+      }
+      .older {
+        top: 20px;
+        left: 20px;
+      }
+      .current {
+        top: 40px;
+        left: 0;
+        padding: 26px;
+        border-top: 3px solid #e93d82;
+      }
+      .sheet-heading {
+        width: 55px;
+        height: 7px;
+        background: #6f6d66;
+      }
+      .sheet-line {
+        height: 4px;
+        background: #34332e;
+        margin-top: 13px;
+      }
+      .sheet-line.short {
+        width: 68%;
+      }
+      .bars {
+        height: 74px;
+        margin-top: 29px;
+        display: flex;
+        align-items: end;
+        gap: 11px;
+      }
+      .bars i {
+        width: 29px;
+        background: #e93d82;
+      }
+      .bars i:nth-child(1) {
+        height: 26px;
+        opacity: 0.4;
+      }
+      .bars i:nth-child(2) {
+        height: 42px;
+        opacity: 0.6;
+      }
+      .bars i:nth-child(3) {
+        height: 57px;
+        opacity: 0.8;
+      }
+      .bars i:nth-child(4) {
+        height: 74px;
+      }
+      footer {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 43px;
+        border-top: 1px solid #2d2d28;
+        padding-top: 21px;
+        display: flex;
+        justify-content: space-between;
+        color: #a19f99;
+        font:
+          400 15px "JetBrains Mono",
+          monospace;
+      }
+      .domain {
+        color: #eeeeec;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow" aria-hidden="true"></div>
+    <header>
+      <svg width="36" height="36" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="0" y="13" width="11" height="11" fill="#eeeeec" opacity=".25" />
+        <rect x="6.5" y="6.5" width="11" height="11" fill="#eeeeec" opacity=".5" />
+        <rect x="13" y="0" width="11" height="11" fill="#e93d82" />
+      </svg>
+      PRICELOG
+    </header>
+    <p class="label">THE OPEN PRICING INDEX FOR AI PRODUCTS</p>
+    <h1><span>Pricing pages</span><span>change quietly.</span></h1>
+    <p class="promise">We keep the record.</p>
+    <div class="stack" aria-hidden="true">
+      <div class="sheet oldest"></div>
+      <div class="sheet older"></div>
+      <div class="sheet current">
+        <div class="sheet-heading"></div>
+        <div class="sheet-line"></div>
+        <div class="sheet-line short"></div>
+        <div class="bars"><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <footer>
+      <span>Compare prices. Track changes.</span><span class="domain">usepricelog.com</span>
+    </footer>
+  </body>
+</html>
