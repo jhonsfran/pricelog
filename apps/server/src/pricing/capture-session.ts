@@ -54,7 +54,8 @@ export async function captureThroughBotCheck(
         status = response.status();
     });
 
-    await page.goto(input.url, { waitUntil: "networkidle2", timeout: 60_000 });
+    // The state-ready marker proves capture completion. Network-idle can time out on pages that poll or stream.
+    await page.goto(input.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
     const deadline = Date.now() + BOT_CHECK_WAIT_MS;
     while (Date.now() < deadline) {
       // Evaluating during the redirect throws; that is still the check.
