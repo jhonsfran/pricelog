@@ -7,6 +7,7 @@ import { ENV } from "./env.server";
 import { getDb } from "./services";
 import { createAuth } from "./services";
 import { pageMonitorService } from "./pricing/service";
+import { createWeeklyHistoryCache } from "./weekly-history-cache";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -27,6 +28,9 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     db,
     session,
     pageMonitor: pageMonitorService,
+    weeklyHistoryCache: createWeeklyHistoryCache((promise) =>
+      context.executionCtx.waitUntil(promise),
+    ),
     operatorEmails: parseOperatorEmails(ENV.PAGE_OPERATOR_EMAILS),
   };
 }

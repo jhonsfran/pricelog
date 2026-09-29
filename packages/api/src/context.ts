@@ -4,6 +4,7 @@ import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
 import type { PublicVersion, PublicVersionSummary } from "./page-versions";
 import type { Comparison, WeeklyPageHistory } from "./pricing-history";
+import type { readWeeklyHistory } from "./pricing-history-store";
 
 import type { DescendingTimestampCursor } from "./pagination";
 
@@ -73,6 +74,12 @@ export type Context = {
   session: Session | null;
   db: Database;
   pageMonitor: PageMonitorService;
+  weeklyHistoryCache: {
+    getOrLoad(
+      periodEnd: Date,
+      load: () => ReturnType<typeof readWeeklyHistory>,
+    ): ReturnType<typeof readWeeklyHistory>;
+  };
   /** Lowercase account emails that may open and scan every page, not only their own. */
   operatorEmails?: readonly string[];
 };

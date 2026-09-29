@@ -6,7 +6,7 @@ import { AI_APPLICATIONS_COHORT, ALL_COHORT, cohortLabel, cohortsForPage } from 
 
 import { isPricingChoiceKey, isPricingSignalKey } from "../pricing-intelligence";
 import { publicScreenshotUrl } from "../page-versions";
-import { buildWeeklyReport, sourceUrl } from "../pricing-history";
+import { buildWeeklyReport, completedWeeks, sourceUrl } from "../pricing-history";
 import { readWeeklyHistory } from "../pricing-history-store";
 import {
   benchmarkCorpusCondition,
@@ -240,10 +240,9 @@ export const directoryRouter = {
     )
     .handler(async ({ context, input }) => {
       const now = new Date();
-      const { observations, comparisons } = await readWeeklyHistory(
-        context.db,
-        context.pageMonitor,
-        now,
+      const { observations, comparisons } = await context.weeklyHistoryCache.getOrLoad(
+        completedWeeks(now).periodEnd,
+        () => readWeeklyHistory(context.db, context.pageMonitor, now),
       );
       return buildWeeklyReport(
         observations,
