@@ -1,7 +1,7 @@
-import { Button } from "@pricelog/ui/components/button";
+import { Button, buttonVariants } from "@pricelog/ui/components/button";
 import { FieldGroup } from "@pricelog/ui/components/field";
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -10,7 +10,7 @@ import { authClient } from "@/lib/auth-client";
 import { AuthField, AuthShell } from "./auth-field";
 import Loader from "./loader";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm() {
   const navigate = useNavigate({
     from: "/",
   });
@@ -58,10 +58,10 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       intro="Monitor the pricing pages you own and read every scan against the same question set."
       footer={
         <>
-          Need an account?{" "}
-          <Button type="button" variant="link" size="xs" onClick={onSwitchToSignUp}>
-            Create one
-          </Button>
+          No account yet?{" "}
+          <Link to="/waitlist" className={buttonVariants({ variant: "link", size: "xs" })}>
+            Join the waitlist
+          </Link>
         </>
       }
     >

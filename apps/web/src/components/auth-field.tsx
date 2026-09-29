@@ -49,7 +49,6 @@ export function AuthField({
   );
 }
 
-/** The owner console's sign-in and sign-up screens share one frame. */
 export function AuthShell({
   title,
   intro,

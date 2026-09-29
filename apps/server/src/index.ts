@@ -3,7 +3,7 @@ import { appRouter } from "@pricelog/api/routers/index";
 import { parseAllowedOrigins } from "@pricelog/auth";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { onError } from "@orpc/server";
+import { onError, ORPCError, ValidationError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { initLogger, log } from "evlog";
@@ -35,6 +35,15 @@ initLogger({
 });
 
 function logHandlerError(error: unknown) {
+  // The cause holds the rejected input, which can be an email address. Output validation failures
+  // are 500s and stay logged.
+  if (
+    error instanceof ORPCError &&
+    error.code === "BAD_REQUEST" &&
+    error.cause instanceof ValidationError
+  ) {
+    return;
+  }
   useLogger().error(error instanceof Error ? error : new Error(String(error)));
 }
 

@@ -13,6 +13,7 @@ Records describe what a pricing page states. They do not measure pricing quality
 | `/benchmarks`  | Everyone         | Pricing practices by category: how products charge, how they monetize, and published price ranges. Each answer links to the pages behind it.                                       |
 | `/changes`     | Everyone         | Verified pricing changes between the last two complete weeks, grouped by page, with the text before and after.                                                                     |
 | `/methodology` | Everyone         | How captures are read and when a claim publishes.                                                                                                                                  |
+| `/waitlist`    | Everyone         | The waitlist for accounts. It stores an address and the date it joined.                                                                                                            |
 | `/dashboard`   | Signed-in owners | Tracked pages. Each owner record adds collection details, claims held back from publishing, capture history with artifacts, and live scan progress.                                |
 
 ## How a capture becomes a record
@@ -30,8 +31,8 @@ Two captures are compared by diffing their snapshots. A change counts only when 
 
 - **TanStack Start** serves the public site and the owner dashboard (`apps/web`).
 - **Hono and oRPC** serve the public and authenticated API (`apps/server`, `packages/api`). `/rpc` is the oRPC endpoint, and `/api-reference` serves the OpenAPI reference.
-- **Better Auth** owns user sessions (`packages/auth`). `PAGE_OPERATOR_EMAILS` controls sign-up, sign-in, and page-wide operator access.
-- **Cloudflare D1** stores users, page ownership, public summaries, benchmark snapshots and owner dashboard projections (`packages/db`).
+- **Better Auth** owns user sessions (`packages/auth`). `PAGE_OPERATOR_EMAILS` controls sign-in and page-wide operator access. Accounts are created only through the auth API ([Operator account](#operator-account)).
+- **Cloudflare D1** stores users, page ownership, public summaries, benchmark snapshots, owner dashboard projections and the waitlist (`packages/db`).
 - **One SQLite Durable Object per normalized domain** (`PageStore`) holds scan runs, page versions, rubric answers, evaluations, comparisons and the next scan alarm.
 - **Cloudflare Workflows** (`ScanWorkflow`) run each scan through `capture → archive → draft → verify → project → store → publish`.
 - **Cloudflare R2** stores captured HTML, screenshots and page text.
@@ -101,6 +102,31 @@ pnpm run db:generate:do  # Durable Object: apps/server/src/pricing/drizzle
 
 Alchemy applies D1 migrations on deploy. Each PageStore applies its migrations when it starts.
 
+## Operator account
+
+The site has no sign-up page. `/login` signs in an existing account, and everyone else is sent to `/waitlist`. To create the operator account on a fresh stack, call Better Auth's sign-up endpoint once. The address must be in `PAGE_OPERATOR_EMAILS`; any other address gets `403 Account access is restricted.`
+
+```bash
+read -rs PRICELOG_PASSWORD
+printf '{"name":"Operator","email":"%s","password":"%s"}' "<OPERATOR_EMAIL>" "$PRICELOG_PASSWORD" |
+  curl -sS http://localhost:4000/api/auth/sign-up/email \
+    -H "Content-Type: application/json" -H "Origin: http://localhost:4100" -d @-
+unset PRICELOG_PASSWORD
+```
+
+`printf` is a shell builtin, so the password never appears in a process list or in shell history. A password containing `"` or `\` breaks the JSON. For a deployed stack, use its API and web origins.
+
+## Waitlist
+
+`/waitlist` stores one row per address in the D1 table `waitlist_entry`: the address, lowercased and trimmed, and the time it joined. Nothing is sent to it yet. To read or erase entries:
+
+```bash
+npx wrangler d1 execute <DATABASE_NAME> --remote --command "select email, created_at from waitlist_entry order by created_at"
+npx wrangler d1 execute <DATABASE_NAME> --remote --command "delete from waitlist_entry where email = '<ADDRESS>'"
+```
+
+`waitlist.join` is not rate limited and has no bot check. Before the first email is ever sent, add Turnstile and a confirmation email. If request logs show scripted volume, add a Cloudflare rate-limit rule on `/rpc/waitlist/*` and `/api-reference/waitlist/*`, which needs no code.
+
 ## Tests and verification
 
 ```bash
@@ -116,6 +142,7 @@ The tests cover:
 - capture scripts, quote parsing (including European number formats) and grounding;
 - Jev response validation, snapshot projection, monetization numbers and snapshot diffs;
 - change confirmation, benchmark populations, weekly reports and ownership checks;
+- waitlist joins: normalization, repeats and rejected addresses;
 - the web's price display and directory filters.
 
 Unit tests use scripted model answers. They check application rules, not model accuracy on real pages.
@@ -158,3 +185,4 @@ After the first deployment, add the deployed web origin to `CORS_ORIGIN` and dep
 - Linked documents are not crawled, and no workload cost is estimated.
 - A change to the rubric or model needs new evaluations; old records leave current comparisons.
 - Chromium is the only browser engine.
+- The waitlist has no rate limit or bot check; [Waitlist](#waitlist) says when to add them.
