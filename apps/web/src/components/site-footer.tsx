@@ -37,7 +37,7 @@ export function SiteFooter() {
             <Link className={link} to="/methodology" search={search}>
               Methodology
             </Link>
-            <Link className={link} to="/dashboard">
+            <Link className={link} to="/waitlist">
               Track a page
             </Link>
           </FooterGroup>

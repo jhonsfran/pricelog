@@ -60,9 +60,6 @@ export default function Header() {
                   {link.label}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuItem className="min-h-11" render={<Link to="/dashboard" />}>
-                Your pages
-              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

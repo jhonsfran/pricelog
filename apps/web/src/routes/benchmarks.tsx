@@ -134,8 +134,8 @@ function BenchmarksPage() {
         <Notice>Pricing practices are not available.</Notice>
       ) : !selected ? (
         <p className="mt-6 border border-dashed border-gray-6 px-5 py-6 text-sm text-muted-foreground">
-          No current captures in this category yet.{" "}
-          <Link to="/dashboard">Track a pricing page</Link> to start collecting it.
+          No current captures in this category yet. <Link to="/waitlist">Join the waitlist</Link> to
+          track pages in it.
         </p>
       ) : topic === "charging_structure" ? (
         <div className="pt-6">
