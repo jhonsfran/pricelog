@@ -25,7 +25,7 @@
 - [x] Write failing tests for `summarizeDistribution`: count, median, p25, p75, and the percentile rank of a given value, including single-item and empty inputs.
 - [x] Write failing tests for `shareOf`, which returns the fraction of a cohort holding a given choice value or positive signal tag.
 - [x] Implement the three functions with no database or network access so they stay unit-testable.
-- [x] Run `pnpm --filter @my-better-t-app/api test -- benchmark.test.ts` and verify it passes.
+- [x] Run `pnpm --filter @pricelog/api test -- benchmark.test.ts` and verify it passes.
 
 ### Task 2: Persist benchmark snapshots in D1
 
@@ -92,7 +92,7 @@
 - Create: `apps/web/src/routes/methodology.tsx`
 - Modify: `apps/web/src/components/header.tsx`
 
-- [x] Render every question, its criteria, and its thresholds directly from `@my-better-t-app/api/pricing-intelligence`, so the published methodology cannot differ from the evaluated prompt.
+- [x] Render every question, its criteria, and its thresholds directly from `@pricelog/api/pricing-intelligence`, so the published methodology cannot differ from the evaluated prompt.
 - [x] State the disclosure limitation plainly: Pricelog measures what a pricing page states, not what a product does.
 - [x] State the confidence thresholds (`0.75` for choices, `0.80` for tags) and the suppression rule for small cohorts.
 - [x] Link the methodology from the index screen and from every page profile.

@@ -1,84 +1,63 @@
 # Pricing methodology
 
-Pricelog records facts from submitted public pricing pages. The sample is not a market census. Published terms do not establish buyer sentiment, willingness to pay, conversion performance, margins, or pricing quality.
+Pricelog records stated terms from public pricing pages that users submit. It does not measure the whole market, buyer sentiment, conversion, margins, or pricing quality.
 
-## Capture and source
+## Capture
 
-Chromium captures one rendered page. Before archiving rendered Markdown, code removes cookie consent panels when their markers and action boundaries are clear. Ambiguous cookie text stays in the source. The same snapshot also provides an accessibility tree. When Markdown omits a price held in an accessible image label, code inserts that literal price under its matching plan heading. The archived Markdown is the evidence source for collection and change checks. HTML and screenshots remain archived for capture debugging. A capture can omit billing-toggle variants or content that requires interaction. Linked documents are outside the source scope.
+Chromium renders the page through Browser Run. The capture dismisses known cookie panels, records the visible text of the page, clicks billing toggles, tabs and sliders, and records what each one changes. It archives the screenshot, the HTML and that page text in R2. Prices the page declares as schema.org data (Offer, AggregateOffer) are appended to the page text as a `structured data` section. Linked documents are outside its scope.
 
-Only Jev evaluates the source. Navigation, testimonials, competitor references, hypothetical examples, and instructions embedded in the source are excluded. Explicit pricing FAQ terms are eligible.
+## Scan pipeline
 
-## What is collected
+`queued → capture → archive → draft → verify → project → store → publish → complete`
 
-The page profile records product category, audience, buying motion, and price disclosure. Charging components are independent. Fixed subscription, seats, credit wallets, direct usage, outcome charges, and AI add-ons can occur together.
+| Phase     | Stage     | Output                                                                   |
+| --------- | --------- | ------------------------------------------------------------------------ |
+| Extract   | `capture` | One rendered Chromium snapshot                                           |
+| Extract   | `archive` | HTML, screenshot, and Markdown in R2; capture manifest in the page store |
+| Transform | `draft`   | Price and feature quotes proposed by the extraction model                |
+| Transform | `verify`  | Grounding in code, then one Jev question per price and per feature row   |
+| Transform | `project` | Public facts supported by Jev, plus owner review items                   |
+| Load      | `store`   | Answers and evaluation stored with the captured version                  |
+| Load      | `publish` | Publication prepared in the page store, then delivered to D1             |
 
-For each accepted offer, the collector can record:
+`complete` means the page store has committed a successful version. The D1 directory update can finish later because the page store retries pending publication. If the price extraction fails, `verify` skips Jev; `project` creates an unavailable snapshot, and the scan still stores and publishes its capture. Older runs can show the former `persist` or `evaluate` stage names.
 
-- Base prices and seat prices.
-- Usage, outcome, and overage rates.
-- Credit pack and AI add-on prices.
-- Included allowances and credit-to-work conversion.
-- Purchased credit expiry and included credit rollover limits.
-- Minimum paid seats.
+Each run has a durable pipeline trace in the owner view. It records stage transitions, capture size and browser time, extraction warnings, provider status, Jev answer count, selected fact count, and the final error. The trace stays with the run if a Workflow step retries or the directory update is delayed. Use the captured HTML and Markdown links to inspect the exact input when a draft fails.
 
-The seven policies cover credit conversion, credit use by model, allowance exhaustion, customer spend caps, failed runs, purchased credit expiry, and included credit rollover. Offer-specific questions run only for policies that the page-wide evaluation found to be stated. Different offers need not share one policy. The profile shows positive policies with evidence; it does not list repeated `not_disclosed` entries for each offer.
+## Extraction and verification
 
-There is no primary pricing-model label, inferred value metric, expansion-path label, or AI cost pass-through classification.
+The extraction model copies prices and features from the archived page text in two requests. The prices request asks for every price with its plan (or none, for prices that apply to all plans), the exact line, and the page state it appears under. Qwen3 30B answers first; Llama 3.3 70B answers when Qwen fails, returns no prices for a page that shows amounts, or repeats one line in a loop. The features request asks for each feature with its value per plan, with the same fallback. The model proposes no labels; Jev decides what each price is.
 
-## Acceptance rules
+Code checks that every quoted plan, price line, feature name and value appears in the page text. A quote that does not becomes an `ungrounded` review item. The same price line for the same plan is checked once.
 
-Code finds bounded numeric and offer-name candidates. Jev Choice questions select or classify candidates. Independent questions about a batch share one request with the relevant source passages; page-wide policy questions still receive the complete source. Rate denominators are selected from a local evidence passage, not a page-wide number menu. Code copies selected source values and retains their literal evidence spans. Jev does not generate prices, calculate minimums, or supply money amounts through scores.
+Jev receives the same page text and answers:
 
-Offer fact choices require at least `0.90` confidence. Independent Noul checks require at least `0.95` probability. The model must identify itself as exactly `jev-1.13.0`. These are acceptance rules, not calibrated accuracy claims.
+| Question                     | Type   | Publishes when                                     |
+| ---------------------------- | ------ | -------------------------------------------------- |
+| Each price                   | Choice | Confidence at least `0.5`, and not "not this plan" |
+| Each feature row             | Yes/no | Probability at least `0.5`                         |
+| Product category             | Choice | Confidence at least `0.75`, and not `unknown`      |
+| When included usage runs out | Choice | Confidence at least `0.5`, and not `not_stated`    |
+| Customer spend cap           | Choice | Confidence at least `0.5`, and not `not_stated`    |
+| What is metered              | Choice | Confidence at least `0.5`, and not `none_stated`   |
 
-Page-profile Choice answers use the shared catalog threshold, currently `0.75`. Charging disclosures are stated at `0.80` or above, not established at `0.20` or below, and uncertain between those values. Raw probabilities remain stored.
+A price question asks what the quoted amount is for its plan: a flat or per-seat price billed monthly or annually, a usage rate, an add-on, a free plan, a custom quote, or not this plan's price. The period comes from the quoted text. A price without an amount publishes only as a free or custom price whose text says so. A feature question asks whether the page states the quoted values for that feature. A price or feature row that does not publish goes to review with its reason. A monetization answer that does not publish is simply absent.
 
-Positive facts need literal evidence. Missing disclosure requires evaluation of the complete captured source. An excerpt cannot establish that a policy is absent elsewhere. Not applicable requires explicit evidence that the policy cannot apply. Ambiguous or conflicting evidence remains uncertain.
+Every other profile field is derived in code from the published prices and features: free plan, contact sales, numeric limits, fixed subscription, per-seat, usage, credit and add-on charges, and price disclosure. Jev is not asked about them.
 
-Request and candidate limits bound collection. A limit failure marks collection unavailable. The UI distinguishes not collected, unavailable, and collected with no accepted facts. Unresolved numeric and policy counts remain visible.
+Monetization numbers are computed from the published facts and are shown only when the facts settle them:
 
-## Numeric limits
+- Annual discount per plan and its median, from plans with both a monthly-billed and an annual-billed price of the same kind.
+- Entry price and price ladder, from each paid plan's monthly price or annual monthly equivalent, when all tiers share one currency.
+- Included unit price, a plan's monthly price over the absolute quantity a feature row includes of the metered unit, per unit and per 1,000. Relative values such as `10x` or `Unlimited` are skipped.
+- Overage markup, a usage rate per unit over the included unit price of its plan, or of the cheapest tier for rates that apply to all plans, when units and currency match.
 
-The parser accepts supported decimal literals with a dot decimal separator and optional comma thousands grouping. Code expands explicit thousand, million, and billion scale words with exact decimal arithmetic, including rate quantities such as per million tokens. It rejects ambiguous grouping, decimal commas, percentage fragments, scientific notation, shorthand scales such as K or M, and unsupported precision. Unsupported formats remain uncollected and count as unresolved numeric candidates.
+The public directory shows only accepted claims. The owner view lists every claim that did not publish, with its reason. Raw extraction output and Jev answers stay with the captured version in its Durable Object.
 
-A bare `$` does not establish USD. Such prices remain visible with an unspecified currency and are excluded from numeric statistics. Unknown quantity does not mean one. Unknown allowance does not mean zero or unlimited. Credits from different vendors are not equivalent.
+## Scope and versions
 
-The published-price table projects all accepted positive recurring base and seat prices. Baseline comparisons exclude promotional, crossed-out, competitor, add-on, and one-time prices. Included usage and overage must belong to the same offer and billing commitment.
+The rubric is version 13 and the commercial snapshot is `pricing-snapshot-v4`. Earlier captures remain historical under their original rubric and snapshot version.
 
-## Current comparisons
+Current comparisons require an active page, the current rubric, exact Jev model version `jev-1.13.0`, and a capture from the last 14 days. The time limit does not establish that a vendor kept its terms unchanged.
 
-Current comparisons and lists opened from a benchmark bar use the same eligibility rules:
-
-- The page is active.
-- The capture uses the current rubric and exactly `jev-1.13.0`.
-- The capture is at most 14 days old and is not in the future.
-
-The 14-day window is a collection policy. It is not evidence that a vendor has kept its price unchanged. The main directory lists all active published captures, including older and incompatible records. Their profile pages show an exclusion notice when they cannot enter current comparisons.
-
-Charging and policy percentages use all eligible pages in the selected sample. Not disclosed, not applicable, and uncertain answers remain visible. Charging components overlap, so their percentages can total more than 100%.
-
-Price statistics require a product category and compatible currency, billing commitment, and charging unit. Each product contributes at most one baseline price to a group. Code selects that minimum from accepted offers. Annual totals can be divided by twelve for a labeled monthly equivalent, while annual commitment remains explicit. Counts below the configured sample minimum do not produce medians and ranges.
-
-These statistics describe the tracked sample. They are not a total-bill estimate or a recommendation about the best pricing model.
-
-## Weekly changes
-
-Weekly reports compare the latest successful captures from adjacent completed UTC weeks. Paired captures must use the same rubric and the accepted exact model.
-
-Code compares numeric facts with the same literal offer identity, fact role, currency, unit, billing commitment, period, and rate quantity unit. Numeric changes are detectable even when page-level labels remain equal. Independent Jev evidence checks then verify that the source supports the same-offer change under the same conditions.
-
-Renamed offers, duplicate identities, unmatched terms, and unknown attribution remain unresolved. Equal values with changed evidence also remain unresolved because allocation scope or other conditions can change without changing the amount. Additions or removals do not establish a commercial change by themselves. A newly stated term is a disclosure change. Identical source can be marked unchanged without a new model decision. Each published change links to literal evidence in both captures.
-
-## Versions and evaluation
-
-The rubric stores an immutable content fingerprint and pins the accepted model. A contract change requires a new rubric identity and new evaluation. Earlier records remain historical and cannot enter the current sample.
-
-Unit tests use scripted Jev answers to verify parsing, attribution, persistence, and comparison rules. These tests do not measure Jev accuracy on real pricing pages. Measure that separately with human-reviewed examples before making accuracy claims.
-
-The extraction fingerprint covers source cleanup, candidate parsing, fact-role rules, Jev prompts and checks, and price projection. The rubric fingerprint also covers page questions, thresholds and the approved model. The rubric test fails after these files change. Update the extraction fingerprint from those source files, then update the rubric fingerprint to the test's computed value. Change comparison versions when verification semantics change. Stored question sets reject in-place edits under an existing identity.
-
-Design references: [TypeSafe pre-parsed value extraction](https://docs.typesafe.ai/cookbooks/pre_parsed_value_extraction_cookbook), [state](https://docs.typesafe.ai/concepts/state), [Jev model limits](https://docs.typesafe.ai/models), and [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13). Using rendered Markdown with a bounded supplement of accessible price labels is a project design choice, not a measured claim that it always outperforms HTML.
-
-## Rollout
-
-Apply the generated D1 migration before deploying the new API, then capture pages with the new rubric. No old classification is relabeled as a new observation. Current benchmarks can be empty until new scans finish; the directory still lists earlier published captures. Both weekly observations must use compatible versions, so weekly comparisons also need two compatible captures. The migration has been generated and tested locally; production deployment and rescans are separate operations.
+Acceptance thresholds are rules, not measured accuracy claims. Tests with scripted answers check the pipeline, not model accuracy on live pages.

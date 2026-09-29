@@ -1,5 +1,7 @@
-import type { Comparison } from "@my-better-t-app/api/pricing-history";
+import type { Comparison } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
+import { SCAN_RUN_STAGES } from "@pricelog/db/scan-stage";
+import type { RunEvent } from "./types";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -43,14 +45,16 @@ export const scanRun = sqliteTable(
     id: text("id").primaryKey(),
     trigger: text("trigger", { enum: ["initial", "scheduled", "manual"] }).notNull(),
     status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull(),
-    stage: text("stage", {
-      enum: ["queued", "capture", "persist", "evaluate", "publish", "complete"],
-    }).notNull(),
+    stage: text("stage", { enum: SCAN_RUN_STAGES }).notNull(),
     workflowInstanceId: text("workflow_instance_id").notNull().unique(),
     requestedByUserId: text("requested_by_user_id"),
     browserEngine: text("browser_engine", { enum: ["chromium"] }),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
+    events: text("events", { mode: "json" })
+      .$type<RunEvent[]>()
+      .notNull()
+      .default(sql`'[]'`),
     createdAt: integer("created_at").default(now).notNull(),
     startedAt: integer("started_at"),
     completedAt: integer("completed_at"),

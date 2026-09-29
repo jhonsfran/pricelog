@@ -1,11 +1,11 @@
-import { Button } from "@my-better-t-app/ui/components/button";
+import { Button } from "@pricelog/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@my-better-t-app/ui/components/dropdown-menu";
+} from "@pricelog/ui/components/dropdown-menu";
 import { Link, useSearch } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { parseCategorySearch } from "@/lib/comparison-search";
@@ -13,9 +13,9 @@ import { Wordmark } from "./wordmark";
 import UserMenu from "./user-menu";
 
 const links = [
+  { to: "/", label: "Directory" },
   { to: "/benchmarks", label: "Compare pricing" },
   { to: "/changes", label: "Weekly changes" },
-  { to: "/", label: "Directory" },
 ] as const;
 
 export default function Header() {

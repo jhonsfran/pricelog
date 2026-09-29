@@ -11,7 +11,7 @@ export default defineConfig({
   },
   modules: [
     evlog({
-      env: { service: "my-better-t-app-web", environment },
+      env: { service: "pricelog-web", environment },
       pretty: environment !== "production",
     }),
   ],

@@ -1,9 +1,9 @@
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
-import type { PageChoice, PageSignal } from "@my-better-t-app/db/schema/pages";
-import type { PricingFacts } from "@my-better-t-app/db/pricing-facts";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
+import type { PageChoice, PageSignal } from "@pricelog/db/schema/pages";
+import { PRICING_SNAPSHOT_VERSION, type PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { cohortsForPage } from "./benchmark";
 
-export const COMPARISON_VERSION = "pricing-facts-v3";
+export const COMPARISON_VERSION = "snapshot-diff-v1";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1_000;
 
 export type VerifiedPricingChange = {
@@ -26,7 +26,8 @@ export type StoredObservation = {
   contentSha256: string;
   choices: PageChoice[];
   signals: PageSignal[];
-  pricingFacts?: PricingFacts;
+  snapshot?: PublishedSnapshot | null;
+  pipeline?: string;
 };
 export type Observation = StoredObservation & { slug: string; name: string };
 export type Comparison = {
@@ -71,6 +72,10 @@ function latestPerPage(observations: Observation[]) {
   return latest;
 }
 
+const comparableSnapshot = (observation: Observation) =>
+  observation.snapshot?.status === "collected" &&
+  observation.snapshot.version === PRICING_SNAPSHOT_VERSION;
+
 export function pairWeeklyObservations(
   observations: Observation[],
   cohort = "all",
@@ -101,8 +106,12 @@ export function pairWeeklyObservations(
   for (const [pageId, current] of after) {
     const previous = before.get(pageId);
     if (!previous) continue;
+    // Snapshots of the same version compare field by field, even across pipeline changes. A
+    // page shown in another currency is a different view, not a price change.
     if (
-      previous.rubricId !== current.rubricId ||
+      !comparableSnapshot(previous) ||
+      !comparableSnapshot(current) ||
+      previous.snapshot?.currency_visible !== current.snapshot?.currency_visible ||
       previous.model !== current.model ||
       current.model !== EXPECTED_JEV_MODEL
     ) {

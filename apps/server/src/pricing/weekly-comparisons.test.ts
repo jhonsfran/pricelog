@@ -1,14 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Database } from "@my-better-t-app/db";
-import type { Observation } from "@my-better-t-app/api/pricing-history";
-import { activePageBatches } from "@my-better-t-app/api/pricing-history-store";
-import { verifyChanges } from "./change-verification";
+import type { Database } from "@pricelog/db";
+import type { Observation } from "@pricelog/api/pricing-history";
+import { activePageBatches } from "@pricelog/api/pricing-history-store";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { runWeeklyComparisons } from "./weekly-comparisons";
 
-vi.mock("@my-better-t-app/api/pricing-history-store", () => ({
+vi.mock("@pricelog/api/pricing-history-store", () => ({
   activePageBatches: vi.fn(),
 }));
-vi.mock("./change-verification", () => ({ verifyChanges: vi.fn() }));
+
+const snapshot = (amount: number): PublishedSnapshot => ({
+  version: "pricing-snapshot-v4",
+  status: "collected",
+  offers: [
+    {
+      name: "Starter",
+      prices: [
+        {
+          kind: "flat",
+          price_raw: `$${amount}/month`,
+          price_numeric: amount,
+          period: "month",
+          billing: "monthly",
+          state: "default",
+        },
+      ],
+    },
+  ],
+  features: [],
+});
 
 function observations(): Observation[] {
   return ["broken", "healthy"].flatMap((pageId) =>
@@ -17,66 +37,73 @@ function observations(): Observation[] {
       runId: `${pageId}-${week}`,
       contentKey: `${pageId}-${week}`,
       contentSha256: week,
-      rubricId: "pricing-intelligence-v4",
+      rubricId: week === "before" ? "pricing-intelligence-v10" : "pricing-intelligence-v11",
       model: "jev-1.13.0",
       name: pageId,
       slug: pageId,
       capturedAt: new Date(week === "before" ? "2026-09-10" : "2026-09-17"),
       choices: [],
       signals: [],
+      snapshot: snapshot(week === "before" ? 80 : 90),
     })),
   );
 }
 
-describe("weekly comparison retries", () => {
-  it.each(["missing source", "invalid answer"])(
-    "continues after %s and leaves the failed pair retryable",
-    async (failure) => {
-      vi.mocked(activePageBatches).mockImplementation(async function* () {
-        yield ["broken", "healthy"].map((id) => ({
-          id,
-          normalizedDomain: id,
-          slug: id,
-          displayName: id,
-        }));
-      });
-      vi.mocked(verifyChanges).mockImplementation(async (pair) => {
-        if (failure === "invalid answer" && pair.before.pageId === "broken")
-          throw new Error("invalid choice");
-        return { status: "reviewed", changes: [], model: "jev-1.13.0" };
-      });
-      const persistComparison = vi.fn().mockResolvedValue(undefined);
-      const monitor = {
-        getWeeklyHistory: async (_domain: string, id: string) => ({
-          observations: observations().filter((row) => row.pageId === id),
-          comparisons: [],
-        }),
-        persistComparison,
-      };
-      const db = {} as Database;
-      const artifacts = {
-        get: async (key: string) =>
-          failure === "missing source" && key.startsWith("broken")
-            ? null
-            : { text: async () => "Source" },
-      } as unknown as R2Bucket;
-      const result = await runWeeklyComparisons(
-        db,
-        monitor,
-        artifacts,
-        vi.fn(),
-        new Date("2026-09-21"),
-      );
-      expect(result).toMatchObject({
-        processed: 1,
-        pending: 1,
-        failures: [{ runId: "broken-after" }],
-      });
-      expect(persistComparison).toHaveBeenCalledOnce();
-      expect(persistComparison.mock.calls[0]?.[2]).toMatchObject({
-        beforeRunId: "healthy-before",
-        afterRunId: "healthy-after",
-      });
-    },
-  );
+describe("weekly comparisons", () => {
+  it("diffs paired snapshots without a model and keeps a failed page retryable", async () => {
+    vi.mocked(activePageBatches).mockImplementation(async function* () {
+      yield ["broken", "healthy"].map((id) => ({
+        id,
+        normalizedDomain: id,
+        slug: id,
+        displayName: id,
+      }));
+    });
+    const persistComparison = vi.fn(
+      async (_domain: string, pageId: string, _comparison: unknown) => {
+        if (pageId === "broken") throw new Error("Run broken-after is not published");
+      },
+    );
+    const monitor = {
+      getWeeklyHistory: async (_domain: string, id: string) => ({
+        observations: observations().filter((row) => row.pageId === id),
+        comparisons: [],
+      }),
+      persistComparison,
+    };
+    const pages: Record<string, string> = {
+      "healthy-before": "## Starter\n$80/month",
+      "healthy-after": "## Starter\n$90/month",
+      "broken-before": "## Starter\n$80/month",
+      "broken-after": "## Starter\n$90/month",
+    };
+    const result = await runWeeklyComparisons(
+      {} as Database,
+      monitor,
+      async (key) => pages[key] ?? null,
+      new Date("2026-09-21"),
+    );
+    expect(result).toMatchObject({
+      processed: 1,
+      pending: 1,
+      failures: [{ runId: "broken-after", message: "Run broken-after is not published" }],
+    });
+    expect(persistComparison.mock.calls[1]?.[2]).toMatchObject({
+      id: "snapshot-diff-v1:healthy-before:healthy-after",
+      verifierVersion: "snapshot-diff-v1",
+      model: null,
+      status: "reviewed",
+      changes: [
+        {
+          key: "price:Starter:flat:monthly:month",
+          label: "Starter monthly price",
+          kind: "commercial",
+          beforeLabel: "$80/month",
+          afterLabel: "$90/month",
+          beforeEvidence: "$80/month",
+          afterEvidence: "$90/month",
+        },
+      ],
+    });
+  });
 });

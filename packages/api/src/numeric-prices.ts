@@ -1,12 +1,12 @@
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
 import {
   BASE_PRICE_CONFIDENCE,
   type NumericOffer,
   type NumericPrices,
-} from "@my-better-t-app/db/numeric-prices";
-import type { NumericPriceBenchmark, NumericPriceGroup } from "@my-better-t-app/db/schema/pages";
-export type { NumericOffer, NumericPrices } from "@my-better-t-app/db/numeric-prices";
-export type { NumericPriceBenchmark } from "@my-better-t-app/db/schema/pages";
+} from "@pricelog/db/numeric-prices";
+import type { NumericPriceBenchmark, NumericPriceGroup } from "@pricelog/db/schema/pages";
+export type { NumericOffer, NumericPrices } from "@pricelog/db/numeric-prices";
+export type { NumericPriceBenchmark } from "@pricelog/db/schema/pages";
 
 export const PRICE_SAMPLE_MINIMUM = 3;
 

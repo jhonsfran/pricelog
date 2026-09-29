@@ -96,7 +96,7 @@
 - Modify only files that fail verification because of this feature.
 
 - [ ] Run `pnpm --filter server test`.
-- [ ] Run `pnpm --filter @my-better-t-app/db test`.
+- [ ] Run `pnpm --filter @pricelog/db test`.
 - [ ] Run `pnpm check-types`.
 - [ ] Run `pnpm check`.
 - [ ] Inspect `git diff --check` and the generated migrations.

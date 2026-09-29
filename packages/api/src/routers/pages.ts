@@ -1,4 +1,4 @@
-import { page, pageOwnerState, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import { page, pageOwnerState, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { ORPCError } from "@orpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";

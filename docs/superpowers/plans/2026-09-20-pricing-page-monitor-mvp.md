@@ -59,7 +59,7 @@ Create or modify these focused units:
 
 - [ ] Add root and package test scripts. Add `vitest` as a root dev dependency so `pnpm test` runs `turbo run test` and each package can expose a focused test command.
 - [ ] Write `pages.test.ts` first. Assert table names, unique domain and slug indexes, owner relation metadata, and score JSON round-tripping.
-- [ ] Run `pnpm --filter @my-better-t-app/db test`; expect failure because `pages.ts` does not exist.
+- [ ] Run `pnpm --filter @pricelog/db test`; expect failure because `pages.ts` does not exist.
 - [ ] Define `page`, `pagePublicSummary`, and `pageOwnerState` with SQLite checks and indexes from the design. Use `integer(..., { mode: "timestamp_ms" })` for all dates and `text(..., { mode: "json" }).$type<...>()` for score JSON.
 - [ ] Export the tables and add relations from page to owner, public summary, and owner state.
 - [ ] Run the package test; expect all schema tests to pass.

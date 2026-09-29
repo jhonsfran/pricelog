@@ -1,4 +1,7 @@
-import { page } from "@my-better-t-app/db/schema/pages";
+import { isPageOperator, parseOperatorEmails } from "@pricelog/api/operators";
+import { pageAccessCondition } from "@pricelog/api/routers/pages";
+import { page } from "@pricelog/db/schema/pages";
+import { isAllowedEmail } from "@pricelog/auth";
 import { and, eq } from "drizzle-orm";
 import type { Context } from "hono";
 
@@ -17,12 +20,19 @@ export async function serveArtifact(context: Context): Promise<Response> {
 
   const db = getDb();
   const session = await (await createAuth(db)).api.getSession({ headers: context.req.raw.headers });
-  if (!session?.user) return context.json({ error: "Unauthorized" }, 401);
+  if (!session?.user || !isAllowedEmail(session.user.email, ENV.PAGE_OPERATOR_EMAILS)) {
+    return context.json({ error: "Unauthorized" }, 401);
+  }
 
+  // The same rule as the pages API: owners see their pages, operators see every page.
+  const operator = isPageOperator({
+    session,
+    operatorEmails: parseOperatorEmails(ENV.PAGE_OPERATOR_EMAILS),
+  });
   const [owned] = await db
     .select({ normalizedDomain: page.normalizedDomain })
     .from(page)
-    .where(and(eq(page.id, pageId), eq(page.ownerUserId, session.user.id)))
+    .where(pageAccessCondition(pageId, { userId: session.user.id, operator }))
     .limit(1);
   if (!owned) return context.notFound();
 
@@ -51,22 +61,47 @@ export async function serveArtifact(context: Context): Promise<Response> {
   return new Response(object.body, { headers });
 }
 
-/** Only archived text for published pages is public. HTML and owner artifacts remain private. */
-export async function servePublicSource(context: Context): Promise<Response> {
-  const pageId = context.req.param("pageId");
-  const runId = context.req.param("runId");
-  if (!pageId || !runId) return context.notFound();
+async function publishedDomain(pageId: string) {
   const [published] = await getDb()
     .select({ normalizedDomain: page.normalizedDomain })
     .from(page)
     .where(and(eq(page.state, "active"), eq(page.id, pageId)))
     .limit(1);
-  if (!published) return context.notFound();
-  const source = await pageMonitorService.getPublicSource(
-    published.normalizedDomain,
-    pageId,
-    runId,
-  );
+  return published?.normalizedDomain ?? null;
+}
+
+/**
+ * The screenshot of a published version. It shows the same public page as the archived text,
+ * and a version never changes, so it caches for good. Captured HTML stays owner-only.
+ */
+export async function servePublicScreenshot(context: Context): Promise<Response> {
+  const pageId = context.req.param("pageId");
+  const runId = context.req.param("runId");
+  if (!pageId || !runId) return context.notFound();
+  const domain = await publishedDomain(pageId);
+  if (!domain) return context.notFound();
+  const screenshot = await pageMonitorService.getPublicScreenshot(domain, pageId, runId);
+  if (!screenshot) return context.notFound();
+  const object = await ENV.ARTIFACTS.get(screenshot.key);
+  if (!object) return context.notFound();
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": screenshot.contentType,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      ...(object.httpEtag ? { ETag: object.httpEtag } : {}),
+    },
+  });
+}
+
+/** Only archived text and screenshots of published pages are public. HTML stays private. */
+export async function servePublicSource(context: Context): Promise<Response> {
+  const pageId = context.req.param("pageId");
+  const runId = context.req.param("runId");
+  if (!pageId || !runId) return context.notFound();
+  const domain = await publishedDomain(pageId);
+  if (!domain) return context.notFound();
+  const source = await pageMonitorService.getPublicSource(domain, pageId, runId);
   if (!source) return context.notFound();
   const object = await ENV.ARTIFACTS.get(source.key);
   if (!object) return context.notFound();

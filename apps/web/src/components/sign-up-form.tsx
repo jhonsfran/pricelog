@@ -1,5 +1,5 @@
-import { Button } from "@my-better-t-app/ui/components/button";
-import { FieldGroup } from "@my-better-t-app/ui/components/field";
+import { Button } from "@pricelog/ui/components/button";
+import { FieldGroup } from "@pricelog/ui/components/field";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";

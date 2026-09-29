@@ -1,9 +1,8 @@
-import type { FactUnit, NumericFact, PricingFacts } from "@my-better-t-app/api/pricing-facts";
+import type { FactUnit, NumericFact, PricingFacts } from "@pricelog/api/pricing-facts";
 import { serverUrl } from "@/lib/url";
-import { getPricingChoiceLabel } from "@my-better-t-app/api/pricing-intelligence";
+import { getPricingChoiceLabel } from "@pricelog/api/pricing-intelligence";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
 import { formatToken } from "@/lib/format";
-import { answerTone } from "./intelligence-profile";
 import { Disclosure, Evidence, StatRow } from "./page";
 import { Panel } from "./panel";
 
@@ -183,4 +182,16 @@ function EvidenceToggle({ text }: { text: string }) {
       <Evidence className="mt-2">{text}</Evidence>
     </details>
   );
+}
+
+/**
+ * An answer carries its standing: stated reads as signal, uncertain as a warning, and not
+ * established or not disclosed recedes, because it describes the page, not the product.
+ */
+function answerTone(choice: string) {
+  if (choice === "stated") return "text-signal-11";
+  if (choice === "uncertain" || choice === "unknown") return "text-warning-11";
+  if (choice === "not_established" || choice === "not_disclosed" || choice === "not_applicable")
+    return "text-muted-foreground";
+  return "text-foreground";
 }

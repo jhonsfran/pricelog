@@ -1,6 +1,19 @@
+import type { PublicVersion } from "@pricelog/api/page-versions";
+import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
+import type { ScanRunStage } from "@pricelog/db/scan-stage";
+
 export type RunTrigger = "initial" | "scheduled" | "manual";
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
-export type RunStage = "queued" | "capture" | "persist" | "evaluate" | "publish" | "complete";
+export type RunStage = ScanRunStage;
+export type RunEvent = {
+  stage: RunStage;
+  at: number;
+  kind: "entered" | "warning" | "completed" | "failed";
+  message?: string;
+  httpStatus?: number;
+  inputBytes?: number;
+  outputBytes?: number;
+};
 export type ArtifactKind = "html" | "screenshot" | "content";
 
 export type ScanWorkflowParams = {
@@ -23,6 +36,7 @@ export type PageRunDto = {
   createdAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  events: RunEvent[];
 };
 
 export type ArtifactManifest = {
@@ -90,4 +104,16 @@ export type ArtifactReference = {
   key: string;
   contentType: string;
   filename: string;
+};
+
+/** A published version as the page store returns it: archive keys stay inside the worker. */
+export type StoredPublicVersion = Omit<PublicVersion, "previous" | "changes"> & {
+  contentKey: string;
+  previous: {
+    runId: string;
+    capturedAt: number;
+    contentKey: string;
+    model: string;
+    snapshot: PublishedSnapshot | null;
+  } | null;
 };

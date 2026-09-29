@@ -1,5 +1,5 @@
-import { Field, FieldError, FieldLabel } from "@my-better-t-app/ui/components/field";
-import { Input } from "@my-better-t-app/ui/components/input";
+import { Field, FieldError, FieldLabel } from "@pricelog/ui/components/field";
+import { Input } from "@pricelog/ui/components/input";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import type { ReactNode } from "react";
 

@@ -1,7 +1,7 @@
 import { SQLiteDialect } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
-import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@my-better-t-app/db/pricing-intelligence";
-import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@my-better-t-app/db/measurement-policy";
+import { PRICING_INTELLIGENCE_RUBRIC_ID } from "@pricelog/db/pricing-intelligence";
+import { EXPECTED_JEV_MODEL, MAX_CAPTURE_AGE_MS } from "@pricelog/db/measurement-policy";
 
 import { type BenchmarkPage } from "./benchmark";
 import { benchmarkCorpusCondition, collectBenchmarkCorpus } from "./benchmark-store";

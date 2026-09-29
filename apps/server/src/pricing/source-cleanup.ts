@@ -9,6 +9,22 @@ const CONTENT_HEADING = /^#{1,6}\s+\S/;
 const MAIN_HEADING = /^#\s+\S/;
 const CLOSE_IMAGE = /^!\[[^\]]*\]\([^)]*\bclose\.(?:svg|png|webp)(?:\?[^)]*)?\)$/i;
 
+/** Remove clear page chrome while keeping pricing sections and their FAQ. */
+export function trimPricingMarkdown(markdown: string): string {
+  const lines = trimCookieConsentMarkdown(markdown).split("\n");
+  const firstContent = lines.findIndex((line) => /^#\s+\S/.test(line.trim()));
+  const start = firstContent > 0 && firstContent < 120 ? firstContent : 0;
+  const footer = lines.findIndex(
+    (line, index) =>
+      index > Math.max(start + 30, lines.length * 0.7) &&
+      /^#{1,3}\s+(?:footer|legal|company|resources)\s*$/i.test(line.trim()),
+  );
+  return lines
+    .slice(start, footer < 0 ? undefined : footer)
+    .join("\n")
+    .trim();
+}
+
 /** Remove only cookie UI blocks with enough structure to identify their bounds. */
 export function trimCookieConsentMarkdown(markdown: string): string {
   let result = markdown;

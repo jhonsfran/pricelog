@@ -57,6 +57,7 @@ coverage
 .superpowers/
 tmp
 temp
+brag-output/
 
 .openlogs
 

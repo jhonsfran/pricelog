@@ -70,7 +70,7 @@ it("uses the public score questions as rubric instructions", () => {
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test -- pricing-intelligence.test.ts
+pnpm --filter @pricelog/api test -- pricing-intelligence.test.ts
 pnpm --filter server test -- src/pricing/rubric.test.ts
 ```
 
@@ -151,7 +151,7 @@ purchase_actionability: score(PRICING_SCORE_CATALOG.purchase_actionability.quest
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test -- pricing-intelligence.test.ts
+pnpm --filter @pricelog/api test -- pricing-intelligence.test.ts
 pnpm --filter server test -- src/pricing/rubric.test.ts
 ```
 
@@ -222,11 +222,11 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@my-better-t-app/ui/components/tooltip";
+} from "@pricelog/ui/components/tooltip";
 import {
   getPricingScoreLabel,
   getPricingScoreMetadata,
-} from "@my-better-t-app/api/pricing-intelligence";
+} from "@pricelog/api/pricing-intelligence";
 import { Info } from "lucide-react";
 
 export type DisplayScore = { key: string; score: number; confidence: number };
@@ -327,7 +327,7 @@ Run:
 ```bash
 pnpm exec vitest run apps/web/src/components/score-grid.test.tsx
 pnpm --filter web check-types
-pnpm --filter @my-better-t-app/ui check-types
+pnpm --filter @pricelog/ui check-types
 ```
 
 Expected: the component tests and both type checks pass.
@@ -363,7 +363,7 @@ git commit -m "feat(web): explain quality score questions"
 Run:
 
 ```bash
-pnpm --filter @my-better-t-app/api test -- pricing-intelligence.test.ts
+pnpm --filter @pricelog/api test -- pricing-intelligence.test.ts
 pnpm --filter server test -- src/pricing/rubric.test.ts
 pnpm exec vitest run apps/web/src/components/score-grid.test.tsx
 ```

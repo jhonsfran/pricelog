@@ -1,4 +1,5 @@
-import { createDb } from "@my-better-t-app/db";
+import { createDb } from "@pricelog/db";
+import type { ScanPipelineStage } from "@pricelog/db/scan-stage";
 import { publishPageProjection, type PagePublication } from "./publication";
 import {
   COMPARISON_VERSION,
@@ -6,12 +7,14 @@ import {
   type Comparison,
   type StoredObservation,
   type WeeklyPageHistory,
-} from "@my-better-t-app/api/pricing-history";
+} from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
+import type { PublishedSnapshot, SnapshotReview } from "@pricelog/db/pricing-snapshot";
 import { DurableObject } from "cloudflare:workers";
-import type { DescendingTimestampCursor } from "@my-better-t-app/api/pagination";
-import { descendingCursorCondition } from "@my-better-t-app/api/pagination";
-import { and, desc, eq, gte, inArray, lt } from "drizzle-orm";
+import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
+import { descendingCursorCondition } from "@pricelog/api/pagination";
+import type { PublicVersionSummary } from "@pricelog/api/page-versions";
+import { and, desc, eq, gte, lt, ne, or, sql } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -36,8 +39,10 @@ import type {
   PageRunDto,
   PersistedRubric,
   RunStage,
+  RunEvent,
   RunTrigger,
   ScanWorkflowParams,
+  StoredPublicVersion,
 } from "./types";
 import { artifactReference, nextAlarmAt, resolveRunCompletion } from "./page-store-logic";
 
@@ -155,17 +160,43 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async markRunning(runId: string, stage: RunStage = "capture"): Promise<void> {
-    await this.db
-      .update(scanRun)
-      .set({ status: "running", stage, startedAt: Date.now(), browserEngine: "chromium" })
-      .where(and(eq(scanRun.id, runId), eq(scanRun.status, "queued")));
+    const now = Date.now();
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (run?.status !== "queued") return;
+      tx.update(scanRun)
+        .set({
+          status: "running",
+          stage,
+          startedAt: now,
+          browserEngine: "chromium",
+          events: [...run.events, { stage, at: now, kind: "entered" }],
+        })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
   }
 
-  async setStage(runId: string, stage: RunStage): Promise<void> {
-    await this.db
-      .update(scanRun)
-      .set({ stage })
-      .where(and(eq(scanRun.id, runId), inArray(scanRun.status, ["queued", "running"])));
+  async setStage(runId: string, stage: ScanPipelineStage): Promise<void> {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || !["queued", "running"].includes(run.status) || run.stage === stage) return;
+      tx.update(scanRun)
+        .set({ stage, events: [...run.events, { stage, at: Date.now(), kind: "entered" }] })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
+  }
+
+  async recordEvent(runId: string, event: Omit<RunEvent, "at">): Promise<void> {
+    this.db.transaction((tx) => {
+      const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!run || run.status === "failed") return;
+      tx.update(scanRun)
+        .set({ events: [...run.events, { ...event, at: Date.now() }] })
+        .where(eq(scanRun.id, runId))
+        .run();
+    });
   }
 
   async persistVersion(runId: string, manifest: ArtifactManifest): Promise<string> {
@@ -254,17 +285,159 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     });
   }
 
+  /** The latest succeeded evaluation, when this capture has the same content, rubric and pipeline. */
+  async findReusableEvaluation(
+    runId: string,
+    contentSha256: string,
+    rubricId: string,
+    pipeline: string,
+  ): Promise<ReusableEvaluation | null> {
+    const previous = this.db
+      .select({ version: pageVersion, stored: versionEvaluation })
+      .from(scanRun)
+      .innerJoin(pageVersion, eq(pageVersion.runId, scanRun.id))
+      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
+      .where(and(eq(scanRun.status, "succeeded"), ne(scanRun.id, runId)))
+      .orderBy(desc(scanRun.createdAt))
+      .limit(1)
+      .get();
+    const snapshot = previous?.stored.evaluation.snapshot;
+    if (
+      !previous ||
+      previous.version.contentSha256 !== contentSha256 ||
+      previous.stored.rubricId !== rubricId ||
+      previous.stored.evaluation.pipeline !== pipeline ||
+      snapshot?.status !== "collected"
+    )
+      return null;
+    const rows = this.db
+      .select()
+      .from(answer)
+      .where(and(eq(answer.versionId, previous.version.id), eq(answer.questionSetId, rubricId)))
+      .all();
+    return {
+      runId: previous.version.runId,
+      rubricId,
+      model: previous.stored.model,
+      evaluation: {
+        ...previous.stored.evaluation,
+        snapshot,
+        review: previous.stored.evaluation.review ?? [],
+      },
+      answers: rows.map(fromStoredAnswer),
+    };
+  }
+
   async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
-    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
-    if (config?.pageId !== pageId) return null;
-    const row = this.db
-      .select({ version: pageVersion })
+    const row = this.publishedVersion(pageId, runId);
+    return row ? artifactReference(row.version, "content") : null;
+  }
+
+  /** The screenshot of a published version, under the same rule as its archived text. */
+  async getPublicScreenshot(pageId: string, runId: string): Promise<ArtifactReference | null> {
+    const row = this.publishedVersion(pageId, runId);
+    return row ? artifactReference(row.version, "screenshot") : null;
+  }
+
+  /** Published versions, newest first, each marked by whether its text differs from the one before. */
+  async listPublicVersions(pageId: string, limit = 100): Promise<PublicVersionSummary[]> {
+    if (!this.ownsPage(pageId)) return [];
+    const rows = this.db
+      .select({
+        runId: pageVersion.runId,
+        capturedAt: pageVersion.capturedAt,
+        contentSha256: pageVersion.contentSha256,
+        plans: sql<
+          number | null
+        >`json_array_length(${versionEvaluation.evaluation}, '$.snapshot.offers')`,
+      })
       .from(pageVersion)
       .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
       .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
-      .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
+      .where(eq(scanRun.status, "succeeded"))
+      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
+      .limit(limit + 1)
+      .all();
+    return rows.slice(0, limit).map((row, index) => {
+      const previous = rows[index + 1];
+      return {
+        runId: row.runId,
+        capturedAt: row.capturedAt,
+        textChanged: previous ? previous.contentSha256 !== row.contentSha256 : null,
+        plans: row.plans ?? 0,
+      };
+    });
+  }
+
+  /** One published version with the version before it, so the caller can verify what changed. */
+  async getPublicVersion(pageId: string, runId: string): Promise<StoredPublicVersion | null> {
+    const row = this.publishedVersion(pageId, runId);
+    if (!row) return null;
+    const { version, evaluated } = row;
+    const before = this.publishedVersions()
+      .where(
+        and(
+          eq(scanRun.status, "succeeded"),
+          or(
+            lt(pageVersion.capturedAt, version.capturedAt),
+            and(
+              eq(pageVersion.capturedAt, version.capturedAt),
+              lt(pageVersion.runId, version.runId),
+            ),
+          ),
+        ),
+      )
+      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
+      .limit(1)
       .get();
-    return row ? artifactReference(row.version, "content") : null;
+    const { choices, signals, tags, snapshot, numericPrices } = evaluated.evaluation;
+    return {
+      runId: version.runId,
+      capturedAt: version.capturedAt,
+      title: version.title,
+      finalUrl: version.finalUrl,
+      rubricId: evaluated.rubricId,
+      model: evaluated.model,
+      choices,
+      signals,
+      tags,
+      snapshot: snapshot ?? null,
+      // Decision history stays with the page version, as in the published summary.
+      numericPrices: numericPrices ? { ...numericPrices, audit: undefined } : null,
+      contentKey: version.contentKey,
+      previous: before
+        ? {
+            runId: before.version.runId,
+            capturedAt: before.version.capturedAt,
+            contentKey: before.version.contentKey,
+            model: before.evaluated.model,
+            snapshot: before.evaluated.evaluation.snapshot ?? null,
+          }
+        : null,
+    };
+  }
+
+  private ownsPage(pageId: string) {
+    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+    return config?.pageId === pageId;
+  }
+
+  /** A version is public once its run succeeded with an evaluation, the rule for every public read. */
+  private publishedVersions() {
+    return this.db
+      .select({ version: pageVersion, evaluated: versionEvaluation })
+      .from(pageVersion)
+      .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
+      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id));
+  }
+
+  private publishedVersion(pageId: string, runId: string) {
+    if (!this.ownsPage(pageId)) return null;
+    return (
+      this.publishedVersions()
+        .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
+        .get() ?? null
+    );
   }
 
   async getWeeklyHistory(pageId: string, now: number): Promise<WeeklyPageHistory> {
@@ -304,7 +477,8 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           contentSha256: row.version.contentSha256,
           choices: row.evaluated.evaluation.choices,
           signals: row.evaluated.evaluation.signals,
-          pricingFacts: row.evaluated.evaluation.pricingFacts,
+          snapshot: row.evaluated.evaluation.snapshot ?? null,
+          pipeline: row.evaluated.evaluation.pipeline,
         });
     }
     const before = observations[0];
@@ -485,7 +659,15 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     requestedByUserId: string | null,
   ): Promise<PageRunDto> {
     const active = await this.getActiveRun();
-    if (active) return active;
+    if (active && !isStalled(active, Date.now())) return active;
+    // A deploy or crash can end a workflow without a terminal step; its run would block the page
+    // forever, so a run that stopped reporting progress gives way to the new one.
+    if (active)
+      await this.completeFailure(
+        active.id,
+        "scan_stalled",
+        "The scan stopped reporting progress and was replaced by a new scan",
+      );
 
     const [config] = await this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).limit(1);
     if (!config) throw new Error("PageStore is not initialized");
@@ -500,6 +682,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       workflowInstanceId: runId,
       requestedByUserId,
       createdAt: now,
+      events: [{ stage: "queued", at: now, kind: "entered" }],
     };
 
     let competingRunId: string | null = null;
@@ -595,6 +778,15 @@ export class PageStore extends DurableObject<PageStoreEnv> {
           completedAt,
           errorCode,
           errorMessage,
+          events: [
+            ...run.events,
+            {
+              stage: run.stage,
+              at: completedAt,
+              kind: status === "failed" ? "failed" : "completed",
+              ...(errorMessage ? { message: errorMessage.slice(0, 300) } : {}),
+            },
+          ],
         })
         .where(eq(scanRun.id, runId))
         .run();
@@ -607,6 +799,38 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     await this.scheduleNextAlarm();
     return nextScanAt;
   }
+}
+
+/** Every live step records an event well within this; a run silent for longer has died. */
+export const STALLED_RUN_MS = 20 * 60_000;
+
+export function isStalled(run: PageRunDto, now: number): boolean {
+  const lastProgress = Math.max(
+    run.createdAt,
+    run.startedAt ?? 0,
+    ...run.events.map((event) => event.at),
+  );
+  return now - lastProgress > STALLED_RUN_MS;
+}
+
+type ReusableEvaluation = {
+  runId: string;
+  rubricId: string;
+  model: string;
+  evaluation: PublicEvaluation & { snapshot: PublishedSnapshot; review: SnapshotReview[] };
+  answers: JevAnswer[];
+};
+
+function fromStoredAnswer(row: typeof answer.$inferSelect): JevAnswer {
+  if (row.type === "choice")
+    return {
+      key: row.questionKey,
+      type: "choice",
+      choice: row.choice!,
+      confidence: row.confidence!,
+      probabilities: row.probabilities ?? {},
+    };
+  return { key: row.questionKey, type: "noul", noul: row.noul! };
 }
 
 type StoredAnswer = Omit<
@@ -664,5 +888,6 @@ function toRunDto(row: typeof scanRun.$inferSelect | typeof scanRun.$inferInsert
     createdAt: row.createdAt ?? Date.now(),
     startedAt: row.startedAt ?? null,
     completedAt: row.completedAt ?? null,
+    events: row.events ?? [],
   };
 }

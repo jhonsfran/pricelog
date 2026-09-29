@@ -1,8 +1,5 @@
-import { AI_APPLICATIONS_COHORT, cohortLabel } from "@my-better-t-app/api/benchmark";
-import {
-  AI_APPLICATION_CATEGORY_OPTIONS,
-  PRACTICE_CHOICE_KEYS,
-} from "@my-better-t-app/api/pricing-intelligence";
+import { AI_APPLICATIONS_COHORT, cohortLabel } from "@pricelog/api/benchmark";
+import { AI_APPLICATION_CATEGORY_OPTIONS } from "@pricelog/api/pricing-intelligence";
 
 export const CATEGORY_OPTIONS = [
   { value: AI_APPLICATIONS_COHORT, label: "All AI applications" },
@@ -13,10 +10,7 @@ export const CATEGORY_OPTIONS = [
   { value: "category:model_apis", label: "Model APIs" },
 ];
 
-export type ComparisonTopic =
-  | "charging_structure"
-  | "prices"
-  | (typeof PRACTICE_CHOICE_KEYS)[number];
+export type ComparisonTopic = "charging_structure" | "monetization" | "prices";
 export type ComparisonSearch = { cohort?: string; topic?: ComparisonTopic };
 
 export function parseCategorySearch(search: Record<string, unknown>): { cohort?: string } {
@@ -24,7 +18,7 @@ export function parseCategorySearch(search: Record<string, unknown>): { cohort?:
 }
 
 export function parseComparisonSearch(search: Record<string, unknown>): ComparisonSearch {
-  const topic = ["charging_structure", "prices", ...PRACTICE_CHOICE_KEYS].find(
+  const topic = ["charging_structure", "monetization", "prices"].find(
     (value) => value === search.topic,
   ) as ComparisonTopic | undefined;
   return {

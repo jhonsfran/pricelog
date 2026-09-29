@@ -13,6 +13,7 @@ export const db = Cloudflare.D1.Database("database", {
 export const artifacts = Cloudflare.R2.Bucket("pricing-artifacts");
 
 export const server = Cloudflare.Worker("server", {
+  domain: "api.usepricelog.com",
   main: "../../apps/server/src/index.ts",
   compatibility: {
     date: "2026-03-24",
@@ -28,6 +29,12 @@ export const server = Cloudflare.Worker("server", {
     CORS_ORIGIN: Config.String("CORS_ORIGIN"),
     BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
     PAGE_OPERATOR_EMAILS: Config.String("PAGE_OPERATOR_EMAILS").pipe(Config.withDefault("")),
+    PRICING_CAPTURE_CURRENCY: Config.String("PRICING_CAPTURE_CURRENCY").pipe(
+      Config.withDefault("EUR"),
+    ),
+    PRICING_CAPTURE_LANGUAGE: Config.String("PRICING_CAPTURE_LANGUAGE").pipe(
+      Config.withDefault("en-IE,en;q=0.9"),
+    ),
     BETTER_AUTH_URL: Cloudflare.Worker.URL,
     LOG_FORMAT: process.env.ALCHEMY_DEV === "true" ? "pretty" : "json",
   },
@@ -42,7 +49,7 @@ export const server = Cloudflare.Worker("server", {
 export type ServerEnv = Cloudflare.InferEnv<typeof server>;
 
 export default Alchemy.Stack(
-  "my-better-t-app",
+  "pricelog",
   {
     providers: Cloudflare.providers(),
     state: Cloudflare.state(),
@@ -50,6 +57,7 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const serverWorker = yield* server;
     const webWorker = yield* Cloudflare.Website.Vite("web", {
+      domain: "usepricelog.com",
       rootDir: "../../apps/web",
       compatibility: {
         flags: ["nodejs_compat"],

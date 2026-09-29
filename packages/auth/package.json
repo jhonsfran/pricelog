@@ -1,5 +1,5 @@
 {
-  "name": "@my-better-t-app/auth",
+  "name": "@pricelog/auth",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.5",
-    "@my-better-t-app/db": "workspace:*",
+    "@pricelog/db": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@my-better-t-app/config": "workspace:*",
+    "@pricelog/config": "workspace:*",
     "typescript": "catalog:"
   }
 }

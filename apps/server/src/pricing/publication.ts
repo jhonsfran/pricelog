@@ -1,5 +1,5 @@
-import type { Database } from "@my-better-t-app/db";
-import { page, pageOwnerState, pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import type { Database } from "@pricelog/db";
+import { page, pageOwnerState, pagePublicSummary } from "@pricelog/db/schema/pages";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { PublicEvaluation } from "./evaluation";
@@ -55,7 +55,10 @@ export async function publishPageProjection(db: Database, input: PagePublication
     runId: input.runId,
     rubricId: input.rubricId,
     model: input.model,
-    pricingFacts: input.pricingFacts ?? null,
+    // The old fact pipeline is retired; a new scan clears its facts from the summary.
+    pricingFacts: null,
+    snapshot: input.snapshot ?? null,
+    review: input.review ?? null,
     // Decision history stays with the page version in its Durable Object.
     numericPrices: input.numericPrices ? { ...input.numericPrices, audit: undefined } : null,
     choices: input.choices,

@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { addAccessiblePriceLabels, trimCookieConsentMarkdown } from "./source-cleanup";
+import {
+  addAccessiblePriceLabels,
+  trimCookieConsentMarkdown,
+  trimPricingMarkdown,
+} from "./source-cleanup";
+
+it("trims clear navigation and footer chrome while retaining pricing FAQ", () => {
+  const source = [
+    "Home",
+    "Products",
+    "# Pricing",
+    "## Pro",
+    "$20 per month",
+    ...Array(30).fill("Feature included"),
+    "## Pricing FAQ",
+    "Can I cancel? Yes.",
+    "## Footer",
+    "Privacy",
+    "Terms",
+  ].join("\n");
+  const trimmed = trimPricingMarkdown(source);
+  expect(trimmed).toContain("$20 per month");
+  expect(trimmed).toContain("Can I cancel? Yes.");
+  expect(trimmed).not.toContain("Home\nProducts");
+  expect(trimmed).not.toContain("Privacy");
+});
 
 describe("accessible price labels", () => {
   const tree = {

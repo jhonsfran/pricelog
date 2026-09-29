@@ -4,6 +4,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import { user } from "./auth";
 import type { NumericPrices } from "../numeric-prices";
 import type { PricingFacts } from "../pricing-facts";
+import type { PublishedSnapshot, SnapshotReview } from "../pricing-snapshot";
 import { type PricingChoiceKey, type PricingSignalKey } from "../pricing-intelligence";
 
 export type PageChoice = {
@@ -59,6 +60,8 @@ export const pagePublicSummary = sqliteTable(
     model: text("model").notNull(),
     numericPrices: text("numeric_prices_json", { mode: "json" }).$type<NumericPrices>(),
     pricingFacts: text("pricing_facts_json", { mode: "json" }).$type<PricingFacts>(),
+    snapshot: text("snapshot_json", { mode: "json" }).$type<PublishedSnapshot>(),
+    review: text("review_json", { mode: "json" }).$type<SnapshotReview[]>(),
     choices: text("choices_json", { mode: "json" })
       .$type<PageChoice[]>()
       .default(sql`'[]'`)

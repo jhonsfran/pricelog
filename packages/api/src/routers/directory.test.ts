@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SQLiteDialect } from "drizzle-orm/sqlite-core";
-import type { Database } from "@my-better-t-app/db";
+import type { Database } from "@pricelog/db";
 import { directoryPopulationCondition, readExamples } from "./directory";
 
 describe("directory population", () => {

@@ -4,10 +4,10 @@ import {
   PRICING_CHOICE_CATALOG,
   PRICING_CHOICE_GROUPS,
   PRICING_SIGNAL_CATALOG,
-} from "@my-better-t-app/db/pricing-intelligence";
-import type { BenchmarkSignalShare } from "@my-better-t-app/db/schema/pages";
+} from "@pricelog/db/pricing-intelligence";
+import type { BenchmarkSignalShare } from "@pricelog/db/schema/pages";
 
-export * from "@my-better-t-app/db/pricing-intelligence";
+export * from "@pricelog/db/pricing-intelligence";
 
 export function getPricingChoiceLabel(key: string): string {
   return isPricingChoiceKey(key) ? PRICING_CHOICE_CATALOG[key].label : formatPricingKey(key);
@@ -61,23 +61,6 @@ export function groupPricingChoices<T extends { key: string }>(
 function formatPricingKey(value: string): string {
   const formatted = value.replaceAll("_", " ").replaceAll("-", " ").trim();
   return formatted ? formatted[0]!.toUpperCase() + formatted.slice(1) : "Unknown";
-}
-
-/** Separate disclosed policy answers from unknown applicability and explicit inapplicability. */
-export function pricingPolicyCoverage(
-  pageCount: number,
-  share?: { answered: number; options: Record<string, number> },
-) {
-  const classified = share?.answered ?? 0;
-  const notApplicable = share?.options.not_applicable ?? 0;
-  const notDisclosed = share?.options.not_disclosed ?? 0;
-  const unknown = share?.options.unknown ?? 0;
-  return {
-    disclosed: Math.max(0, classified - notApplicable - notDisclosed - unknown),
-    uncertain: Math.max(0, pageCount - classified) + unknown,
-    notApplicable,
-    notDisclosed,
-  };
 }
 
 /** Uncertain observations stay in the denominator for claims about the measured pages. */

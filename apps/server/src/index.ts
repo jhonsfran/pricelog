@@ -1,6 +1,6 @@
-import { storeBenchmarks } from "@my-better-t-app/api/benchmark-store";
-import { appRouter } from "@my-better-t-app/api/routers/index";
-import { parseAllowedOrigins } from "@my-better-t-app/auth";
+import { storeBenchmarks } from "@pricelog/api/benchmark-store";
+import { appRouter } from "@pricelog/api/routers/index";
+import { parseAllowedOrigins } from "@pricelog/auth";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -12,11 +12,9 @@ import { evlog, type EvlogVariables, useLogger } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { serveArtifact, servePublicSource } from "./artifacts";
+import { serveArtifact, servePublicScreenshot, servePublicSource } from "./artifacts";
 import { pageMonitorService } from "./pricing/service";
 import { runWeeklyComparisons } from "./pricing/weekly-comparisons";
-import { jevGatewayOptions } from "./pricing/scan-workflow-logic";
-import type { Decide } from "./pricing/change-verification";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { resolveLogEnvironment } from "./logging";
@@ -66,6 +64,7 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", async (c) => (await createAuth()).handler(c.req.raw));
 app.get("/api/pages/:pageId/runs/:runId/artifacts/:kind", serveArtifact);
 app.get("/api/public/pages/:pageId/runs/:runId/source", servePublicSource);
+app.get("/api/public/pages/:pageId/runs/:runId/screenshot", servePublicScreenshot);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [
@@ -125,22 +124,10 @@ async function runBenchmarkSnapshot() {
   try {
     const cohorts = await storeBenchmarks(getDb());
     log.info({ action: "benchmark.snapshot", cohorts });
-    const decide: Decide = (input) =>
-      (
-        ENV.AI as unknown as {
-          run(
-            model: string,
-            input: Parameters<Decide>[0],
-            options: ReturnType<typeof jevGatewayOptions>,
-          ): Promise<unknown>;
-        }
-      ).run("typesafe/jev", input, jevGatewayOptions());
-    const comparisons = await runWeeklyComparisons(
-      getDb(),
-      pageMonitorService,
-      ENV.ARTIFACTS,
-      decide,
-    );
+    const comparisons = await runWeeklyComparisons(getDb(), pageMonitorService, async (key) => {
+      const object = await ENV.ARTIFACTS.get(key);
+      return object ? object.text() : null;
+    });
     log.info({ action: "benchmark.weekly-comparisons", ...comparisons });
   } catch (error) {
     const cause = error instanceof Error ? error : new Error(String(error));

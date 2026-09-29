@@ -1,5 +1,5 @@
 {
-  "name": "@my-better-t-app/api",
+  "name": "@pricelog/api",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@my-better-t-app/auth": "workspace:*",
-    "@my-better-t-app/db": "workspace:*",
+    "@pricelog/auth": "workspace:*",
+    "@pricelog/db": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@libsql/client": "0.18.0",
-    "@my-better-t-app/config": "workspace:*",
+    "@pricelog/config": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

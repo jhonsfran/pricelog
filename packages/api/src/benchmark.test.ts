@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { pricingSignalCoverage } from "./pricing-intelligence";
 import {
   ALL_COHORT,
-  AI_NATIVE_COHORT,
   AI_APPLICATIONS_COHORT,
   buildBenchmarkSnapshots,
   cohortsForPage,
@@ -61,7 +60,7 @@ describe("pricing practice aggregation", () => {
       notEstablished: 0,
       uncertain: 0,
     });
-    expect(category.signalShares.charges_outcome).toEqual({
+    expect(category.signalShares.charges_ai_addon).toEqual({
       stated: 0,
       notEstablished: 0,
       uncertain: 4,
@@ -75,23 +74,10 @@ describe("pricing practice aggregation", () => {
       ]);
     },
   );
-  it("keeps category membership and overlapping discovery tags separate", () => {
+  it("groups pages only by all pages and their product category", () => {
     expect(
-      cohortsForPage(
-        makePage({
-          signals: [
-            { key: "is_ai_native", probability: 0.9 },
-            { key: "market_developer_tools", probability: 0.8 },
-          ],
-        }),
-      ),
-    ).toEqual([
-      ALL_COHORT,
-      "category:coding_assistants",
-      AI_APPLICATIONS_COHORT,
-      AI_NATIVE_COHORT,
-      "market:developer_tools",
-    ]);
+      cohortsForPage(makePage({ signals: [{ key: "charges_per_seat", probability: 1 }] })),
+    ).toEqual([ALL_COHORT, "category:coding_assistants", AI_APPLICATIONS_COHORT]);
   });
   it.each([
     "coding_assistants",
@@ -111,16 +97,10 @@ describe("pricing practice aggregation", () => {
     },
   );
   it.each(["model_apis", "other", "not_disclosed", "unknown", "invented"])(
-    "excludes %s from applications even when AI-native is established",
+    "excludes %s from applications",
     (choice) => {
-      const cohorts = cohortsForPage(
-        makePage({
-          choices: [{ key: "product_category", choice }],
-          signals: [{ key: "is_ai_native", probability: 0.99 }],
-        }),
-      );
+      const cohorts = cohortsForPage(makePage({ choices: [{ key: "product_category", choice }] }));
       expect(cohorts).not.toContain(AI_APPLICATIONS_COHORT);
-      expect(cohorts).toContain(AI_NATIVE_COHORT);
       expect(cohorts).toContain(ALL_COHORT);
     },
   );
@@ -128,7 +108,7 @@ describe("pricing practice aggregation", () => {
     const pages = ["app_builders", "voice_agents", "model_apis", "other"].map((choice) =>
       makePage({ choices: [{ key: "product_category", choice }] }),
     );
-    pages.push(makePage({ choices: [], signals: [{ key: "is_ai_native", probability: 1 }] }));
+    pages.push(makePage({ choices: [], signals: [{ key: "has_free_plan", probability: 1 }] }));
     const snapshots = buildBenchmarkSnapshots(pages);
     expect(snapshots.find((row) => row.cohort === ALL_COHORT)?.pageCount).toBe(5);
     expect(snapshots.find((row) => row.cohort === AI_APPLICATIONS_COHORT)?.pageCount).toBe(2);
@@ -137,15 +117,15 @@ describe("pricing practice aggregation", () => {
       snapshots.find((row) => row.cohort === AI_APPLICATIONS_COHORT)?.choiceShares.product_category,
     ).toEqual({ answered: 2, options: { app_builders: 1, voice_agents: 1 } });
   });
-  it("retains nondisclosure and applicability counts without creating missing answers", () => {
-    const pages = ["charged", "not_disclosed", "not_applicable"].map((choice) =>
-      makePage({ choices: [{ key: "failed_run_policy", choice }] }),
+  it("counts derived price disclosure answers without creating missing answers", () => {
+    const pages = ["full", "partial", "none"].map((choice) =>
+      makePage({ choices: [{ key: "price_disclosure", choice }] }),
     );
     pages.push(makePage({ choices: [] }));
     const all = buildBenchmarkSnapshots(pages).find((row) => row.cohort === ALL_COHORT)!;
-    expect(all.choiceShares.failed_run_policy).toEqual({
+    expect(all.choiceShares.price_disclosure).toEqual({
       answered: 3,
-      options: { charged: 1, not_disclosed: 1, not_applicable: 1 },
+      options: { full: 1, partial: 1, none: 1 },
     });
     expect(all.pageCount).toBe(4);
     expect(all).not.toHaveProperty("scoreDistributions");
@@ -158,9 +138,8 @@ describe("pricing practice aggregation", () => {
     ).toBe(1);
     expect(buildBenchmarkSnapshots([])).toEqual([]);
   });
-  it("labels categories and discovery cohorts", () => {
+  it("labels categories", () => {
     expect(cohortLabel(AI_APPLICATIONS_COHORT)).toBe("AI applications");
     expect(cohortLabel("category:coding_assistants")).toBe("Coding assistants");
-    expect(cohortLabel("market:developer_tools")).toBe("Developer tools");
   });
 });

@@ -1,2 +1,2 @@
-export * from "@my-better-t-app/db/pricing-facts";
-export * from "@my-better-t-app/db/measurement-policy";
+export * from "@pricelog/db/pricing-facts";
+export * from "@pricelog/db/measurement-policy";

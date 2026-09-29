@@ -9,6 +9,12 @@ import {
 } from "./pricing-history";
 
 const now = new Date("2026-09-21T12:00:00Z");
+const SNAPSHOT = {
+  version: "pricing-snapshot-v4" as const,
+  status: "collected" as const,
+  offers: [],
+  features: [],
+};
 function observation(
   runId: string,
   capturedAt: string,
@@ -24,6 +30,8 @@ function observation(
     contentSha256: runId,
     choices: [],
     signals: [],
+    snapshot: SNAPSHOT,
+    pipeline: "pricing-snapshot-v4-aaaaaaaaaaaa",
     name: "Example",
     slug: "example",
     ...overrides,
@@ -81,6 +89,36 @@ describe("weekly pricing history", () => {
     );
     expect(result).toMatchObject({ pairs: [], newPages: 1, missingPages: 1, incompatiblePages: 1 });
   });
+  it("pairs current snapshots across pipeline and rubric changes but not older snapshot versions", () => {
+    const changedPipeline = {
+      ...after,
+      rubricId: "v5",
+      pipeline: "pricing-snapshot-v4-bbbbbbbbbbbb",
+    };
+    expect(pairWeeklyObservations([before, changedPipeline], "all", now).pairs).toEqual([
+      { before, after: changedPipeline },
+    ]);
+    const older = {
+      ...before,
+      snapshot: { ...SNAPSHOT, version: "pricing-snapshot-v3" as unknown as "pricing-snapshot-v4" },
+    };
+    expect(pairWeeklyObservations([older, after], "all", now)).toMatchObject({
+      pairs: [],
+      incompatiblePages: 1,
+    });
+    expect(
+      pairWeeklyObservations([{ ...before, snapshot: null }, after], "all", now).pairs,
+    ).toEqual([]);
+  });
+  it("does not pair a page captured in another currency", () => {
+    const inPounds = { ...after, snapshot: { ...SNAPSHOT, currency_visible: "GBP" } };
+    const inEuros = { ...before, snapshot: { ...SNAPSHOT, currency_visible: "EUR" } };
+    expect(pairWeeklyObservations([inEuros, inPounds], "all", now)).toMatchObject({
+      pairs: [],
+      incompatiblePages: 1,
+    });
+  });
+
   it("does not treat a floating model alias as a verified version", () => {
     expect(
       pairWeeklyObservations(

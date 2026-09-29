@@ -20,6 +20,8 @@ type CaptureValidationInput = {
   markdown: string;
 };
 
+const MONEY = /[$€£¥]\s?\d|\d\s?(?:€|USD|EUR|GBP)\b|\bfree\b|\bcustom\b|contact (?:us|sales)/i;
+
 const BOT_CHALLENGE_PATTERNS = [
   /attention required!\s*\|\s*cloudflare/i,
   /sorry, you have been blocked/i,
@@ -214,6 +216,11 @@ export function assertUsableCapture(input: CaptureValidationInput): number {
   const documentText = `${input.title}\n${input.html}\n${input.markdown}`;
   if (BOT_CHALLENGE_PATTERNS.some((pattern) => pattern.test(documentText))) {
     throw new Error("Target returned a bot challenge");
+  }
+  // A few words and no amount is a bot check, an error or a loading screen, whatever it says;
+  // publishing it would replace real pricing with an empty snapshot.
+  if (input.markdown.replace(/\s+/g, " ").trim().length < 800 && !MONEY.test(input.markdown)) {
+    throw new Error("Captured page shows no pricing content");
   }
 
   return input.httpStatus;

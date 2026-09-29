@@ -1,5 +1,8 @@
-import { requireJevModelVersion, type Decide } from "./change-verification";
-import { MAX_EVALUATION_REQUEST_BYTES } from "./evaluation-request";
+import {
+  MAX_EVALUATION_REQUEST_BYTES,
+  requireJevModelVersion,
+  type Decide,
+} from "./evaluation-request";
 import { parseJevAnswers } from "./scan-workflow-logic";
 import type { JevAnswer, PersistedQuestion } from "./types";
 
@@ -41,7 +44,7 @@ export function jevDecisions(decide: Decide) {
       return model;
     },
     async run(state: unknown, questions: PersistedQuestion[]): Promise<JevAnswer[]> {
-      const serialized = JSON.stringify(state);
+      const serialized = typeof state === "string" ? state : JSON.stringify(state);
       if (new TextEncoder().encode(serialized).byteLength > 96 * 1024)
         throw new Error("Jev fact state exceeds transport byte limit");
       const answers: JevAnswer[] = [];

@@ -1,4 +1,3 @@
-import { unavailablePricingFacts } from "@my-better-t-app/db/pricing-facts";
 import { URL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
@@ -6,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { PageStore } from "./page-store";
 import { publishPageProjection } from "./publication";
-import { COMPARISON_VERSION } from "@my-better-t-app/api/pricing-history";
+import { COMPARISON_VERSION } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
 
 vi.mock("./publication", () => ({ publishPageProjection: vi.fn() }));
@@ -133,6 +132,136 @@ async function capture(
   sqlite.prepare("UPDATE scan_run SET status = ? WHERE id = ?").run(status, runId);
 }
 
+async function scanned(
+  store: PageStore,
+  sqlite: DatabaseSync,
+  runId: string,
+  contentSha256: string,
+  evaluation?: PublicEvaluation & { rubricId: string; model: string },
+) {
+  sqlite
+    .prepare(
+      "INSERT INTO scan_run (id, trigger, status, stage, workflow_instance_id) VALUES (?, 'manual', 'running', 'capture', ?)",
+    )
+    .run(runId, runId);
+  await store.persistVersion(runId, {
+    capturedAt: Date.parse("2026-09-22"),
+    httpStatus: 200,
+    finalUrl: "https://example.com/pricing",
+    title: "Example",
+    htmlKey: `${runId}.html`,
+    screenshotKey: `${runId}.png`,
+    contentKey: `${runId}.md`,
+    htmlSha256: runId,
+    screenshotSha256: runId,
+    contentSha256,
+    htmlBytes: 1,
+    screenshotBytes: 1,
+    contentBytes: 1,
+  });
+  if (!evaluation) return;
+  await store.persistAnswers(runId, evaluation.rubricId, [
+    { key: "has_free_plan", type: "noul", noul: 0.9 },
+    {
+      key: "price_0_role",
+      type: "choice",
+      choice: "base_price",
+      confidence: 0.8,
+      probabilities: { base_price: 0.8 },
+    },
+  ]);
+  await store.persistEvaluation(runId, evaluation);
+  sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run(runId);
+}
+
+const PIPELINE = "pricing-snapshot-v4-aaaaaaaaaaaa";
+const COLLECTED = {
+  rubricId: "pricing-intelligence-v10",
+  model: "jev-1.13.0",
+  choices: [],
+  signals: [],
+  tags: [],
+  pipeline: PIPELINE,
+  snapshot: {
+    version: "pricing-snapshot-v4" as const,
+    status: "collected" as const,
+    offers: [{ name: "Pro", prices: [] }],
+    features: [],
+  },
+};
+
+describe("unchanged page reuse", () => {
+  it("reuses the latest evaluation only for the same content, rubric and pipeline", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await scanned(store, sqlite, "first", "same", COLLECTED);
+      await scanned(store, sqlite, "second", "same");
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10", PIPELINE),
+      ).toEqual({
+        runId: "first",
+        rubricId: "pricing-intelligence-v10",
+        model: "jev-1.13.0",
+        evaluation: {
+          choices: [],
+          signals: [],
+          tags: [],
+          pipeline: PIPELINE,
+          snapshot: COLLECTED.snapshot,
+          review: [],
+        },
+        answers: [
+          { key: "has_free_plan", type: "noul", noul: 0.9 },
+          {
+            key: "price_0_role",
+            type: "choice",
+            choice: "base_price",
+            confidence: 0.8,
+            probabilities: { base_price: 0.8 },
+          },
+        ],
+      });
+      expect(
+        await store.findReusableEvaluation(
+          "second",
+          "changed",
+          "pricing-intelligence-v10",
+          PIPELINE,
+        ),
+      ).toBeNull();
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v11", PIPELINE),
+      ).toBeNull();
+      expect(
+        await store.findReusableEvaluation(
+          "second",
+          "same",
+          "pricing-intelligence-v10",
+          "pricing-snapshot-v4-bbbbbbbbbbbb",
+        ),
+      ).toBeNull();
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  it("does not reuse an evaluation that published no snapshot", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await scanned(store, sqlite, "first", "same", {
+        ...COLLECTED,
+        snapshot: { ...COLLECTED.snapshot, status: "unavailable" },
+      });
+      await scanned(store, sqlite, "second", "same");
+      expect(
+        await store.findReusableEvaluation("second", "same", "pricing-intelligence-v10", PIPELINE),
+      ).toBeNull();
+    } finally {
+      sqlite.close();
+    }
+  });
+});
+
 describe("page-local pricing history", () => {
   it("seeds an immutable rubric and rejects changed content under the same identity", async () => {
     const { store, sqlite } = storeFor("one");
@@ -140,10 +269,10 @@ describe("page-local pricing history", () => {
     try {
       await seed();
       await seed();
-      sqlite.exec("UPDATE question SET instructions = 'changed' WHERE key = 'buying_motion'");
+      sqlite.exec("UPDATE question SET instructions = 'changed' WHERE key = 'product_category'");
       await expect(seed()).rejects.toThrow("immutable");
       expect(
-        sqlite.prepare("SELECT instructions FROM question WHERE key = 'buying_motion'").get()
+        sqlite.prepare("SELECT instructions FROM question WHERE key = 'product_category'").get()
           ?.instructions,
       ).toBe("changed");
     } finally {
@@ -151,7 +280,7 @@ describe("page-local pricing history", () => {
     }
   });
 
-  it("keeps numeric observations with their version and ignores later replacement", async () => {
+  it("keeps snapshot observations with their version and ignores later replacement", async () => {
     const { store, sqlite } = storeFor("one");
     try {
       await capture(store, sqlite, "numeric", "2026-09-22", "running");
@@ -161,11 +290,8 @@ describe("page-local pricing history", () => {
         choices: [],
         signals: [],
         tags: [],
-        pricingFacts: {
-          ...unavailablePricingFacts("test record"),
-          status: "collected" as const,
-          model: "jev-1.13.0",
-        },
+        pipeline: PIPELINE,
+        snapshot: COLLECTED.snapshot,
         numericPrices: {
           version: "numeric-prices-v1" as const,
           status: "collected" as const,
@@ -187,9 +313,8 @@ describe("page-local pricing history", () => {
         ).numericPrices,
       ).toEqual(evaluation.numericPrices);
       expect(
-        (await store.getWeeklyHistory("one", Date.parse("2026-09-28"))).observations[0]
-          ?.pricingFacts,
-      ).toEqual(evaluation.pricingFacts);
+        (await store.getWeeklyHistory("one", Date.parse("2026-09-28"))).observations[0],
+      ).toMatchObject({ snapshot: COLLECTED.snapshot, pipeline: PIPELINE });
     } finally {
       sqlite.close();
     }
@@ -197,6 +322,8 @@ describe("page-local pricing history", () => {
   it("migrates existing versions and keeps choice/noul answers while removing scores", async () => {
     const { store, sqlite } = storeFor("one", 3);
     try {
+      // Current PageStore reads the run trace while this fixture tests an older answer migration.
+      sqlite.exec("ALTER TABLE scan_run ADD COLUMN events TEXT NOT NULL DEFAULT '[]'");
       await capture(store, sqlite, "existing", "2026-09-17");
       sqlite.exec(
         "INSERT INTO answer (version_id, question_set_id, question_key, type, score) VALUES ('existing', 'old-rubric', 'clarity', 'score', 3)",

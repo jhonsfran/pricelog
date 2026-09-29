@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Database } from "@my-better-t-app/db";
+import type { Database } from "@pricelog/db";
 import { readWeeklyHistory } from "./pricing-history-store";
 
 function registry() {

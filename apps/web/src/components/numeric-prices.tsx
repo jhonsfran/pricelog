@@ -1,13 +1,14 @@
-import { monthlyEquivalent, PRICE_SAMPLE_MINIMUM } from "@my-better-t-app/api/numeric-prices";
+import { monthlyEquivalent, PRICE_SAMPLE_MINIMUM } from "@pricelog/api/numeric-prices";
 import { serverUrl } from "@/lib/url";
 import type {
   NumericOffer,
   NumericPrices,
   NumericPriceBenchmark,
-} from "@my-better-t-app/api/numeric-prices";
+} from "@pricelog/api/numeric-prices";
 import { Link } from "@tanstack/react-router";
 import { CellNote, DataCell, DataRow, DataTable, RowHeader } from "./data-table";
-import { Disclosure, Evidence, Notice, SectionHeading, StatRow } from "./page";
+import { Monogram } from "./monogram";
+import { Disclosure, Evidence } from "./page";
 import { Panel } from "./panel";
 
 function money(amount: string | number, currency: string) {
@@ -136,6 +137,15 @@ type PriceExample = {
   normalizedDomain: string;
   numericPrices?: NumericPrices | null;
 };
+
+/** Offers each page shows as chips before the rest fold into a count. */
+const OFFER_CHIPS = 4;
+
+/**
+ * Published prices across a category: how many pages were checked, one card per comparable group
+ * with its spread, and the pages the numbers come from. Prices from unrelated categories are
+ * never pooled, so the view waits for a single category.
+ */
 export function NumericBenchmarkPanel({
   prices,
   category,
@@ -149,98 +159,160 @@ export function NumericBenchmarkPanel({
   pageCount: number;
   cohort: string;
 }) {
+  if (!category)
+    return (
+      <p className="mt-6 border border-dashed border-gray-6 px-5 py-6 text-sm text-muted-foreground">
+        Choose one product category above to compare published prices. Prices from unrelated
+        categories are not pooled.
+      </p>
+    );
+  const pages = examples.filter((page) => page.numericPrices?.offers.length);
   return (
-    <section className="pt-6" aria-label="Price benchmarks">
-      <SectionHeading title="Price benchmarks" meta="Comparable offers only" />
-      {!category ? (
-        <Notice>
-          Choose a product category above to compare numeric prices. Prices from unrelated
-          categories are not pooled.
-        </Notice>
-      ) : (
-        <div className="grid gap-5">
-          <StatRow
-            items={[
-              { label: "Checked for prices", value: `${prices?.collected ?? 0} / ${pageCount}` },
-              { label: "Verified baseline offers", value: prices?.withOffers ?? 0 },
-              { label: "Unavailable", value: prices?.unavailable ?? 0 },
-              { label: "Not collected", value: prices?.notCollected ?? pageCount },
-            ]}
-          />
-          {!prices?.groups.length ? (
-            <p className="text-muted-foreground">
-              No comparable numeric prices yet. Prices with an unspecified dollar currency are shown
-              below but excluded from statistics.
-            </p>
-          ) : (
-            <>
-              <p className="max-w-prose text-muted-foreground">
-                Monthly amounts below retain their billing commitment. Annual plans can require
-                payment for the full year. Each product contributes at most one price to each group.
-              </p>
-              <DataTable
-                columns={["Comparison group", "Products", "Sample median", "Sample range"]}
+    <section className="grid gap-8 pt-6" aria-label="Published prices">
+      <p className="font-mono text-xs text-muted-foreground tabular-nums">
+        <strong className="font-medium text-foreground">{prices?.collected ?? 0}</strong> of{" "}
+        {pageCount} pages checked for prices ·{" "}
+        <strong className="font-medium text-foreground">{prices?.withOffers ?? 0}</strong> with a
+        verified base offer · {prices?.unavailable ?? 0} unavailable ·{" "}
+        {prices?.notCollected ?? pageCount} not collected
+      </p>
+      {prices?.groups.length ? (
+        <div>
+          <ul className="grid gap-3 md:grid-cols-2">
+            {prices.groups.map((group) => (
+              <li
+                key={`${group.currency}:${group.billing}:${group.chargeUnit}`}
+                className="grid content-start gap-4 border border-gray-5 bg-gray-2/40 px-5 py-4"
               >
-                {prices.groups.map((group) => (
-                  <DataRow key={`${group.currency}:${group.billing}:${group.chargeUnit}`}>
-                    <RowHeader>
+                <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4">
+                  <div>
+                    <h3 className="text-sm tracking-normal">
                       {group.currency} ·{" "}
-                      {group.chargeUnit === "seat" ? "Per seat / month" : "Flat fee / month"}
-                      <CellNote>
-                        {group.billing === "annual"
-                          ? "Annual commitment, monthly equivalent"
-                          : "Monthly commitment"}
-                      </CellNote>
-                    </RowHeader>
-                    <DataCell>{group.count}</DataCell>
-                    <DataCell>
-                      {group.median === null ? (
-                        `Needs ${PRICE_SAMPLE_MINIMUM} products`
-                      ) : (
-                        <strong>{money(group.median, group.currency)}</strong>
-                      )}
-                    </DataCell>
-                    <DataCell>
-                      {group.minimum === null || group.maximum === null
-                        ? "Small sample"
-                        : `${money(group.minimum, group.currency)} to ${money(group.maximum, group.currency)}`}
-                    </DataCell>
-                  </DataRow>
-                ))}
-              </DataTable>
-              <p className="text-xs text-muted-foreground">
-                Descriptive sample statistics, not market estimates. Product capabilities and
-                allowances differ. Vendor credits and overage rates are not averaged.
-              </p>
-            </>
-          )}
-          <div>
-            {examples
-              .filter((page) => page.numericPrices?.offers.length)
-              .map((page) => (
-                <Disclosure
-                  key={page.id}
-                  summary={`${page.normalizedDomain}: ${page.numericPrices?.offers
-                    .map(
-                      (offer) =>
-                        `${amountLabel(offer)} · ${offer.billing} commitment${offer.currency === "DOLLAR_UNSPECIFIED" ? " · currency unspecified" : ""}`,
-                    )
-                    .join("; ")}`}
-                >
-                  <p>
-                    <Link to="/pages/$slug" params={{ slug: page.slug }} search={{ cohort }}>
-                      Open product record
-                    </Link>
+                      {group.chargeUnit === "seat" ? "Per seat, monthly" : "Flat fee, monthly"}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {group.billing === "annual"
+                        ? "Annual commitment, monthly equivalent"
+                        : "Monthly commitment"}
+                    </p>
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {group.count} {group.count === 1 ? "product" : "products"}
+                  </span>
+                </div>
+                <div>
+                  <p className="kicker text-muted-foreground">Median</p>
+                  <p className="mt-1 text-2xl leading-none font-[650] tracking-[-0.02em] tabular-nums">
+                    {group.median === null ? (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        Needs {PRICE_SAMPLE_MINIMUM} products
+                      </span>
+                    ) : (
+                      money(group.median, group.currency)
+                    )}
                   </p>
-                  <NumericPricesPanel
-                    prices={page.numericPrices}
-                    sourceUrl={`/api/public/pages/${page.id}/runs/${page.runId}/source`}
-                  />
-                </Disclosure>
-              ))}
-          </div>
+                </div>
+                <Spread
+                  minimum={group.minimum}
+                  median={group.median}
+                  maximum={group.maximum}
+                  currency={group.currency}
+                />
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Descriptive sample statistics, not market estimates. Each product adds at most one price
+            to a group. Annual plans can require paying for the full year.
+          </p>
         </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No comparable prices yet. Prices with an unspecified dollar currency are listed below but
+          left out of the statistics.
+        </p>
       )}
+      {pages.length ? (
+        <div>
+          <h3 className="text-sm tracking-normal">The pages behind these numbers</h3>
+          <ul className="mt-3 border-t border-gray-4">
+            {pages.map((page) => {
+              const offers = page.numericPrices!.offers;
+              return (
+                <li key={page.id}>
+                  <Link
+                    to="/pages/$slug"
+                    params={{ slug: page.slug }}
+                    search={{ cohort }}
+                    className="group flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-4 py-3 transition-colors hover:bg-gray-2"
+                  >
+                    <span className="flex min-w-40 items-center gap-3">
+                      <Monogram domain={page.normalizedDomain} />
+                      <strong className="text-[0.9375rem] font-semibold">
+                        {page.normalizedDomain}
+                      </strong>
+                    </span>
+                    <span className="flex flex-1 flex-wrap gap-1.5 max-sm:order-3 max-sm:basis-full">
+                      {offers.slice(0, OFFER_CHIPS).map((offer, index) => (
+                        <span
+                          key={index}
+                          className="border border-gray-5 px-1.5 font-mono text-2xs leading-5 text-gray-11 tabular-nums"
+                        >
+                          {offer.plan ? `${offer.plan} ` : ""}
+                          {amountLabel(offer)} · {offer.billing}
+                        </span>
+                      ))}
+                      {offers.length > OFFER_CHIPS ? (
+                        <span className="font-mono text-2xs leading-5 text-muted-foreground">
+                          +{offers.length - OFFER_CHIPS} more
+                        </span>
+                      ) : null}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    >
+                      ↗
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+/** The sample's range as a line, with the median marked where it falls. */
+function Spread({
+  minimum,
+  median,
+  maximum,
+  currency,
+}: {
+  minimum: number | null;
+  median: number | null;
+  maximum: number | null;
+  currency: string;
+}) {
+  if (minimum === null || maximum === null)
+    return <p className="text-xs text-muted-foreground">Range needs a larger sample</p>;
+  const at =
+    median === null || maximum === minimum ? 0.5 : (median - minimum) / (maximum - minimum);
+  return (
+    <div className="grid gap-1.5">
+      <div className="relative h-1.5 bg-gray-5" aria-hidden="true">
+        <span
+          className="absolute top-1/2 h-3.5 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-brand-9"
+          style={{ left: `${at * 100}%` }}
+        />
+      </div>
+      <p className="flex justify-between font-mono text-2xs text-muted-foreground tabular-nums">
+        <span>{money(minimum, currency)}</span>
+        <span>{money(maximum, currency)}</span>
+      </p>
+    </div>
   );
 }

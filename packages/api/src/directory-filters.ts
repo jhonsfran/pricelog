@@ -1,10 +1,9 @@
-import { pagePublicSummary } from "@my-better-t-app/db/schema/pages";
+import { pagePublicSummary } from "@pricelog/db/schema/pages";
 import { or, sql } from "drizzle-orm";
 
-import { AI_APPLICATIONS_COHORT, AI_NATIVE_COHORT, ALL_COHORT } from "./benchmark";
+import { AI_APPLICATIONS_COHORT, ALL_COHORT } from "./benchmark";
 import {
   AI_APPLICATION_CATEGORY_OPTIONS,
-  isPricingSignalKey,
   PRODUCT_CATEGORY_OPTIONS,
   TAG_PROBABILITY_THRESHOLD,
 } from "./pricing-intelligence";
@@ -29,11 +28,6 @@ export function hasChoice(key: string, choice: string) {
 /** Match every cohort supported by benchmark aggregation. Unknown cohorts contain no pages. */
 export function inCohort(cohort: string) {
   if (cohort === ALL_COHORT) return undefined;
-  if (cohort === AI_NATIVE_COHORT) return statesSignal("is_ai_native");
-  if (cohort.startsWith("market:")) {
-    const key = `market_${cohort.slice("market:".length)}`;
-    return isPricingSignalKey(key) ? statesSignal(key) : sql`0`;
-  }
   const categories =
     cohort === AI_APPLICATIONS_COHORT
       ? Object.keys(AI_APPLICATION_CATEGORY_OPTIONS)

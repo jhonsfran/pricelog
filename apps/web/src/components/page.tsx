@@ -1,6 +1,6 @@
-import { Badge } from "@my-better-t-app/ui/components/badge";
-import { Spinner } from "@my-better-t-app/ui/components/spinner";
-import { cn } from "@my-better-t-app/ui/lib/utils";
+import { Badge } from "@pricelog/ui/components/badge";
+import { Spinner } from "@pricelog/ui/components/spinner";
+import { cn } from "@pricelog/ui/lib/utils";
 import { Link, createLink } from "@tanstack/react-router";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
@@ -23,8 +23,8 @@ export function PageShell({
 }
 
 /**
- * Every page opens the same way: what kind of record this is, its name,
- * then whatever the reader needs beside it.
+ * Every page opens the same way: what kind of record this is, its name, then a line on what the
+ * reader can do here. `aside` sits at the right on wide screens, for a page's main action.
  */
 export function PageHeader({
   eyebrow,
@@ -33,7 +33,7 @@ export function PageHeader({
   aside,
   className,
 }: {
-  eyebrow: string;
+  eyebrow: ReactNode;
   title: string;
   children?: ReactNode;
   aside?: ReactNode;
@@ -42,14 +42,14 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "grid gap-6 border-b py-10 max-sm:py-8 md:grid-cols-2 md:items-end md:gap-16",
+        "grid gap-5 pt-9 pb-7 max-sm:pt-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-12",
         className,
       )}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
+        <p className="kicker flex items-center gap-2.5 text-muted-foreground">{eyebrow}</p>
         {/* Inter's Display cut takes tight tracking; the text cut would not. */}
-        <h1 className="mt-2.5 text-4xl leading-[1.02] font-[650] tracking-[-0.032em] wrap-break-word sm:text-5xl lg:text-6xl">
+        <h1 className="mt-3 text-3xl leading-[1.05] font-[650] tracking-[-0.03em] text-balance wrap-break-word sm:text-4xl">
           {title}
         </h1>
         {children}
@@ -62,7 +62,7 @@ export function PageHeader({
 export function Lede({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
-      className={cn("max-w-120 text-base/relaxed text-muted-foreground md:text-lg", className)}
+      className={cn("mt-3 max-w-[36rem] text-base/relaxed text-muted-foreground", className)}
       {...props}
     />
   );
@@ -99,7 +99,7 @@ export const BackLink = createLink(function BackAnchor({
   return (
     <a
       className={cn(
-        "group mt-7 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+        "group mt-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
       {...props}
@@ -121,7 +121,7 @@ export const RowLink = createLink(function RowAnchor({ className, ...props }: Co
   return (
     <a
       className={cn(
-        "group relative isolate grid min-h-20 items-center gap-6 border-b border-gray-4 py-4 motion-safe:animate-row-enter max-md:gap-3.5",
+        "group relative isolate grid min-h-14 items-center gap-6 border-b border-gray-4 py-3 motion-safe:animate-row-enter max-md:gap-3",
         "before:absolute before:inset-y-0 before:-inset-x-3.5 before:-z-10 before:bg-gray-2 before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:before:opacity-100 active:before:bg-gray-3 active:before:opacity-100",
         "after:absolute after:inset-y-0 after:-left-3.5 after:w-0.5 after:origin-center after:scale-y-0 after:bg-foreground after:transition-transform after:duration-200 after:ease-out hover:after:scale-y-100",
         className,

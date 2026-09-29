@@ -1,6 +1,8 @@
-import type { Session } from "@my-better-t-app/auth";
-import type { Database } from "@my-better-t-app/db";
+import type { Session } from "@pricelog/auth";
+import type { Database } from "@pricelog/db";
+import type { ScanRunStage } from "@pricelog/db/scan-stage";
 
+import type { PublicVersion, PublicVersionSummary } from "./page-versions";
 import type { Comparison, WeeklyPageHistory } from "./pricing-history";
 
 import type { DescendingTimestampCursor } from "./pagination";
@@ -9,7 +11,7 @@ export type PageMonitorRun = {
   id: string;
   trigger: "initial" | "scheduled" | "manual";
   status: "queued" | "running" | "succeeded" | "failed";
-  stage: "queued" | "capture" | "persist" | "evaluate" | "publish" | "complete";
+  stage: ScanRunStage;
   requestedByUserId: string | null;
   browserEngine: "chromium" | null;
   errorCode: string | null;
@@ -17,6 +19,15 @@ export type PageMonitorRun = {
   createdAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  events: Array<{
+    stage: ScanRunStage;
+    at: number;
+    kind: "entered" | "warning" | "completed" | "failed";
+    message?: string;
+    httpStatus?: number;
+    inputBytes?: number;
+    outputBytes?: number;
+  }>;
 };
 
 export type PageMonitorService = {
@@ -27,6 +38,13 @@ export type PageMonitorService = {
     pageId: string,
     runId: string,
   ): Promise<{ key: string; contentType: string; filename: string } | null>;
+  getPublicScreenshot(
+    domain: string,
+    pageId: string,
+    runId: string,
+  ): Promise<{ key: string; contentType: string; filename: string } | null>;
+  listPublicVersions(domain: string, pageId: string): Promise<PublicVersionSummary[]>;
+  getPublicVersion(domain: string, pageId: string, runId: string): Promise<PublicVersion | null>;
   normalizeUrl(input: string): Promise<{ canonicalUrl: string; normalizedDomain: string }>;
   initializeAndStart(input: {
     pageId: string;

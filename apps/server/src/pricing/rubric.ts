@@ -1,33 +1,18 @@
 import {
+  JEV_CHOICE_KEYS,
+  JEV_CHOICE_RULES,
   PRICING_CHOICE_CATALOG,
   PRICING_INTELLIGENCE_RUBRIC_ID,
   PRICING_INTELLIGENCE_RUBRIC_VERSION,
-  PRICING_SIGNAL_CATALOG,
   PRICING_PAGE_SCOPE,
   PRICING_RUBRIC_FINGERPRINT,
-  CHOICE_CONFIDENCE_THRESHOLD,
-  TAG_PROBABILITY_THRESHOLD,
-  NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
-} from "@my-better-t-app/db/pricing-intelligence";
-import {
-  FACT_EXTRACTION_FINGERPRINT,
-  FACT_CONFIDENCE,
-  FACT_EVIDENCE_PROBABILITY,
-  PRICING_FACTS_VERSION,
-  NUMERIC_FACT_ROLES,
-} from "@my-better-t-app/db/pricing-facts";
-import { EXPECTED_JEV_MODEL } from "@my-better-t-app/db/measurement-policy";
+} from "@pricelog/db/pricing-intelligence";
+import { EXPECTED_JEV_MODEL } from "@pricelog/db/measurement-policy";
 
 type ChoiceQuestion = {
   type: "choice";
   instructions: string;
   criteria: Readonly<Record<string, string>>;
-};
-
-type NoulQuestion = {
-  type: "noul";
-  instructions: string;
-  criteria: { true: string; false: string };
 };
 
 /** Maps a catalog to questions while keeping each literal key in the result type. */
@@ -43,20 +28,17 @@ function mapCatalog<Key extends string, Entry, Question>(
 }
 
 /**
- * Every question is derived from the shared catalog rather than restated here,
- * so the text Jev evaluates is byte-identical to the methodology Pricelog
- * publishes. Adding a question to the catalog adds it to the prompt.
+ * Jev answers only the profile questions the catalog marks as Jev's; every other profile field
+ * is derived from the published snapshot. The text Jev evaluates is byte-identical to the
+ * methodology Pricelog publishes.
  */
-const choiceQuestions = mapCatalog(PRICING_CHOICE_CATALOG, (entry): ChoiceQuestion => ({
+const profileCatalog = Object.fromEntries(
+  JEV_CHOICE_KEYS.map((key) => [key, PRICING_CHOICE_CATALOG[key]]),
+) as Pick<typeof PRICING_CHOICE_CATALOG, (typeof JEV_CHOICE_KEYS)[number]>;
+const choiceQuestions = mapCatalog(profileCatalog, (entry): ChoiceQuestion => ({
   type: "choice",
   instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
   criteria: entry.options,
-}));
-
-const noulQuestions = mapCatalog(PRICING_SIGNAL_CATALOG, (entry): NoulQuestion => ({
-  type: "noul",
-  instructions: `${PRICING_PAGE_SCOPE} ${entry.question}`,
-  criteria: { true: entry.whenTrue, false: entry.whenFalse },
 }));
 
 export const PRICING_INTELLIGENCE_RUBRIC = {
@@ -64,31 +46,21 @@ export const PRICING_INTELLIGENCE_RUBRIC = {
   version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
   model: "typesafe/jev",
   scope: PRICING_PAGE_SCOPE,
-  questions: {
-    ...choiceQuestions,
-    ...noulQuestions,
-  },
+  questions: choiceQuestions,
 } as const;
 
-/** The identifier covers questions, thresholds, model, and fact schema version. */
+/**
+ * The identifier covers only what Jev's profile answers depend on: questions, scope, model
+ * and thresholds. Extraction code has its own PRICING_PIPELINE_ID, so a pipeline change does
+ * not make earlier profile answers incomparable.
+ */
 export function rubricContract(questions: unknown = PRICING_INTELLIGENCE_RUBRIC.questions) {
   return {
     version: PRICING_INTELLIGENCE_RUBRIC_VERSION,
     model: EXPECTED_JEV_MODEL,
     scope: PRICING_PAGE_SCOPE,
     questions,
-    facts: {
-      implementation: FACT_EXTRACTION_FINGERPRINT,
-      version: PRICING_FACTS_VERSION,
-      roles: NUMERIC_FACT_ROLES,
-      confidence: FACT_CONFIDENCE,
-      evidence: FACT_EVIDENCE_PROBABILITY,
-    },
-    publication: {
-      choice: CHOICE_CONFIDENCE_THRESHOLD,
-      stated: TAG_PROBABILITY_THRESHOLD,
-      notEstablished: NOT_ESTABLISHED_PROBABILITY_THRESHOLD,
-    },
+    publication: JEV_CHOICE_RULES,
   };
 }
 export async function rubricFingerprint(contract: unknown = rubricContract()) {

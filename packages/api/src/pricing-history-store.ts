@@ -1,5 +1,5 @@
-import type { Database } from "@my-better-t-app/db";
-import { page } from "@my-better-t-app/db/schema/pages";
+import type { Database } from "@pricelog/db";
+import { page } from "@pricelog/db/schema/pages";
 import { and, asc, eq, gt } from "drizzle-orm";
 import type { PageMonitorService } from "./context";
 import type { Comparison, Observation } from "./pricing-history";
