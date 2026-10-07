@@ -28,3 +28,8 @@ catalog:
   "@types/react-dom": ^19.2.7
   drizzle-orm: 1.0.0-rc.4
   vitest: ^5.0.1
+minimumReleaseAgeExclude:
+  - "@effect/platform-bun@4.0.2"
+  - "@effect/platform-node-shared@4.0.2"
+  - "@effect/platform-node@4.0.2"
+  - effect@4.0.2
