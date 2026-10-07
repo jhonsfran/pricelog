@@ -1,5 +1,5 @@
 import { cn } from "@pricelog/ui/lib/utils";
-import type { LadderStep } from "@/lib/pricing-display";
+import type { LadderStep } from "@pricelog/api/pricing-display";
 
 /**
  * A page's plans as bars, cheapest to dearest. Heights follow the square root of the monthly

@@ -17,101 +17,40 @@ import {
   readCompleteBenchmarkCorpus,
   type BenchmarkCorpusRow,
 } from "../benchmark-store";
-import { publicProcedure } from "../index";
+import { cachedPublicProcedure } from "../index";
+import type { Context } from "../context";
+import { entryLabel, priceLadder } from "../pricing-display";
 import { hasChoice, inCohort, statesSignal } from "../directory-filters";
 import { descendingCursorCondition } from "../pagination";
 import { descendingTimestampCursorSchema } from "../pagination-schema";
 
-export const directoryRouter = {
-  list: publicProcedure
-    .input(
-      z
-        .object({
-          search: z.string().trim().max(100).optional(),
-          /** A charging signal the page states, e.g. `charges_fixed_subscription`. */
-          signal: z.string().trim().max(64).refine(isPricingSignalKey).optional(),
-          /** A published classification, e.g. `credit_conversion` = `not_disclosed`. */
-          choiceKey: z.string().trim().max(64).refine(isPricingChoiceKey).optional(),
-          choiceValue: z.string().trim().max(64).optional(),
-          /** The cohort a chart was measured over, so a bar links to its own population. */
-          cohort: z.string().trim().max(64).optional(),
-          cursor: descendingTimestampCursorSchema.optional(),
-          limit: z.number().int().min(1).max(50).default(25),
-        })
-        .optional(),
-    )
-    .handler(async ({ context, input }) => {
-      const search = input?.search;
-      // The catalog is an inventory of published captures. Only links from a
-      // benchmark bar need the exact population used to compute that bar.
-      const conditions = [directoryPopulationCondition(input)];
-      if (search) {
-        const pattern = `%${search}%`;
-        conditions.push(
-          or(
-            like(page.displayName, pattern),
-            like(page.normalizedDomain, pattern),
-            like(pagePublicSummary.tags, pattern),
-          )!,
-        );
-      }
-      if (input?.signal) conditions.push(statesSignal(input.signal));
-      if (input?.choiceKey && input.choiceValue) {
-        conditions.push(hasChoice(input.choiceKey, input.choiceValue));
-      }
-      if (input?.cohort) {
-        const cohort = inCohort(input.cohort);
-        if (cohort) conditions.push(cohort);
-      }
+export const directoryListInput = z
+  .object({
+    search: z.string().trim().max(100).optional(),
+    signal: z.string().trim().max(64).refine(isPricingSignalKey).optional(),
+    choiceKey: z.string().trim().max(64).refine(isPricingChoiceKey).optional(),
+    choiceValue: z.string().trim().max(64).optional(),
+    cohort: z.string().trim().max(64).optional(),
+    cursor: descendingTimestampCursorSchema.optional(),
+    limit: z.number().int().min(1).max(50).default(25),
+  })
+  .optional();
 
-      const limit = input?.limit ?? 25;
-      const paged = input?.cursor
-        ? [...conditions, descendingCursorCondition(page.createdAt, page.id, input.cursor)]
-        : conditions;
-      const [rows, [totalRow]] = await Promise.all([
-        context.db
-          .select({
-            id: page.id,
-            slug: page.slug,
-            normalizedDomain: page.normalizedDomain,
-            canonicalUrl: page.canonicalUrl,
-            displayName: page.displayName,
-            description: page.description,
-            createdAt: page.createdAt,
-            choices: pagePublicSummary.choices,
-            tags: pagePublicSummary.tags,
-            numericPrices: pagePublicSummary.numericPrices,
-            snapshot: pagePublicSummary.snapshot,
-            scannedAt: pagePublicSummary.scannedAt,
-          })
-          .from(page)
-          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-          .where(and(...paged))
-          .orderBy(desc(page.createdAt), desc(page.id))
-          .limit(limit + 1),
-        // The count ignores the cursor, so "34 pages" means the filter's
-        // total rather than however many have been scrolled into view.
-        context.db
-          .select({ value: count() })
-          .from(page)
-          .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
-          .where(and(...conditions)),
-      ]);
-      const hasMore = rows.length > limit;
-      const items = rows.slice(0, limit);
-      return {
-        items,
-        total: totalRow?.value ?? 0,
-        nextCursor: hasMore
-          ? (() => {
-              const last = items.at(-1);
-              return last ? { createdAt: last.createdAt.getTime(), id: last.id } : null;
-            })()
-          : null,
-      };
+export const directoryRouter = {
+  list: cachedPublicProcedure("directory")
+    .input(directoryListInput)
+    .handler(async ({ context, input }) => {
+      return readDirectoryList(context, input);
     }),
 
-  getBySlug: publicProcedure
+  cards: cachedPublicProcedure("directory")
+    .input(directoryListInput)
+    .handler(async ({ context, input }) => {
+      const result = await readDirectoryList(context, input);
+      return { ...result, items: result.items.map(directoryCard) };
+    }),
+
+  getBySlug: cachedPublicProcedure("directory")
     .input(z.object({ slug: z.string().min(1).max(255) }))
     .handler(async ({ context, input }) => {
       const [result] = await context.db
@@ -147,7 +86,7 @@ export const directoryRouter = {
     }),
 
   /** One published capture of a page, with the changes both archived pages confirm. */
-  version: publicProcedure
+  version: cachedPublicProcedure("versions")
     .input(z.object({ slug: z.string().min(1).max(255), runId: z.string().min(1).max(64) }))
     .handler(async ({ context, input }) => {
       const [published] = await context.db
@@ -166,7 +105,7 @@ export const directoryRouter = {
     }),
 
   /** The index in four numbers: pages, plans and prices on the latest captures, and when it last moved. */
-  overview: publicProcedure.handler(async ({ context }) => {
+  overview: cachedPublicProcedure("directory").handler(async ({ context }) => {
     const snapshot = pagePublicSummary.snapshot;
     const [row] = await context.db
       .select({
@@ -186,7 +125,7 @@ export const directoryRouter = {
     };
   }),
 
-  benchmarks: publicProcedure
+  benchmarks: cachedPublicProcedure("benchmarks")
     .input(
       z
         .object({
@@ -224,7 +163,7 @@ export const directoryRouter = {
       };
     }),
 
-  weeklyChanges: publicProcedure
+  weeklyChanges: cachedPublicProcedure("weekly")
     .input(
       z.object({ cohort: z.string().min(1).max(64).default(AI_APPLICATIONS_COHORT) }).optional(),
     )
@@ -281,4 +220,94 @@ function examplesFromCorpus(corpus: BenchmarkCorpusRow[], cohort: string, numeri
           (row.numericPrices?.status === "collected" && row.numericPrices.offers.length > 0)),
     )
     .slice(0, 12);
+}
+
+async function readDirectoryList(
+  context: Pick<Context, "db">,
+  input: z.infer<typeof directoryListInput>,
+) {
+  const search = input?.search;
+  // The catalog is an inventory of published captures. Only links from a
+  // benchmark bar need the exact population used to compute that bar.
+  const conditions = [directoryPopulationCondition(input)];
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        like(page.displayName, pattern),
+        like(page.normalizedDomain, pattern),
+        like(pagePublicSummary.tags, pattern),
+      )!,
+    );
+  }
+  if (input?.signal) conditions.push(statesSignal(input.signal));
+  if (input?.choiceKey && input.choiceValue) {
+    conditions.push(hasChoice(input.choiceKey, input.choiceValue));
+  }
+  if (input?.cohort) {
+    const cohort = inCohort(input.cohort);
+    if (cohort) conditions.push(cohort);
+  }
+
+  const limit = input?.limit ?? 25;
+  const paged = input?.cursor
+    ? [...conditions, descendingCursorCondition(page.createdAt, page.id, input.cursor)]
+    : conditions;
+  const [rows, [totalRow]] = await Promise.all([
+    context.db
+      .select({
+        id: page.id,
+        slug: page.slug,
+        normalizedDomain: page.normalizedDomain,
+        canonicalUrl: page.canonicalUrl,
+        displayName: page.displayName,
+        description: page.description,
+        createdAt: page.createdAt,
+        choices: pagePublicSummary.choices,
+        tags: pagePublicSummary.tags,
+        numericPrices: pagePublicSummary.numericPrices,
+        snapshot: pagePublicSummary.snapshot,
+        scannedAt: pagePublicSummary.scannedAt,
+      })
+      .from(page)
+      .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+      .where(and(...paged))
+      .orderBy(desc(page.createdAt), desc(page.id))
+      .limit(limit + 1),
+    // The count ignores the cursor, so "34 pages" means the filter's
+    // total rather than however many have been scrolled into view.
+    context.db
+      .select({ value: count() })
+      .from(page)
+      .innerJoin(pagePublicSummary, eq(pagePublicSummary.pageId, page.id))
+      .where(and(...conditions)),
+  ]);
+  const hasMore = rows.length > limit;
+  const items = rows.slice(0, limit);
+  return {
+    items,
+    total: totalRow?.value ?? 0,
+    nextCursor: hasMore
+      ? (() => {
+          const last = items.at(-1);
+          return last ? { createdAt: last.createdAt.getTime(), id: last.id } : null;
+        })()
+      : null,
+  };
+}
+
+export function directoryCard(
+  item: Awaited<ReturnType<typeof readDirectoryList>>["items"][number],
+) {
+  return {
+    id: item.id,
+    slug: item.slug,
+    normalizedDomain: item.normalizedDomain,
+    category: item.choices.find((choice) => choice.key === "product_category")?.choice ?? null,
+    tags: item.tags,
+    scannedAt: item.scannedAt,
+    ladder: priceLadder(item.snapshot),
+    entry: entryLabel(item.snapshot),
+    plans: item.snapshot?.status === "collected" ? item.snapshot.offers.length : 0,
+  };
 }

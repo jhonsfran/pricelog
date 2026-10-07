@@ -19,6 +19,7 @@ import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { resolveLogEnvironment } from "./logging";
 import { createAuth, getDb } from "./services";
+import { isPublicDirectoryRequest } from "./public-cache";
 
 export { PageStore } from "./pricing/page-store";
 export { ScanWorkflow } from "./pricing/scan-workflow";
@@ -56,7 +57,9 @@ const app = new Hono<EvlogVariables>();
 
 app.use(evlog());
 app.use("*", async (c, next) => {
-  await identifyUser(c.get("log"), c.req.raw.headers, c.req.path);
+  if (!isPublicDirectoryRequest(c.req.raw)) {
+    await identifyUser(c.get("log"), c.req.raw.headers, c.req.path);
+  }
   await next();
 });
 

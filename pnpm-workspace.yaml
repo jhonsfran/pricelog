@@ -33,3 +33,5 @@ minimumReleaseAgeExclude:
   - "@effect/platform-node-shared@4.0.2"
   - "@effect/platform-node@4.0.2"
   - effect@4.0.2
+patchedDependencies:
+  "@unkey/cache@1.5.0": patches/@unkey__cache@1.5.0.patch

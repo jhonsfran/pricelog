@@ -11,7 +11,7 @@ import {
   otherQuotes,
   planColumns,
   priceLadder,
-} from "./pricing-display";
+} from "@pricelog/api/pricing-display";
 
 const price = (overrides: Partial<PublishedPrice>): PublishedPrice => ({
   kind: "flat",
