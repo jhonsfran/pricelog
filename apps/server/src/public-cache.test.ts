@@ -21,7 +21,11 @@ function cacheHarness() {
     },
   });
   return {
-    cache: createPublicCache({ waitUntil: (task) => pending.push(task) }, "api.example.com"),
+    cache: createPublicCache(
+      { waitUntil: (task) => pending.push(task) },
+      "api.example.com",
+      vi.fn(),
+    ),
     entries,
     put,
     drain: async () => {
@@ -186,8 +190,8 @@ describe("cached public procedures", () => {
     const load = vi.fn(async (limit: number) => ({ limit, pages: 106 }));
     const procedure = os
       .$context<Pick<Context, "publicCache">>()
-      .use(publicCacheMiddleware("directory"))
       .input(z.object({ limit: z.number().min(1).max(50) }))
+      .use(publicCacheMiddleware("directory"))
       .handler(({ input }) => load(input.limit));
     const call = createProcedureClient(procedure, { context: { publicCache: harness.cache } });
 

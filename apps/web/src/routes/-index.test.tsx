@@ -1,14 +1,17 @@
+// @vitest-environment jsdom
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
-  createRootRouteWithContext,
+  createRoute,
   createRouter,
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
+import { cleanup, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RouterAppContext } from "./__root";
+import { Route as RootRoute } from "./__root";
 import { Route as IndexRoute } from "./index";
 import { directoryCardsOptions, directoryOverviewOptions } from "@/lib/directory-queries";
 import { orpc } from "@/utils/orpc";
@@ -59,19 +62,37 @@ function mockRpc(failingRoute: "cards" | "overview") {
   );
 }
 
-function homepage() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const root = createRootRouteWithContext<RouterAppContext>()({ component: Outlet });
-  const index = IndexRoute.update({ getParentRoute: () => root, id: "/", path: "/" });
+function homepage(
+  isServer = true,
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
+  const root = RootRoute.update({ component: Outlet });
+  const index = createRoute({
+    getParentRoute: () => root,
+    path: "/",
+    component: IndexRoute.options.component,
+    validateSearch: IndexRoute.options.validateSearch,
+    loaderDeps: IndexRoute.options.loaderDeps,
+    loader: IndexRoute.options.loader,
+  });
   const router = createRouter({
     routeTree: root.addChildren([index]),
     context: { queryClient, orpc },
     history: createMemoryHistory({ initialEntries: ["/"] }),
-    isServer: true,
+    isServer,
   });
   return {
     queryClient,
     router,
+    mount: async () => {
+      const client = homepage(false, queryClient);
+      await client.router.load();
+      return render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={client.router} />
+        </QueryClientProvider>,
+      );
+    },
     render: () =>
       renderToString(
         <QueryClientProvider client={queryClient}>
@@ -82,6 +103,8 @@ function homepage() {
 }
 
 afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -106,7 +129,11 @@ describe("homepage preload failures", () => {
 
     expect(app.router.state.matches.find((match) => match.routeId === "/")?.status).toBe("success");
     expect(app.queryClient.getQueryData(directoryOverviewOptions().queryKey)).toEqual(overview);
-    expect(app.render()).toContain("The directory is not available.");
+    expect(app.queryClient.getQueryState(directoryCardsOptions().queryKey)?.status).toBe("error");
+    expect(app.render()).toContain('class="tabular-nums">1</span>');
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    await app.mount();
+    expect(await screen.findByText("The directory is not available.")).toBeDefined();
     app.queryClient.clear();
   });
 });

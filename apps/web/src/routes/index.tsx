@@ -43,7 +43,7 @@ export const Route = createFileRoute("/")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const hasHero = !deps.signal && !deps.choiceKey;
-    await Promise.all([
+    await Promise.allSettled([
       context.queryClient.infiniteQuery(directoryCardsOptions(deps)),
       hasHero ? context.queryClient.query(directoryOverviewOptions()) : null,
       hasHero && hasDirectoryFilter(deps)

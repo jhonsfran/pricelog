@@ -17,7 +17,7 @@ import {
   readCompleteBenchmarkCorpus,
   type BenchmarkCorpusRow,
 } from "../benchmark-store";
-import { cachedPublicProcedure } from "../index";
+import { publicProcedure, publicCacheMiddleware } from "../index";
 import type { Context } from "../context";
 import { entryLabel, priceLadder } from "../pricing-display";
 import { hasChoice, inCohort, statesSignal } from "../directory-filters";
@@ -37,21 +37,24 @@ export const directoryListInput = z
   .optional();
 
 export const directoryRouter = {
-  list: cachedPublicProcedure("directory")
+  list: publicProcedure
     .input(directoryListInput)
+    .use(publicCacheMiddleware("directory"))
     .handler(async ({ context, input }) => {
       return readDirectoryList(context, input);
     }),
 
-  cards: cachedPublicProcedure("directory")
+  cards: publicProcedure
     .input(directoryListInput)
+    .use(publicCacheMiddleware("directory"))
     .handler(async ({ context, input }) => {
       const result = await readDirectoryList(context, input);
       return { ...result, items: result.items.map(directoryCard) };
     }),
 
-  getBySlug: cachedPublicProcedure("directory")
+  getBySlug: publicProcedure
     .input(z.object({ slug: z.string().min(1).max(255) }))
+    .use(publicCacheMiddleware("directory"))
     .handler(async ({ context, input }) => {
       const [result] = await context.db
         .select({
@@ -86,8 +89,9 @@ export const directoryRouter = {
     }),
 
   /** One published capture of a page, with the changes both archived pages confirm. */
-  version: cachedPublicProcedure("versions")
+  version: publicProcedure
     .input(z.object({ slug: z.string().min(1).max(255), runId: z.string().min(1).max(64) }))
+    .use(publicCacheMiddleware("versions"))
     .handler(async ({ context, input }) => {
       const [published] = await context.db
         .select({ id: page.id, normalizedDomain: page.normalizedDomain })
@@ -105,7 +109,7 @@ export const directoryRouter = {
     }),
 
   /** The index in four numbers: pages, plans and prices on the latest captures, and when it last moved. */
-  overview: cachedPublicProcedure("directory").handler(async ({ context }) => {
+  overview: publicProcedure.use(publicCacheMiddleware("directory")).handler(async ({ context }) => {
     const snapshot = pagePublicSummary.snapshot;
     const [row] = await context.db
       .select({
@@ -125,7 +129,7 @@ export const directoryRouter = {
     };
   }),
 
-  benchmarks: cachedPublicProcedure("benchmarks")
+  benchmarks: publicProcedure
     .input(
       z
         .object({
@@ -133,6 +137,7 @@ export const directoryRouter = {
         })
         .optional(),
     )
+    .use(publicCacheMiddleware("benchmarks"))
     .handler(async ({ context, input }) => {
       const now = new Date();
       const [{ snapshots, computedAt, live, corpus }, coverage] = await Promise.all([
@@ -163,10 +168,11 @@ export const directoryRouter = {
       };
     }),
 
-  weeklyChanges: cachedPublicProcedure("weekly")
+  weeklyChanges: publicProcedure
     .input(
       z.object({ cohort: z.string().min(1).max(64).default(AI_APPLICATIONS_COHORT) }).optional(),
     )
+    .use(publicCacheMiddleware("weekly"))
     .handler(async ({ context, input }) => {
       const now = new Date();
       const { observations, comparisons } = await readWeeklyHistory(
@@ -227,8 +233,6 @@ async function readDirectoryList(
   input: z.infer<typeof directoryListInput>,
 ) {
   const search = input?.search;
-  // The catalog is an inventory of published captures. Only links from a
-  // benchmark bar need the exact population used to compute that bar.
   const conditions = [directoryPopulationCondition(input)];
   if (search) {
     const pattern = `%${search}%`;
@@ -274,8 +278,6 @@ async function readDirectoryList(
       .where(and(...paged))
       .orderBy(desc(page.createdAt), desc(page.id))
       .limit(limit + 1),
-    // The count ignores the cursor, so "34 pages" means the filter's
-    // total rather than however many have been scrolled into view.
     context.db
       .select({ value: count() })
       .from(page)

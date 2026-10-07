@@ -29,10 +29,6 @@ export function publicCacheMiddleware(scope: PublicCacheScope) {
   });
 }
 
-export function cachedPublicProcedure(scope: PublicCacheScope) {
-  return publicProcedure.use(publicCacheMiddleware(scope));
-}
-
 const requireAuth = o.middleware(async ({ context, next }) => {
   if (!context.session?.user) {
     throw new ORPCError("UNAUTHORIZED");

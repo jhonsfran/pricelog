@@ -22,15 +22,21 @@ const require = createRequire(import.meta.url);
 const commonJs: typeof import("@unkey/cache") = require("@unkey/cache");
 
 function queryResult(result: Promise<unknown>) {
-  const query = {
-    from: () => query,
-    innerJoin: () => query,
-    where: () => query,
-    orderBy: () => query,
+  return Object.assign(result, {
+    from() {
+      return this;
+    },
+    innerJoin() {
+      return this;
+    },
+    where() {
+      return this;
+    },
+    orderBy() {
+      return this;
+    },
     limit: () => result,
-    then: result.then.bind(result),
-  };
-  return query;
+  });
 }
 
 function integrationHarness() {
@@ -73,7 +79,13 @@ function integrationHarness() {
           body: JSON.stringify({ json: input }),
         }),
         {},
-        { waitUntil: (task) => pending.push(task), passThroughOnException() {} },
+        {
+          waitUntil(task) {
+            pending.push(task);
+          },
+          passThroughOnException() {},
+          props: {},
+        },
       );
     },
     async drain() {

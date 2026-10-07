@@ -1,3 +1,47 @@
+diff --git a/dist/index.js b/dist/index.js
+index 93eadbce34efeee99f07b85c2dfefaef87221545..09cfdc0bb512f7fea7a40d1d04b6134b507facba 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -95,7 +95,7 @@ var TieredStore = class {
+    * Sets the value for the given key.
+    */
+   async set(namespace, key, value) {
+-    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then(() => error.Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then((results) => results.find((result) => result.err) ?? error.Ok()).catch(
+       (err) => error.Err(
+         new CacheError({
+           tier: this.name,
+@@ -109,7 +109,7 @@ var TieredStore = class {
+    * Removes the key from the cache.
+    */
+   async remove(namespace, key) {
+-    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then(() => error.Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then((results) => results.find((result) => result.err) ?? error.Ok()).catch(
+       (err) => error.Err(
+         new CacheError({
+           tier: this.name,
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 386b7fbf054cb4a5e3e35e0c0ddb4760de9acbde..b9af8d08b1bf9922236951a77ef0b9bec878652b 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -93,7 +93,7 @@ var TieredStore = class {
+    * Sets the value for the given key.
+    */
+   async set(namespace, key, value) {
+-    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then(() => Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then((results) => results.find((result) => result.err) ?? Ok()).catch(
+       (err) => Err(
+         new CacheError({
+           tier: this.name,
+@@ -107,7 +107,7 @@ var TieredStore = class {
+    * Removes the key from the cache.
+    */
+   async remove(namespace, key) {
+-    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then(() => Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then((results) => results.find((result) => result.err) ?? Ok()).catch(
+       (err) => Err(
+         new CacheError({
+           tier: this.name,
 diff --git a/dist/stores.d.mts b/dist/stores.d.mts
 index 8c56cd0add1ae26d7f00e248fd6f4039e1f4f11c..c4aeece614ba32abeb657eb5c9ffa8213201ca96 100644
 --- a/dist/stores.d.mts
@@ -35,7 +79,7 @@ index d83ab4f8257c70172e9f1e6b5dc89327726791a3..6d1615b31086dc1625d9d549543b41d8
       * As your data changes, it is important to keep backwards compatibility in mind. If your cached
       * values are no longer backwards compatible, it can cause problems. For example when a value
 diff --git a/dist/stores.js b/dist/stores.js
-index 10ccf1406862887c8b13441707780e8267f5ea41..d0abc56a5eceb93b9c37893eeac41c5728756dff 100644
+index 10ccf1406862887c8b13441707780e8267f5ea41..344771289a8554ce66a7c32b3f58368c1847f0aa 100644
 --- a/dist/stores.js
 +++ b/dist/stores.js
 @@ -70,7 +70,7 @@ var CloudflareStore = class {

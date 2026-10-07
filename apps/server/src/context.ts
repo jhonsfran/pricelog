@@ -7,7 +7,11 @@ import { ENV } from "./env.server";
 import { getDb } from "./services";
 import { createAuth } from "./services";
 import { pageMonitorService } from "./pricing/service";
-import { createPublicCache, isPublicDirectoryRequest } from "./public-cache";
+import {
+  createCacheErrorReporter,
+  createPublicCache,
+  isPublicDirectoryRequest,
+} from "./public-cache";
 import { useLogger } from "evlog/hono";
 
 export type CreateContextOptions = {
@@ -17,7 +21,12 @@ export type CreateContextOptions = {
 export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
   const db = await getDb();
   const publicRequest = isPublicDirectoryRequest(context.req.raw);
-  const reportCacheError = (error: Error) => useLogger().warn(error.message);
+  const parentRequestId = useLogger().getContext().requestId;
+  const reportCacheError = createCacheErrorReporter(
+    context.executionCtx,
+    context.req.raw,
+    typeof parentRequestId === "string" ? parentRequestId : undefined,
+  );
   const authSession = publicRequest
     ? null
     : await (
@@ -32,12 +41,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
   return {
     db,
     publicCache: publicRequest
-      ? createPublicCache(
-          {
-            waitUntil: (promise) => context.executionCtx.waitUntil(promise.catch(reportCacheError)),
-          },
-          new URL(context.req.url).hostname,
-        )
+      ? createPublicCache(context.executionCtx, new URL(context.req.url).hostname, reportCacheError)
       : undefined,
     reportCacheError,
     session,

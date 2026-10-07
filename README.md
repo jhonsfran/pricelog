@@ -181,7 +181,9 @@ between the hero and directory. The card response contains the displayed prices 
 the existing `directory.list` response still includes complete captures for API clients.
 
 `patches/@unkey__cache@1.5.0.patch` corrects the published adapter's retention TTL and purge URL.
-It also permits local cache removal without a global purge token. SWR remains Unkey's implementation.
+It also permits local cache removal without a global purge token and preserves store mutation
+errors as Result errors. Background failures emit separate log events after the HTTP response.
+SWR remains Unkey's implementation.
 Change the `public-v1` cache buster in `apps/server/src/public-cache.ts` when cached response
 shapes change. Cloudflare cache entries are local to each data center and can be evicted early.
 
