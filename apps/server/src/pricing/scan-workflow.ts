@@ -209,7 +209,13 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
         ]);
         return {
           description: extractPageDescription(html),
-          state: captured ? { billingView: captured.billingView, states: captured.states } : null,
+          state: captured
+            ? {
+                billingView: captured.billingView,
+                states: captured.states,
+                coverage: captured.coverage,
+              }
+            : null,
           browserMs: browserMs || null,
           manifest: {
             capturedAt: Date.now(),
@@ -234,6 +240,13 @@ export class ScanWorkflow extends WorkflowEntrypoint<ScanWorkflowEnv, ScanWorkfl
             stage: "archive",
             kind: "warning",
             message: "The page state script did not finish; archived the cleaned Markdown instead",
+          });
+        else if (capture.state.coverage === "partial")
+          await store.recordEvent(params.runId, {
+            stage: "archive",
+            kind: "warning",
+            message:
+              "Capture coverage is partial: some UI states exceeded the time or text limits. Missing plans are not evidence of removal.",
           });
         await store.recordEvent(params.runId, {
           stage: "archive",

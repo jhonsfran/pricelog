@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { structuredPriceData } from "./capture-state";
+import { readCapturedState, structuredPriceData } from "./capture-state";
+
+it("marks incomplete state captures so absent offers cannot become verified removals", () => {
+  const html = `<script id="pricelog-state">${JSON.stringify({
+    version: 1,
+    complete: false,
+    blocks: [{ label: "default", text: "Starter €19" }],
+  })}</script>`;
+  expect(readCapturedState(html)).toMatchObject({
+    coverage: "partial",
+    text: "## capture: partial\n\n## state: default\nStarter €19",
+  });
+});
 
 describe("structured price data", () => {
   it("adds one line per schema.org offer declared in the page", () => {

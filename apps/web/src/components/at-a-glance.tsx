@@ -3,7 +3,11 @@ import {
   getPricingChoiceLabel,
   getPricingSignalMetadata,
 } from "@pricelog/api/pricing-intelligence";
-import { monetizationMetrics, type PublishedSnapshot } from "@pricelog/api/pricing-snapshot";
+import {
+  monetizationMetrics,
+  planOffers,
+  type PublishedSnapshot,
+} from "@pricelog/api/pricing-snapshot";
 import type { ReactNode } from "react";
 import { formatToken } from "@/lib/format";
 import { entryLabel, formatMoney, priceLadder } from "@/lib/pricing-display";
@@ -63,10 +67,11 @@ export function AtAGlance({
   });
   const unit = metrics.effective_unit_price?.[0];
   const rows: { label: string; value: ReactNode }[] = [];
-  if (collected?.offers.length)
+  const plans = collected ? planOffers(collected) : [];
+  if (plans.length)
     rows.push({
       label: "Plans",
-      value: `${collected.offers.length}${free ? ", one free" : ""}`,
+      value: `${plans.length}${free ? ", one free" : ""}`,
     });
   if (top && metrics.price_ladder)
     rows.push({ label: "Top plan", value: `${top.label} · ${metrics.price_ladder.ratio}× entry` });

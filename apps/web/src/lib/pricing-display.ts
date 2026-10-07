@@ -4,6 +4,7 @@ import type {
   PublishedPrice,
   PublishedSnapshot,
 } from "@pricelog/api/pricing-snapshot";
+import { planOffers } from "@pricelog/api/pricing-snapshot";
 
 export type Billing = "monthly" | "annual";
 
@@ -163,18 +164,15 @@ export type PlanColumn = { name: string; prices: PublishedPrice[] };
 
 /** Every plan the page names: priced plans in page order, then plans only the feature grid names. */
 export function planColumns(snapshot: PublishedSnapshot): PlanColumn[] {
-  const columns: PlanColumn[] = snapshot.offers.map((offer) => ({
+  return planOffers(snapshot).map((offer) => ({
     name: offer.name,
     prices: offer.prices,
   }));
-  const named = new Set(columns.map((column) => column.name));
-  for (const feature of snapshot.features)
-    for (const cell of feature.availability)
-      if (!named.has(cell.offer)) {
-        named.add(cell.offer);
-        columns.push({ name: cell.offer, prices: [] });
-      }
-  return columns;
+}
+
+export function additionalOffers(snapshot: PublishedSnapshot) {
+  const plans = planOffers(snapshot);
+  return snapshot.offers.filter((offer) => !plans.includes(offer));
 }
 
 export type FeatureCell = { status: FeatureStatus; limit?: string };

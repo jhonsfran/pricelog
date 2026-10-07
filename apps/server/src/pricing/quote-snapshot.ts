@@ -292,6 +292,12 @@ const PRICE_ANSWERS = {
     billing: "usage",
     meaning: "A price per unit of usage, such as overage, tokens, minutes or credits used.",
   },
+  usage_add_on: {
+    kind: "add_on",
+    billing: "usage",
+    meaning:
+      "A separately purchased add-on charged per unit of usage, such as an optional per-call service.",
+  },
   add_on: {
     kind: "add_on",
     billing: "unknown",
@@ -390,6 +396,26 @@ export type SnapshotDecision = {
   coverage: { literals: number; claimed: number };
 };
 
+function capturedBilling(
+  price: GroundedPrice,
+  source: string,
+  billingView: BillingView,
+): "monthly" | "annual" | null {
+  const blocks = source.split(/^## state: (.+)$/m);
+  const label = (value: string) => normalize(value.replace(/ \(selected: .*\)$/, ""));
+  const index = blocks.findIndex(
+    (value, index) => index % 2 === 1 && label(value) === label(price.state),
+  );
+  if (index < 0 || !normalize(blocks[index + 1] ?? "").includes(normalize(price.text))) return null;
+  const selected = /\bbilling=([^;]+)/i.exec(price.state)?.[1];
+  if (selected) {
+    const monthly = /\bmonth(?:ly)?\b/i.test(selected);
+    const annual = /\b(?:year(?:ly)?|annual(?:ly)?)\b/i.test(selected);
+    return monthly === annual ? null : monthly ? "monthly" : "annual";
+  }
+  return /^default\b/.test(price.state) && billingView !== "unknown" ? billingView : null;
+}
+
 /** Publishes the claims Jev confirmed; every other claim becomes a review item with its reason. */
 export function decideSnapshot(input: {
   stateText: string;
@@ -436,8 +462,11 @@ export function decideSnapshot(input: {
       kind,
       price_raw: price.text,
       price_numeric: price.amount?.value ?? (kind === "free" ? 0 : null),
-      period: periodOf(price.text, kind),
-      billing,
+      period: billing === "usage" ? "usage" : periodOf(price.text, kind),
+      billing:
+        kind === "flat" || kind === "per_seat"
+          ? (capturedBilling(price, input.stateText, input.billingView) ?? billing)
+          : billing,
       state: price.state,
     };
     if (price.plan === null) return shared.push(published);

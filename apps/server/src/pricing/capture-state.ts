@@ -5,6 +5,7 @@ export type CapturedState = {
   text: string;
   billingView: "monthly" | "annual" | "unknown";
   states: number;
+  coverage: "complete" | "partial";
   /** Whether the script switched the page to the configured currency. */
   currencySelection: "selected" | "already" | "none";
 };
@@ -32,7 +33,7 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
   const MAX_STATES = 16;
   const MAX_STATE_CHARS = 8000;
   const MAX_TOTAL_CHARS = 40000;
-  const deadline = Date.now() + 12000;
+  let deadline;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const clean = (value) => value.replace(/\s+/g, ' ').trim();
 
@@ -191,11 +192,23 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     ? '  '.repeat(depth) + node
     : node.map((child) => print(child, typeof child === 'string' ? depth : depth + 1)).join('\n');
 
-  const controlText = (element) => clean(element.innerText || element.getAttribute('aria-label') ||
-    (element.labels && element.labels[0] ? element.labels[0].innerText : '') || '');
-  const isSelected = (element) => element.getAttribute('aria-pressed') === 'true' || element.getAttribute('aria-selected') === 'true' ||
-    element.getAttribute('aria-checked') === 'true' || element.getAttribute('data-state') === 'active' ||
-    element.getAttribute('data-state') === 'on' || element.checked === true;
+  const visibleLabel = (element) => element.closest('label') ||
+    (element.labels ? [...element.labels].find(shown) : null);
+  const controlText = (element) => clean(element.innerText ||
+    (visibleLabel(element) ? visibleLabel(element).innerText : '') || element.getAttribute('aria-label') || '');
+  const isSelected = (element) => {
+    if (element.tagName === 'LABEL' && element.control) {
+      const input = element.querySelector('input') || element.control;
+      if (input.type === 'radio') return input.checked;
+      if (input.type === 'checkbox') {
+        const labels = [...input.labels].filter((label) => shown(label) && BILLING.test(controlText(label)));
+        if (labels.length === 2) return labels[input.checked ? 1 : 0] === element;
+      }
+    }
+    return element.getAttribute('aria-pressed') === 'true' || element.getAttribute('aria-selected') === 'true' ||
+      element.getAttribute('aria-checked') === 'true' || element.getAttribute('data-state') === 'active' ||
+      element.getAttribute('data-state') === 'on' || element.checked === true;
+  };
   const inConsent = (element) => {
     for (let node = element; node && node !== document.body; node = node.parentElement) {
       const position = getComputedStyle(node).position;
@@ -209,13 +222,13 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
   const groups = new Map();
   for (const element of document.querySelectorAll('[role="tab"], [role="radio"], [role="switch"], input[type="radio"], button[aria-pressed], [aria-checked], input[type="range"], [role="slider"], button, label, [role="button"]')) {
     if (inChromeTree(element) || inConsent(element)) continue;
-    const label = element.type === 'radio' && element.labels ? element.labels[0] : null;
+    const label = element.type === 'radio' ? visibleLabel(element) : null;
     if (!shown(element) && !(label && shown(label))) continue;
     const text = controlText(element);
     const role = element.getAttribute('role');
     const stateful = ['tab', 'radio', 'switch', 'slider'].includes(role) || element.type === 'radio' || element.type === 'range' ||
       element.hasAttribute('aria-pressed') || element.hasAttribute('aria-checked');
-    if (text.length > 40 && element.type !== 'range') continue;
+    if (text.length > (stateful ? 100 : 40) && element.type !== 'range') continue;
     if (!stateful && !BILLING.test(text)) {
       // Tabs and segmented controls built from plain buttons, kept if they come in a small group.
       if (element.matches('button, [role="button"]') && !navigates(element) && text && !CALL_TO_ACTION.test(text)) {
@@ -238,7 +251,8 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     .filter(Boolean).map(({ text }) => text).join('; ');
 
   const activate = (element) => {
-    if (element.type === 'radio') (element.labels && element.labels[0] ? element.labels[0] : element).click();
+    if (isSelected(element)) return;
+    if (element.type === 'radio') (visibleLabel(element) || element).click();
     else element.click();
   };
   const setRange = (element, value) => {
@@ -303,14 +317,16 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
   }
 
   async function capture() {
+    deadline = Date.now() + 12000;
     const currency = await selectCurrency(document.documentElement.dataset.pricelogCurrency);
     const base = snapshot();
     const billingView = /year|annual/i.test(selectedLabel()) ? 'annual' : /month/i.test(selectedLabel()) ? 'monthly' : 'unknown';
     const blocks = [{ label: 'default' + (selectedLabel() ? ' (selected: ' + selectedLabel() + ')' : ''), text: print(base, 0) }];
-    partial = { version: 1, billingView, currency, blocks };
+    partial = { version: 1, billingView, currency, blocks, complete: false };
     const seen = new Set([key(base)]);
     let total = blocks[0].text.length;
     let skipped = 0;
+    let truncated = false;
     const record = async (label) => {
       await sleep(400);
       const now = snapshot();
@@ -332,11 +348,11 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
     const walk = async (group, prefix) => {
       const initial = group.find(({ element }) => element.type !== 'range' && isSelected(element));
       for (const { element, text } of group) {
-        if (Date.now() > deadline) return;
+        if (Date.now() > deadline) { truncated = true; return; }
         if (element.type === 'range') {
           const start = element.value;
           for (const value of rangeSteps(element)) {
-            if (Date.now() > deadline) break;
+            if (Date.now() > deadline) { truncated = true; break; }
             setRange(element, value);
             await record(prefix + (text || element.id || 'range') + '=' + value);
           }
@@ -349,8 +365,9 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
       if (initial) { activate(initial.element); await sleep(250); }
     };
     for (const billing of billingGroups.length ? billingGroups : [null]) {
+      const initialBilling = billing && billing.find(({ element }) => isSelected(element));
       for (const option of billing || [{ element: null, text: '' }]) {
-        if (Date.now() > deadline) break;
+        if (Date.now() > deadline) { truncated = true; break; }
         let prefix = '';
         if (option.element) {
           activate(option.element);
@@ -364,11 +381,10 @@ export const CAPTURE_STATE_SCRIPT = String.raw`
         }
       }
       if (billing) {
-        const initial = billing.find(({ element }) => isSelected(element));
-        if (initial) { activate(initial.element); await sleep(250); }
+        if (initialBilling) { activate(initialBilling.element); await sleep(250); }
       }
     }
-    return { version: 1, billingView, currency, blocks, skipped };
+    return { version: 1, billingView, currency, blocks, skipped, complete: !truncated && skipped === 0 };
   }
 
   // A very large page can outlast the capture's wait; publish what exists by then instead of nothing.
@@ -453,6 +469,7 @@ type StatePayload = {
   billingView?: string;
   currency?: string;
   blocks?: StateBlock[];
+  complete?: boolean;
   error?: string;
 };
 
@@ -477,13 +494,17 @@ export function capturedInterstitial(html: string): boolean {
 export function readCapturedState(html: string): CapturedState | null {
   const payload = readPayload(html);
   if (!payload?.blocks?.length) return null;
+  const complete = payload.complete === true;
   return {
-    text: payload.blocks.map((block) => `## state: ${block.label}\n${block.text}`).join("\n\n"),
+    text:
+      (complete ? "" : "## capture: partial\n\n") +
+      payload.blocks.map((block) => `## state: ${block.label}\n${block.text}`).join("\n\n"),
     billingView:
       payload.billingView === "monthly" || payload.billingView === "annual"
         ? payload.billingView
         : "unknown",
     states: payload.blocks.length,
+    coverage: complete ? "complete" : "partial",
     currencySelection:
       payload.currency === "selected" || payload.currency === "already" ? payload.currency : "none",
   };

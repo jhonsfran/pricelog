@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { verifiedVersionChanges } from "./version-changes";
 
@@ -48,6 +48,14 @@ describe("verified version changes", () => {
     expect(await verifiedVersionChanges(version("before", 80), version("same", 90), read)).toEqual(
       [],
     );
+  });
+
+  it("does not read archives when there are no candidate changes", async () => {
+    const readContent = vi.fn(read);
+    expect(
+      await verifiedVersionChanges(version("before", 80), version("same", 80), readContent),
+    ).toEqual([]);
+    expect(readContent).not.toHaveBeenCalled();
   });
 
   it("does not compare a first capture, another model, or a missing archive", async () => {

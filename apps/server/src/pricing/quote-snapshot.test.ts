@@ -103,6 +103,7 @@ describe("quote snapshot", () => {
       "per_seat_monthly",
       "per_seat_annual",
       "usage",
+      "usage_add_on",
       "add_on",
       "free",
       "custom",
@@ -209,6 +210,27 @@ describe("quote snapshot", () => {
     });
   });
 
+  it("uses the captured billing selection for recurring prices", () => {
+    const source =
+      "## state: default (selected: Yearly)\nStarter €19 Per User/Month\n## state: billing=Monthly\nStarter €25 Per User/Month";
+    const decision = decideSnapshot({
+      stateText: source,
+      billingView: "annual",
+      grounded: groundExtraction(source, {
+        prices: [
+          price("Starter", "€19 Per User/Month"),
+          price("Starter", "€25 Per User/Month", "billing=Monthly"),
+        ],
+        features: [],
+      }),
+      answers: [chose("price_0", "per_seat_monthly"), chose("price_1", "per_seat_annual")],
+    });
+    expect(decision.snapshot.offers[0]?.prices.map((item) => item.billing)).toEqual([
+      "annual",
+      "monthly",
+    ]);
+  });
+
   it("treats an empty price list from a page with amounts as a failed answer", () => {
     expect(missedPrices("prices", { prices: [] }, "## Pro\n$20 / mo")).toBe(true);
     expect(missedPrices("prices", { prices: [] }, "## Enterprise\nContact sales")).toBe(false);
@@ -216,6 +238,21 @@ describe("quote snapshot", () => {
     expect(missedPrices("features", { features: [] }, "$20 / mo")).toBe(false);
     const looping = Array.from({ length: 30 }, () => ({ plan: null, text: "$0.09" }));
     expect(missedPrices("prices", { prices: looping }, "$0.09")).toBe(true);
+  });
+
+  it("does not override verified annual billing with a combined control label", () => {
+    const state = "billing=Monthly Annually; Team minutes=1";
+    const source = `## state: ${state}\nTeam $2112 Billed annually`;
+    const decision = decideSnapshot({
+      stateText: source,
+      billingView: "unknown",
+      grounded: groundExtraction(source, {
+        prices: [price("Team", "$2112 Billed annually", state)],
+        features: [],
+      }),
+      answers: [chose("price_0", "flat_annual")],
+    });
+    expect(decision.snapshot.offers[0]?.prices[0]?.billing).toBe("annual");
   });
 
   it("asks Jev once for a price line the model repeated", () => {
@@ -254,6 +291,25 @@ describe("quote snapshot", () => {
         value: "Monthly credits: Free = 1x; Starter = 10x",
       },
     ]);
+  });
+
+  it("keeps an optional per-call add-on separate from usage-priced plans", () => {
+    const stateText = "## state: default\nBranded Calling $0.12 per call";
+    const decision = decideSnapshot({
+      stateText,
+      billingView: "unknown",
+      grounded: groundExtraction(stateText, {
+        prices: [price("Branded Calling", "$0.12 per call")],
+        features: [],
+      }),
+      answers: [chose("price_0", "usage_add_on")],
+    });
+    expect(decision.snapshot.offers[0]?.prices[0]).toMatchObject({
+      kind: "add_on",
+      billing: "usage",
+      period: "usage",
+    });
+    expect(deriveProfile(decision.snapshot).charges_direct_usage).toBe(true);
   });
 
   it("sends quotes that are not on the page to review", () => {

@@ -1,6 +1,7 @@
 import { createDb } from "@pricelog/db";
 import type { ScanPipelineStage } from "@pricelog/db/scan-stage";
 import { publishPageProjection, type PagePublication } from "./publication";
+import { planCountSql } from "@pricelog/db/pricing-snapshot-count";
 import {
   COMPARISON_VERSION,
   completedWeeks,
@@ -347,9 +348,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         runId: pageVersion.runId,
         capturedAt: pageVersion.capturedAt,
         contentSha256: pageVersion.contentSha256,
-        plans: sql<
-          number | null
-        >`json_array_length(${versionEvaluation.evaluation}, '$.snapshot.offers')`,
+        plans: planCountSql(sql`json_extract(${versionEvaluation.evaluation}, '$.snapshot')`),
       })
       .from(pageVersion)
       .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
@@ -367,6 +366,14 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         plans: row.plans ?? 0,
       };
     });
+  }
+
+  /** The version rail and its latest published version in one RPC. */
+  async getPublicPage(pageId: string) {
+    const versions = await this.listPublicVersions(pageId);
+    const latest = versions[0];
+    const version = latest ? await this.getPublicVersion(pageId, latest.runId) : null;
+    return { versions, version };
   }
 
   /** One published version with the version before it, so the caller can verify what changed. */

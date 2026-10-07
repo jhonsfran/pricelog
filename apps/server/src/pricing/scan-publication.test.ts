@@ -40,6 +40,7 @@ const CHOICES: Record<string, string> = {
 const STATE_HTML = `<h1>Pricing</h1><script type="application/json" id="pricelog-state">${JSON.stringify(
   {
     version: 1,
+    complete: true,
     billingView: "monthly",
     blocks: [
       {
@@ -213,6 +214,24 @@ function setup(
 }
 
 describe("scan publication boundaries", () => {
+  it("archives partial coverage and records a warning for the owner", async () => {
+    const scan = setup(
+      undefined,
+      "# Pricing\nPro: $20 per month",
+      undefined,
+      STATE_HTML.replace('"complete":true', '"complete":false'),
+    );
+    await scan.run();
+    expect(scan.archivedMarkdown()).toContain("## capture: partial");
+    expect(scan.store.recordEvent).toHaveBeenCalledWith(
+      "run",
+      expect.objectContaining({
+        stage: "archive",
+        kind: "warning",
+        message: expect.stringContaining("Capture coverage is partial"),
+      }),
+    );
+  });
   it("extracts, grounds and verifies quotes from the captured page state", async () => {
     const scan = setup(undefined, "# Pricing\nPro: $20 per month", undefined, STATE_HTML);
     await scan.run();

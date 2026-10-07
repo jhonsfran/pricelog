@@ -26,10 +26,12 @@ export async function verifiedVersionChanges(
     before.snapshot.currency_visible !== after.snapshot.currency_visible
   )
     return null;
+  const candidates = diffSnapshots(before.snapshot, after.snapshot);
+  if (!candidates.length) return [];
   const [beforeText, afterText] = await Promise.all([
     readContent(before.contentKey),
     readContent(after.contentKey),
   ]);
   if (beforeText === null || afterText === null) return null;
-  return confirmChanges(diffSnapshots(before.snapshot, after.snapshot), beforeText, afterText);
+  return confirmChanges(candidates, beforeText, afterText);
 }

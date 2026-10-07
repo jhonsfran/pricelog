@@ -1,4 +1,5 @@
 import { page, pagePublicSummary } from "@pricelog/db/schema/pages";
+import { planCountSql } from "@pricelog/db/pricing-snapshot-count";
 import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -6,6 +7,7 @@ import { AI_APPLICATIONS_COHORT, ALL_COHORT, cohortLabel, cohortsForPage } from 
 
 import { isPricingChoiceKey, isPricingSignalKey } from "../pricing-intelligence";
 import { publicScreenshotUrl } from "../page-versions";
+import type { PublicVersion } from "../page-versions";
 import { buildWeeklyReport, sourceUrl } from "../pricing-history";
 import { readWeeklyHistory } from "../pricing-history-store";
 import {
@@ -121,14 +123,6 @@ export const directoryRouter = {
           displayName: page.displayName,
           description: page.description,
           choices: pagePublicSummary.choices,
-          signals: pagePublicSummary.signals,
-          tags: pagePublicSummary.tags,
-          rubricId: pagePublicSummary.rubricId,
-          model: pagePublicSummary.model,
-          numericPrices: pagePublicSummary.numericPrices,
-          pricingFacts: pagePublicSummary.pricingFacts,
-          snapshot: pagePublicSummary.snapshot,
-          browserEngine: pagePublicSummary.browserEngine,
           runId: pagePublicSummary.runId,
           scannedAt: pagePublicSummary.scannedAt,
         })
@@ -137,14 +131,17 @@ export const directoryRouter = {
         .where(and(eq(page.slug, input.slug), eq(page.state, "active")))
         .limit(1);
       if (!result) return null;
-      const [source, versions] = await Promise.all([
-        context.pageMonitor.getPublicSource(result.normalizedDomain, result.id, result.runId),
-        context.pageMonitor.listPublicVersions(result.normalizedDomain, result.id),
-      ]);
+      const { version, versions } = await context.pageMonitor.getPublicPage(
+        result.normalizedDomain,
+        result.id,
+      );
       const record = {
         ...result,
-        sourceUrl: source ? sourceUrl(result.id, result.runId) : null,
+        runId: version?.runId ?? result.runId,
+        choices: version?.choices ?? result.choices,
+        sourceUrl: version ? sourceUrl(result.id, version.runId) : null,
         versions,
+        latestVersion: version ? publicVersionRecord(result.id, version) : null,
       };
       return record;
     }),
@@ -165,14 +162,7 @@ export const directoryRouter = {
         input.runId,
       );
       if (!version) return null;
-      return {
-        ...version,
-        sourceUrl: sourceUrl(published.id, version.runId),
-        screenshotUrl: publicScreenshotUrl(published.id, version.runId),
-        previousSourceUrl: version.previous
-          ? sourceUrl(published.id, version.previous.runId)
-          : null,
-      };
+      return publicVersionRecord(published.id, version);
     }),
 
   /** The index in four numbers: pages, plans and prices on the latest captures, and when it last moved. */
@@ -181,7 +171,7 @@ export const directoryRouter = {
     const [row] = await context.db
       .select({
         pages: count(),
-        plans: sql<number>`coalesce(sum(json_array_length(${snapshot}, '$.offers')), 0)`,
+        plans: sql<number>`coalesce(sum(${planCountSql(snapshot)}), 0)`,
         prices: sql<number>`coalesce(sum((select sum(json_array_length(offer.value, '$.prices')) from json_each(${snapshot}, '$.offers') as offer)), 0) + coalesce(sum(json_array_length(${snapshot}, '$.shared_prices')), 0)`,
         latestScanAt: sql<number | null>`max(${pagePublicSummary.scannedAt})`,
       })
@@ -253,6 +243,15 @@ export const directoryRouter = {
       );
     }),
 };
+
+function publicVersionRecord(pageId: string, version: PublicVersion) {
+  return {
+    ...version,
+    sourceUrl: sourceUrl(pageId, version.runId),
+    screenshotUrl: publicScreenshotUrl(pageId, version.runId),
+    previousSourceUrl: version.previous ? sourceUrl(pageId, version.previous.runId) : null,
+  };
+}
 
 export function directoryPopulationCondition(input?: {
   signal?: string;

@@ -165,6 +165,10 @@ function subjectOf(key: string): string | null {
   return null;
 }
 
+function capturedStates(text: string) {
+  return new Set([...text.matchAll(/^## state: (.+)$/gm)].map((match) => normalize(match[1]!)));
+}
+
 /**
  * Keeps only changes the two captured pages show. Two extractions of the same text can word a
  * quote differently, so a change counts when one side's quote is missing from the other page,
@@ -179,6 +183,10 @@ export function confirmChanges(
   const afterPage = normalize(afterText);
   const beforeLines = beforeText.split("\n").map(normalize);
   const afterLines = afterText.split("\n").map(normalize);
+  const beforeStates = capturedStates(beforeText);
+  const afterStates = capturedStates(afterText);
+  const beforePartial = /^## capture: partial$/m.test(beforeText);
+  const afterPartial = /^## capture: partial$/m.test(afterText);
   const quotesIn = (evidence: string, page: string) =>
     evidence
       .split(" · ")
@@ -192,14 +200,31 @@ export function confirmChanges(
   return changes.filter((change) => {
     const subject = subjectOf(change.key);
     if (subject === null) return true;
+    if ((!change.beforeEvidence && beforePartial) || (!change.afterEvidence && afterPartial))
+      return false;
+    const name = normalize(subject);
+    if (change.key.startsWith("offer:")) {
+      if (Boolean(beforeStates.size) !== Boolean(afterStates.size)) return false;
+      if (!change.beforeEvidence) {
+        if (beforePage.includes(name) || [...afterStates].some((state) => !beforeStates.has(state)))
+          return false;
+      } else if (!change.afterEvidence) {
+        if (afterPage.includes(name) || [...beforeStates].some((state) => !afterStates.has(state)))
+          return false;
+      }
+    }
     const before = quotesIn(change.beforeEvidence, beforePage);
     const after = quotesIn(change.afterEvidence, afterPage);
+    if (
+      !change.key.startsWith("feature:") &&
+      ((change.beforeEvidence && !before.length) || (change.afterEvidence && !after.length))
+    )
+      return false;
     if (before.length || after.length)
       return (
         before.some((quote) => !afterPage.includes(quote)) ||
         after.some((quote) => !beforePage.includes(quote))
       );
-    const name = normalize(subject);
     return linesAbout(beforeLines, name) !== linesAbout(afterLines, name);
   });
 }

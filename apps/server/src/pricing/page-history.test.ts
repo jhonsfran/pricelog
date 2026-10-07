@@ -263,6 +263,20 @@ describe("unchanged page reuse", () => {
 });
 
 describe("page-local pricing history", () => {
+  it("returns the latest published version with its rail and keeps foreign pages private", async () => {
+    const { store, sqlite } = storeFor("one");
+    try {
+      await capture(store, sqlite, "older", "2026-09-21");
+      await capture(store, sqlite, "latest", "2026-09-28");
+      await capture(store, sqlite, "failed", "2026-09-30", "failed");
+      const page = await store.getPublicPage("one");
+      expect(page.versions.map((version) => version.runId)).toEqual(["latest", "older"]);
+      expect(page.version?.runId).toBe("latest");
+      expect(await store.getPublicPage("another-page")).toEqual({ versions: [], version: null });
+    } finally {
+      sqlite.close();
+    }
+  });
   it("seeds an immutable rubric and rejects changed content under the same identity", async () => {
     const { store, sqlite } = storeFor("one");
     const seed = () => (store as unknown as { seedRubric(): Promise<void> }).seedRubric();

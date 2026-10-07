@@ -24,6 +24,10 @@ type StoreClient = {
     runId: string,
   ) => ReturnType<PageMonitorService["getPublicScreenshot"]>;
   listPublicVersions: (pageId: string) => ReturnType<PageMonitorService["listPublicVersions"]>;
+  getPublicPage: (pageId: string) => Promise<{
+    versions: Awaited<ReturnType<PageMonitorService["listPublicVersions"]>>;
+    version: StoredPublicVersion | null;
+  }>;
   getPublicVersion: (pageId: string, runId: string) => Promise<StoredPublicVersion | null>;
   initializeAndStart: PageMonitorService["initializeAndStart"];
   listRuns: (
@@ -58,20 +62,13 @@ export const pageMonitorService: PageMonitorService = {
   listPublicVersions(domain, pageId) {
     return getStore(domain).listPublicVersions(pageId);
   },
+  async getPublicPage(domain, pageId) {
+    const { versions, version } = await getStore(domain).getPublicPage(pageId);
+    return { versions, version: await publicVersion(version) };
+  },
   async getPublicVersion(domain, pageId, runId) {
     const stored = await getStore(domain).getPublicVersion(pageId, runId);
-    if (!stored) return null;
-    const { contentKey, previous, ...version } = stored;
-    const changes = await verifiedVersionChanges(
-      previous,
-      { contentKey, model: version.model, snapshot: version.snapshot },
-      async (key) => (await ENV.ARTIFACTS.get(key))?.text() ?? null,
-    );
-    return {
-      ...version,
-      previous: previous ? { runId: previous.runId, capturedAt: previous.capturedAt } : null,
-      changes,
-    };
+    return publicVersion(stored);
   },
   normalizeUrl(input) {
     return normalizePricingUrl(input, resolveDnsAddresses);
@@ -92,3 +89,18 @@ export const pageMonitorService: PageMonitorService = {
     return getStore(domain).getArtifact(runId, kind);
   },
 };
+
+async function publicVersion(stored: StoredPublicVersion | null) {
+  if (!stored) return null;
+  const { contentKey, previous, ...version } = stored;
+  const changes = await verifiedVersionChanges(
+    previous,
+    { contentKey, model: version.model, snapshot: version.snapshot },
+    async (key) => (await ENV.ARTIFACTS.get(key))?.text() ?? null,
+  );
+  return {
+    ...version,
+    previous: previous ? { runId: previous.runId, capturedAt: previous.capturedAt } : null,
+    changes,
+  };
+}

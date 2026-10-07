@@ -44,6 +44,10 @@ export type PageMonitorService = {
     runId: string,
   ): Promise<{ key: string; contentType: string; filename: string } | null>;
   listPublicVersions(domain: string, pageId: string): Promise<PublicVersionSummary[]>;
+  getPublicPage(
+    domain: string,
+    pageId: string,
+  ): Promise<{ versions: PublicVersionSummary[]; version: PublicVersion | null }>;
   getPublicVersion(domain: string, pageId: string, runId: string): Promise<PublicVersion | null>;
   normalizeUrl(input: string): Promise<{ canonicalUrl: string; normalizedDomain: string }>;
   initializeAndStart(input: {

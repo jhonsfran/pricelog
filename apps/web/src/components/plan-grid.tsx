@@ -1,4 +1,8 @@
-import type { PublishedPrice, PublishedSnapshot } from "@pricelog/api/pricing-snapshot";
+import type {
+  PublishedOffer,
+  PublishedPrice,
+  PublishedSnapshot,
+} from "@pricelog/api/pricing-snapshot";
 import { Button } from "@pricelog/ui/components/button";
 import { cn } from "@pricelog/ui/lib/utils";
 import { Check, Minus } from "lucide-react";
@@ -327,24 +331,35 @@ function BillingSwitch({
 }
 
 /** Usage rates, add-ons and quotes the page does not tie to one plan. */
-export function SharedPrices({ prices }: { prices: PublishedPrice[] }) {
-  if (!prices.length) return null;
+export function SharedPrices({
+  prices,
+  offers = [],
+}: {
+  prices: PublishedPrice[];
+  offers?: PublishedOffer[];
+}) {
+  const items = [
+    ...offers.flatMap((offer) => offer.prices.map((price) => ({ name: offer.name, price }))),
+    ...prices.map((price) => ({ name: null, price })),
+  ];
+  if (!items.length) return null;
   return (
     <section aria-labelledby="shared-title" className="mt-10">
       <h2 id="shared-title" className="text-lg tracking-[-0.015em]">
-        Prices not tied to one plan
+        {offers.length ? "Add-ons and usage rates" : "Prices not tied to one plan"}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Usage rates, add-ons and quotes the page states for every plan, or without naming one.
       </p>
       <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {prices.map((price, index) => {
+        {items.map(({ name, price }, index) => {
           const shown = displayPrice(price);
           return (
             <li
               key={`${price.price_raw}:${index}`}
               className="grid content-start gap-1.5 border border-gray-5 bg-gray-2 px-4 py-3"
             >
+              {name ? <strong className="text-sm font-semibold">{name}</strong> : null}
               <span className="kicker text-muted-foreground">{formatToken(price.kind)}</span>
               <p className="flex flex-wrap items-baseline gap-x-1">
                 <strong

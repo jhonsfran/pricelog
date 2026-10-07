@@ -124,4 +124,74 @@ describe("snapshot diff", () => {
       ).map((item) => item.key),
     ).toEqual(["price:Starter:base_price:monthly:month:flat"]);
   });
+
+  it("does not report a plan addition when the capture explores a new product state", () => {
+    const added = {
+      key: "offer:Bronze",
+      label: "Bronze plan",
+      kind: "commercial" as const,
+      beforeLabel: "Not listed",
+      afterLabel: "Listed",
+      beforeEvidence: "",
+      afterEvidence: "€39 Per User/Month",
+    };
+    expect(
+      confirmChanges(
+        [added],
+        "## state: default\nStarter €19 Per User/Month\n## state: billing=Monthly\nStarter €25 Per User/Month",
+        "## state: default\nStarter €19 Per User/Month\n## state: billing=Monthly\nStarter €25 Per User/Month\n## state: billing=Monthly; Pro Suite\nBronze €39 Per User/Month",
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not report a removal when the later capture misses a product state", () => {
+    expect(
+      confirmChanges(
+        [
+          {
+            key: "offer:Bronze",
+            label: "Bronze plan",
+            kind: "commercial",
+            beforeLabel: "Listed",
+            afterLabel: "Not listed",
+            beforeEvidence: "€39 Per User/Month",
+            afterEvidence: "",
+          },
+        ],
+        "## state: default\nStarter €19\n## state: Pro Suite\nBronze €39 Per User/Month",
+        "## state: default\nStarter €19",
+      ),
+    ).toEqual([]);
+  });
+
+  it("requires both quoted sides of a price change to exist in their own archives", () => {
+    const after = structuredClone(base);
+    after.offers[0]!.prices[0] = {
+      ...after.offers[0]!.prices[0]!,
+      price_raw: "$90/month",
+      price_numeric: 90,
+    };
+    expect(
+      confirmChanges(diffSnapshots(base, after), "Starter $80/month", "Starter $80/month"),
+    ).toEqual([]);
+  });
+
+  it("does not treat absence in a partial capture as an offer removal", () => {
+    const change = {
+      key: "offer:Bronze",
+      label: "Bronze plan",
+      kind: "commercial" as const,
+      beforeLabel: "Listed",
+      afterLabel: "Not listed",
+      beforeEvidence: "€39 Per User/Month",
+      afterEvidence: "",
+    };
+    expect(
+      confirmChanges(
+        [change],
+        "## state: default\nBronze €39 Per User/Month",
+        "## capture: partial\n\n## state: default\nStarter €19",
+      ),
+    ).toEqual([]);
+  });
 });

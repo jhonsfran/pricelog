@@ -1,6 +1,6 @@
 export const PRICING_SNAPSHOT_VERSION = "pricing-snapshot-v4" as const;
 export const SNAPSHOT_IMPLEMENTATION_FINGERPRINT =
-  "c0fc25e5bc13c1ee3132b1d94b83ed9f32edc520a71aa18941ee4c852c8d2f15";
+  "235c80375b9dfb23dd13350e4d5a466d585e8a9e2961cb54bd84c9f5567d315a";
 /** Identifies the capture and extraction code that produced a snapshot. */
 export const PRICING_PIPELINE_ID = `${PRICING_SNAPSHOT_VERSION}-${SNAPSHOT_IMPLEMENTATION_FINGERPRINT.slice(0, 12)}`;
 
@@ -52,6 +52,31 @@ export type PublishedSnapshot = {
   reason?: string;
 };
 
+export function planOffers(snapshot: PublishedSnapshot): PublishedOffer[] {
+  const plans = new Map(
+    snapshot.offers
+      .filter(
+        (offer) =>
+          !offer.prices.length ||
+          offer.prices.some(
+            (price) =>
+              price.kind === "flat" ||
+              price.kind === "per_seat" ||
+              price.kind === "usage" ||
+              price.kind === "free" ||
+              price.kind === "custom",
+          ),
+      )
+      .map((offer) => [offer.name, offer]),
+  );
+  const pricedNames = new Set(snapshot.offers.map((offer) => offer.name));
+  for (const feature of snapshot.features)
+    for (const cell of feature.availability)
+      if (!pricedNames.has(cell.offer) && !plans.has(cell.offer))
+        plans.set(cell.offer, { name: cell.offer, prices: [] });
+  return [...plans.values()];
+}
+
 /** Every quote or claim that did not publish, with the reason it stopped. */
 export type SnapshotReview = {
   path: string;
@@ -91,18 +116,22 @@ export type DerivedProfile = {
 
 /** Profile fields that follow from the published facts, so Jev is not asked about them. */
 export function deriveProfile(snapshot: PublishedSnapshot): DerivedProfile {
-  const planPrices = snapshot.offers.flatMap((offer) => offer.prices ?? []);
-  const prices = [...planPrices, ...(snapshot.shared_prices ?? [])];
+  const plans = planOffers(snapshot);
+  const planPrices = plans.flatMap((offer) => offer.prices);
+  const prices = [
+    ...snapshot.offers.flatMap((offer) => offer.prices),
+    ...(snapshot.shared_prices ?? []),
+  ];
   const has = (kind: PriceKind) => prices.some((price) => price.kind === kind);
-  const priced = snapshot.offers.filter((offer) =>
+  const priced = plans.filter((offer) =>
     (offer.prices ?? []).some((price) => price.kind !== "custom"),
   ).length;
-  const quoted = snapshot.offers.filter((offer) =>
+  const quoted = plans.filter((offer) =>
     (offer.prices ?? []).some((price) => price.kind === "custom"),
   ).length;
   return {
     price_disclosure:
-      priced === 0 ? "none" : quoted > 0 || priced < snapshot.offers.length ? "partial" : "full",
+      priced === 0 ? "none" : quoted > 0 || priced < plans.length ? "partial" : "full",
     has_free_plan: planPrices.some((price) => price.kind === "free" || price.price_numeric === 0),
     requires_sales_contact: has("custom"),
     publishes_numeric_limits: snapshot.features.some((feature) =>
@@ -110,7 +139,9 @@ export function deriveProfile(snapshot: PublishedSnapshot): DerivedProfile {
     ),
     charges_fixed_subscription: has("flat"),
     charges_per_seat: has("per_seat"),
-    charges_direct_usage: has("usage"),
+    charges_direct_usage: prices.some(
+      (price) => price.kind === "usage" || price.billing === "usage",
+    ),
     charges_credit_wallet: prices.some(
       (price) =>
         (price.kind === "usage" || price.kind === "add_on") && /credit/i.test(price.price_raw),

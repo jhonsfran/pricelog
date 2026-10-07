@@ -14,6 +14,7 @@ import { RecordHeader } from "@/components/record-header";
 import { VersionChanges, changedPlans } from "@/components/version-changes";
 import { VersionRail } from "@/components/version-rail";
 import { parsePageSearch } from "@/lib/directory-filter";
+import { additionalOffers } from "@/lib/pricing-display";
 import { formatDay, toDate } from "@/lib/time";
 import { serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
@@ -27,12 +28,12 @@ function PublicPageProfile() {
   const { slug } = Route.useParams();
   const { v, ...filter } = Route.useSearch();
   const page = useQuery(orpc.directory.getBySlug.queryOptions({ input: { slug } }));
-  const latest = page.data?.versions[0]?.runId ?? page.data?.runId;
+  const latest = page.data?.runId;
   const runId = v ?? latest;
   const version = useQuery(
     orpc.directory.version.queryOptions({
       input: { slug, runId: runId ?? "" },
-      enabled: Boolean(runId),
+      enabled: Boolean(page.data && v && v !== latest),
       // The page keeps the version on screen while the next one loads, so switching never blanks it.
       placeholderData: keepPreviousData,
     }),
@@ -42,8 +43,8 @@ function PublicPageProfile() {
   const item = page.data;
   const category = item.choices.find((choice) => choice.key === "product_category")?.choice;
   const cohort = filter.cohort ?? (category ? `category:${category}` : undefined);
-  const shown = version.data;
   const viewingLatest = !v || v === latest;
+  const shown = viewingLatest ? page.data.latestVersion : version.data;
 
   return (
     <PageShell>
@@ -74,7 +75,7 @@ function PublicPageProfile() {
         />
       </div>
       {!shown ? (
-        version.isLoading || !runId ? (
+        (!viewingLatest && version.isLoading) || !runId ? (
           <VersionSkeleton />
         ) : (
           <Notice>This version of the page is not available.</Notice>
@@ -83,7 +84,7 @@ function PublicPageProfile() {
         <div
           className={cn(
             "transition-opacity duration-200",
-            version.isPlaceholderData && "opacity-50",
+            !viewingLatest && version.isPlaceholderData && "opacity-50",
           )}
         >
           {!viewingLatest ? (
@@ -128,7 +129,10 @@ function PublicPageProfile() {
                 snapshot={shown.snapshot}
                 changedPlans={changedPlans(shown.changes)}
               />
-              <SharedPrices prices={shown.snapshot.shared_prices ?? []} />
+              <SharedPrices
+                prices={shown.snapshot.shared_prices ?? []}
+                offers={additionalOffers(shown.snapshot)}
+              />
             </>
           ) : shown.snapshot?.reason ? (
             <Notice className="mt-10 border-t">{shown.snapshot.reason}</Notice>

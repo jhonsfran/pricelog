@@ -1,4 +1,5 @@
 import type { PublishedPrice, PublishedSnapshot } from "@pricelog/api/pricing-snapshot";
+import { planOffers } from "@pricelog/api/pricing-snapshot";
 import { describe, expect, it } from "vitest";
 import {
   billingViews,
@@ -95,6 +96,23 @@ describe("billing views", () => {
 });
 
 describe("plan grid", () => {
+  it("counts recurring, usage, free and custom plans without counting separate add-ons", () => {
+    const page = snapshot({
+      offers: [
+        { name: "Basic", prices: [price({ kind: "free" })] },
+        { name: "Starter", prices: [price({ kind: "per_seat" })] },
+        { name: "Enterprise", prices: [price({ kind: "custom" })] },
+        { name: "AI Copilot", prices: [price({ kind: "add_on" })] },
+        { name: "Self Serve", prices: [price({ kind: "usage" })] },
+      ],
+    });
+    expect(planOffers(page).map((offer) => offer.name)).toEqual([
+      "Basic",
+      "Starter",
+      "Enterprise",
+      "Self Serve",
+    ]);
+  });
   it("adds plans only the feature grid names and splits out rows no plan offers", () => {
     const page = snapshot({
       offers: [{ name: "Pro", prices: [price({})] }],
