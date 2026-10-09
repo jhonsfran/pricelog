@@ -1,0 +1,152 @@
+diff --git a/dist/index.js b/dist/index.js
+index 93eadbce34efeee99f07b85c2dfefaef87221545..09cfdc0bb512f7fea7a40d1d04b6134b507facba 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -95,7 +95,7 @@ var TieredStore = class {
+    * Sets the value for the given key.
+    */
+   async set(namespace, key, value) {
+-    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then(() => error.Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then((results) => results.find((result) => result.err) ?? error.Ok()).catch(
+       (err) => error.Err(
+         new CacheError({
+           tier: this.name,
+@@ -109,7 +109,7 @@ var TieredStore = class {
+    * Removes the key from the cache.
+    */
+   async remove(namespace, key) {
+-    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then(() => error.Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then((results) => results.find((result) => result.err) ?? error.Ok()).catch(
+       (err) => error.Err(
+         new CacheError({
+           tier: this.name,
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 386b7fbf054cb4a5e3e35e0c0ddb4760de9acbde..b9af8d08b1bf9922236951a77ef0b9bec878652b 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -93,7 +93,7 @@ var TieredStore = class {
+    * Sets the value for the given key.
+    */
+   async set(namespace, key, value) {
+-    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then(() => Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.set(namespace, key, value))).then((results) => results.find((result) => result.err) ?? Ok()).catch(
+       (err) => Err(
+         new CacheError({
+           tier: this.name,
+@@ -107,7 +107,7 @@ var TieredStore = class {
+    * Removes the key from the cache.
+    */
+   async remove(namespace, key) {
+-    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then(() => Ok()).catch(
++    return Promise.all(this.tiers.map((t) => t.remove(namespace, key))).then((results) => results.find((result) => result.err) ?? Ok()).catch(
+       (err) => Err(
+         new CacheError({
+           tier: this.name,
+diff --git a/dist/stores.d.mts b/dist/stores.d.mts
+index 8c56cd0add1ae26d7f00e248fd6f4039e1f4f11c..c4aeece614ba32abeb657eb5c9ffa8213201ca96 100644
+--- a/dist/stores.d.mts
++++ b/dist/stores.d.mts
+@@ -5,11 +5,11 @@ import { Client } from '@libsql/client';
+ 
+ type CloudflareStoreConfig = {
+     domain: string;
+-    zoneId: string;
++    zoneId?: string;
+     /**
+      * This token must have at least
+      */
+-    cloudflareApiKey: string;
++    cloudflareApiKey?: string;
+     /**
+      * As your data changes, it is important to keep backwards compatibility in mind. If your cached
+      * values are no longer backwards compatible, it can cause problems. For example when a value
+diff --git a/dist/stores.d.ts b/dist/stores.d.ts
+index d83ab4f8257c70172e9f1e6b5dc89327726791a3..6d1615b31086dc1625d9d549543b41d8684e6f7d 100644
+--- a/dist/stores.d.ts
++++ b/dist/stores.d.ts
+@@ -5,11 +5,11 @@ import { Client } from '@libsql/client';
+ 
+ type CloudflareStoreConfig = {
+     domain: string;
+-    zoneId: string;
++    zoneId?: string;
+     /**
+      * This token must have at least
+      */
+-    cloudflareApiKey: string;
++    cloudflareApiKey?: string;
+     /**
+      * As your data changes, it is important to keep backwards compatibility in mind. If your cached
+      * values are no longer backwards compatible, it can cause problems. For example when a value
+diff --git a/dist/stores.js b/dist/stores.js
+index 10ccf1406862887c8b13441707780e8267f5ea41..344771289a8554ce66a7c32b3f58368c1847f0aa 100644
+--- a/dist/stores.js
++++ b/dist/stores.js
+@@ -70,7 +70,7 @@ var CloudflareStore = class {
+     const res = new Response(superjson__default.default.stringify(entry), {
+       headers: {
+         "Content-Type": "application/json",
+-        "Cache-Control": `public, max-age=${Math.floor(entry.staleUntil / 1e3)}`
++        "Cache-Control": `public, max-age=${Math.max(1, Math.ceil((entry.staleUntil - Date.now()) / 1e3))}`
+       }
+     });
+     try {
+@@ -91,8 +91,9 @@ var CloudflareStore = class {
+       (key) => this.createCacheKey(namespace, key)
+     );
+     await Promise.all(cacheKeys.map((key) => caches.default.delete(key)));
++    if (!this.config.zoneId || !this.config.cloudflareApiKey) return error.Ok();
+     return await fetch(
+-      `https://api.cloudflare.com/client/v4zones/${this.config.zoneId}/purge_cache`,
++      `https://api.cloudflare.com/client/v4/zones/${this.config.zoneId}/purge_cache`,
+       {
+         method: "POST",
+         headers: {
+@@ -103,7 +104,10 @@ var CloudflareStore = class {
+           files: cacheKeys.map((k) => k.toString())
+         })
+       }
+-    ).then((res) => res.body?.cancel()).then(() => error.Ok()).catch(
++    ).then((res) => {
++        if (!res.ok) throw new Error(`Cloudflare purge failed: ${res.status}`);
++        return res.body?.cancel();
++      }).then(() => error.Ok()).catch(
+       (err) => error.Err(
+         new CacheError({
+           tier: this.name,
+diff --git a/dist/stores.mjs b/dist/stores.mjs
+index b5eecd828da4febed1699f715c6bbf3d11c9f9c4..ad6e0bcaa1607ebb618d26361dcfc31003e09de9 100644
+--- a/dist/stores.mjs
++++ b/dist/stores.mjs
+@@ -64,7 +64,7 @@ var CloudflareStore = class {
+     const res = new Response(superjson.stringify(entry), {
+       headers: {
+         "Content-Type": "application/json",
+-        "Cache-Control": `public, max-age=${Math.floor(entry.staleUntil / 1e3)}`
++        "Cache-Control": `public, max-age=${Math.max(1, Math.ceil((entry.staleUntil - Date.now()) / 1e3))}`
+       }
+     });
+     try {
+@@ -85,8 +85,9 @@ var CloudflareStore = class {
+       (key) => this.createCacheKey(namespace, key)
+     );
+     await Promise.all(cacheKeys.map((key) => caches.default.delete(key)));
++    if (!this.config.zoneId || !this.config.cloudflareApiKey) return Ok();
+     return await fetch(
+-      `https://api.cloudflare.com/client/v4zones/${this.config.zoneId}/purge_cache`,
++      `https://api.cloudflare.com/client/v4/zones/${this.config.zoneId}/purge_cache`,
+       {
+         method: "POST",
+         headers: {
+@@ -97,7 +98,10 @@ var CloudflareStore = class {
+           files: cacheKeys.map((k) => k.toString())
+         })
+       }
+-    ).then((res) => res.body?.cancel()).then(() => Ok()).catch(
++    ).then((res) => {
++        if (!res.ok) throw new Error(`Cloudflare purge failed: ${res.status}`);
++        return res.body?.cancel();
++      }).then(() => Ok()).catch(
+       (err) => Err(
+         new CacheError({
+           tier: this.name,

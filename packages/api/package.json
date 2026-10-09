@@ -11,12 +11,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pricelog/auth": "workspace:*",
-    "@pricelog/db": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "@pricelog/auth": "workspace:*",
+    "@pricelog/db": "workspace:*",
+    "@unkey/cache": "1.5.0",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },

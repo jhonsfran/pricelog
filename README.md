@@ -168,6 +168,25 @@ After the first deployment, add the deployed web origin to `CORS_ORIGIN` and dep
 
 ## Behavior
 
+Public directory reads use `@unkey/cache` with Cloudflare's Cache API. Directory lists, cards,
+totals and latest page records stay fresh for one hour and can be served stale until 24 hours
+after storage. Benchmark results use 15 minutes and one hour. Published versions use one day
+and seven days. Weekly changes use one hour and 24 hours, with the UTC reporting week in the key.
+The first stale request returns cached data and refreshes it through the Worker's `waitUntil`.
+An expired or missing entry waits for its source. These durations are request-driven, with no
+scheduled cache refresh. Authentication and owner reads do not use this shared cache.
+
+The homepage loads its public queries during server rendering and shares the first card page
+between the hero and directory. The card response contains the displayed prices and counts;
+the existing `directory.list` response still includes complete captures for API clients.
+
+`patches/@unkey__cache@1.5.0.patch` corrects the published adapter's retention TTL and purge URL.
+It also permits local cache removal without a global purge token and preserves store mutation
+errors as Result errors. Background failures emit separate log events after the HTTP response.
+SWR remains Unkey's implementation.
+Change the `public-v1` cache buster in `apps/server/src/public-cache.ts` when cached response
+shapes change. Cloudflare cache entries are local to each data center and can be evicted early.
+
 - A page is one HTTPS URL and one normalized domain. The first signed-in user to add a domain owns it.
 - The first scan starts at once and runs in the background. Every scan schedules the next one a week later.
 - One scan can be active per page, and a second manual request returns the active one. A scan that stops reporting progress for 20 minutes is marked failed so a new one can start.

@@ -1,11 +1,10 @@
-import type { PublishedSnapshot } from "@pricelog/api/pricing-snapshot";
+import type { LadderStep } from "@pricelog/api/pricing-display";
 import { Button } from "@pricelog/ui/components/button";
 import { cn } from "@pricelog/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import { formatToken } from "@/lib/format";
-import { priceLadder } from "@/lib/pricing-display";
 import { formatDay } from "@/lib/time";
 import { Monogram } from "./monogram";
 import { LiveDot } from "./page";
@@ -14,9 +13,10 @@ export type StackRecord = {
   id: string;
   slug: string;
   normalizedDomain: string;
-  category?: string;
+  category: string | null;
   scannedAt: Date | string;
-  snapshot: PublishedSnapshot | null;
+  ladder: LadderStep[];
+  plans: number;
 };
 
 /** Where each sheet sits by its distance from the front: older captures step up and to the right. */
@@ -116,9 +116,9 @@ export function RecordStack({ records }: { records: StackRecord[] }) {
 
 /** Sheets behind the front one are blank paper edges; a sheet's record shows once it is on top. */
 function Sheet({ record, front }: { record: StackRecord; front: boolean }) {
-  const ladder = priceLadder(record.snapshot);
+  const ladder = record.ladder;
   const top = Math.max(1, ...ladder.map((step) => step.amount ?? 0));
-  const plans = record.snapshot?.offers.length ?? 0;
+  const plans = record.plans;
   return (
     <article className="h-full border border-gray-6 bg-gray-2 shadow-[0_30px_60px_-24px_rgb(0_0_0/0.7)]">
       <div

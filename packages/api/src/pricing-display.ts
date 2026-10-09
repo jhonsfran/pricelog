@@ -3,8 +3,8 @@ import type {
   PublishedFeature,
   PublishedPrice,
   PublishedSnapshot,
-} from "@pricelog/api/pricing-snapshot";
-import { planOffers } from "@pricelog/api/pricing-snapshot";
+} from "./pricing-snapshot";
+import { planOffers } from "./pricing-snapshot";
 
 export type Billing = "monthly" | "annual";
 

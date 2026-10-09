@@ -1,5 +1,4 @@
 import { ChipRow, chipClass } from "@/components/chips";
-import { CountUp } from "@/components/count-up";
 import { Monogram } from "@/components/monogram";
 import {
   BackLink,
@@ -23,11 +22,9 @@ import {
   type DirectoryFilter,
 } from "@/lib/directory-filter";
 import { formatToken } from "@/lib/format";
-import { entryLabel, priceLadder } from "@/lib/pricing-display";
+import { directoryCardsOptions, directoryOverviewOptions } from "@/lib/directory-queries";
 import { isFresh } from "@/lib/time";
-import { orpc } from "@/utils/orpc";
 import { AI_APPLICATIONS_COHORT } from "@pricelog/api/benchmark";
-import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
 import type { AppRouterClient } from "@pricelog/api/routers/index";
 import { Button, buttonVariants } from "@pricelog/ui/components/button";
 import { Field, FieldLabel } from "@pricelog/ui/components/field";
@@ -43,12 +40,20 @@ import { useDeferredValue, useEffect, useRef, useState } from "react";
 export const Route = createFileRoute("/")({
   component: DirectoryPage,
   validateSearch: parseDirectoryFilter,
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps }) => {
+    const hasHero = !deps.signal && !deps.choiceKey;
+    await Promise.allSettled([
+      context.queryClient.infiniteQuery(directoryCardsOptions(deps)),
+      hasHero ? context.queryClient.query(directoryOverviewOptions()) : null,
+      hasHero && hasDirectoryFilter(deps)
+        ? context.queryClient.infiniteQuery(directoryCardsOptions())
+        : null,
+    ]);
+  },
 });
 
-type DirectoryItem = Awaited<ReturnType<AppRouterClient["directory"]["list"]>>["items"][number];
-
-const categoryOf = (item: Pick<DirectoryItem, "choices">) =>
-  item.choices.find((choice) => choice.key === "product_category")?.choice;
+type DirectoryItem = Awaited<ReturnType<AppRouterClient["directory"]["cards"]>>["items"][number];
 
 function DirectoryPage() {
   const filter = Route.useSearch();
@@ -78,15 +83,14 @@ function DirectoryPage() {
  * captures filed one behind another, and the prices on them running past.
  */
 function Hero({ cohort }: { cohort?: string }) {
-  const overview = useQuery(orpc.directory.overview.queryOptions());
+  const overview = useQuery(directoryOverviewOptions());
   // The unfiltered latest captures, whatever the list below is filtered to.
-  const latest = useQuery(orpc.directory.list.queryOptions({ input: { limit: 50 } }));
-  const items = latest.data?.items ?? [];
+  const latest = useInfiniteQuery(directoryCardsOptions());
+  const items = latest.data?.pages[0]?.items ?? [];
   const records: StackRecord[] = items
-    .filter((item) => priceLadder(item.snapshot).length >= 2)
+    .filter((item) => item.ladder.length >= 2)
     .sort((left, right) => +new Date(right.scannedAt) - +new Date(left.scannedAt))
-    .slice(0, 8)
-    .map((item) => ({ ...item, category: categoryOf(item) }));
+    .slice(0, 8);
   const stats = overview.data;
   return (
     <>
@@ -149,7 +153,11 @@ function Hero({ cohort }: { cohort?: string }) {
                 <div key={label} className="flex flex-col-reverse gap-1">
                   <dt className="kicker text-muted-foreground">{label}</dt>
                   <dd className="text-3xl font-[650] tracking-[-0.03em]">
-                    {value === undefined ? "—" : <CountUp value={value} />}
+                    {value === undefined ? (
+                      "—"
+                    ) : (
+                      <span className="tabular-nums">{value.toLocaleString("en")}</span>
+                    )}
                   </dd>
                 </div>
               ))}
@@ -175,7 +183,7 @@ function Hero({ cohort }: { cohort?: string }) {
 function tapeEntries(items: DirectoryItem[]): TapeEntry[] {
   const ladders = items.map((item) => ({
     item,
-    steps: priceLadder(item.snapshot).filter((step) => step.tier === "paid"),
+    steps: item.ladder.filter((step) => step.tier === "paid"),
   }));
   const entries: TapeEntry[] = [];
   for (let round = 0; round < 3; round++)
@@ -240,18 +248,7 @@ function Directory({ filter }: { filter: DirectoryFilter }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const directory = useInfiniteQuery(
-    orpc.directory.list.infiniteOptions({
-      input: (cursor: DescendingTimestampCursor | null) => ({
-        ...(normalizedSearch ? { search: normalizedSearch } : {}),
-        ...filter,
-        ...(cursor ? { cursor } : {}),
-        limit: 50,
-      }),
-      initialPageParam: null as DescendingTimestampCursor | null,
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }),
-  );
+  const directory = useInfiniteQuery(directoryCardsOptions(filter, normalizedSearch));
   const items = directory.data?.pages.flatMap((result) => result.items) ?? [];
   // The server counts the whole filter; items is only what has been paged in.
   const total = directory.data?.pages[0]?.total ?? 0;
@@ -409,10 +406,7 @@ function DirectoryRow({
   filter: DirectoryFilter;
   index: number;
 }) {
-  const category = categoryOf(item);
-  const ladder = priceLadder(item.snapshot);
-  const entry = entryLabel(item.snapshot);
-  const plans = item.snapshot?.status === "collected" ? item.snapshot.offers.length : 0;
+  const { category, ladder, entry, plans } = item;
   const tags = keyTags(item.tags);
   return (
     <RowLink

@@ -21,7 +21,7 @@ import {
   otherQuotes,
   planColumns,
   priceText,
-} from "@/lib/pricing-display";
+} from "@pricelog/api/pricing-display";
 import { Disclosure } from "./page";
 
 /** Feature rows shown before the grid asks to open. */

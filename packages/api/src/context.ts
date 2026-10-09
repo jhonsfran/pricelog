@@ -6,6 +6,7 @@ import type { PublicVersion, PublicVersionSummary } from "./page-versions";
 import type { Comparison, WeeklyPageHistory } from "./pricing-history";
 
 import type { DescendingTimestampCursor } from "./pagination";
+import type { PublicCache } from "./public-cache";
 
 export type PageMonitorRun = {
   id: string;
@@ -74,6 +75,8 @@ export type PageMonitorService = {
 };
 
 export type Context = {
+  publicCache?: PublicCache;
+  reportCacheError?: (error: Error) => void;
   session: Session | null;
   db: Database;
   pageMonitor: PageMonitorService;

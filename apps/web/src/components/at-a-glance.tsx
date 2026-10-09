@@ -10,7 +10,7 @@ import {
 } from "@pricelog/api/pricing-snapshot";
 import type { ReactNode } from "react";
 import { formatToken } from "@/lib/format";
-import { entryLabel, formatMoney, priceLadder } from "@/lib/pricing-display";
+import { entryLabel, formatMoney, priceLadder } from "@pricelog/api/pricing-display";
 
 type Choice = { key: string; choice: string };
 type Signal = { key: string; probability: number };

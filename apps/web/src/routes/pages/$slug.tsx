@@ -14,7 +14,7 @@ import { RecordHeader } from "@/components/record-header";
 import { VersionChanges, changedPlans } from "@/components/version-changes";
 import { VersionRail } from "@/components/version-rail";
 import { parsePageSearch } from "@/lib/directory-filter";
-import { additionalOffers } from "@/lib/pricing-display";
+import { additionalOffers } from "@pricelog/api/pricing-display";
 import { formatDay, toDate } from "@/lib/time";
 import { serverUrl } from "@/lib/url";
 import { orpc } from "@/utils/orpc";
