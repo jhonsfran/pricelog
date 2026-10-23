@@ -23,7 +23,7 @@
 ## Ownership and files
 
 - `packages/db/src/schema/pricing-history.ts` owns D1 history tables and constraints.
-- `packages/db/src/pricing-history.ts` owns shared history records and serialization contracts.
+- `packages/db/src/history-types.ts` owns shared history records and serialization contracts.
 - The history repository owns archive insertion, revision selection, page scoping, public eligibility, temporal ordering, and comparison dependencies.
 - `apps/server/src/pricing/page-store.ts` owns active work, scheduler state, delivery retries, and bounded legacy export.
 - `apps/server/src/pricing/service.ts` routes historical reads to D1 and live owner state to the coordinator.
@@ -39,51 +39,57 @@
 
 ## Task 1: Establish the D1 history boundary
 
-- [ ] Add an additive migration and schema exports. Keep every previous migration unchanged.
-- [ ] Move shared DTO declarations out of server-only modules where D1 schema or API consumers need them.
-- [ ] Implement terminal archive insertion and independent analysis revisions behind one history API. Keep append separate from selection.
-- [ ] Test archive retry, conflicting payload rollback, page isolation, failed artifacts, and multiple interpretations of one capture.
-- [ ] Test that a correction leaves capture count and capture time unchanged.
-- [ ] Run `rtk proxy pnpm --filter @pricelog/db test` and the focused server history tests. Require all tests to pass.
+- [x] Add an additive migration and schema exports. Keep every previous migration unchanged.
+- [x] Move shared DTO declarations out of server-only modules where D1 schema or API consumers need them.
+- [x] Implement terminal archive insertion and independent analysis revisions behind one history API. Keep append separate from selection.
+- [x] Test archive retry, conflicting payload rollback, page isolation, failed artifacts, and multiple interpretations of one capture.
+- [x] Test that a correction leaves capture count and capture time unchanged.
+- [x] Run `rtk proxy pnpm --filter @pricelog/db test` and the focused server history tests. Require all tests to pass.
 
 The archive must contain one coherent terminal result. A successful result requires its capture, complete analysis, and public selection. A failed result can retain a capture or partial answers without becoming public.
 
 ## Task 2: Import legacy page history
 
-- [ ] Export terminal legacy runs in keyset chunks with a byte limit. Export related manifests, answers, evaluations, rubric definitions, and comparisons.
-- [ ] Assign deterministic initial revision IDs to imported captures. Preserve all original metadata and payload fields.
-- [ ] Checkpoint after D1 acknowledges a chunk. Verify counts and identities before recording readiness.
-- [ ] Test a failed import followed by retry, a commit before lost acknowledgment, and a page with more records than one chunk.
-- [ ] Keep old source records intact. Never fabricate capture history from a latest-summary row.
-- [ ] Document and test the operator or scheduled import path and its progress result.
+- [x] Export terminal legacy runs in keyset chunks with a byte limit. Export related manifests, answers, evaluations, rubric definitions, and comparisons.
+- [x] Assign deterministic initial revision IDs to imported captures. Preserve all original metadata and payload fields.
+- [x] Checkpoint after D1 acknowledges a chunk. Verify counts and identities before recording readiness.
+- [x] Test a failed import followed by retry, a commit before lost acknowledgment, and a page with more records than one chunk.
+- [x] Keep old source records intact. Never fabricate capture history from a latest-summary row.
+- [x] Document and test the operator or scheduled import path and its progress result.
 
 ## Task 3: Archive terminal work and keep retries safe
 
-- [ ] Freeze a terminal envelope before releasing the active run. Stage failures as well as successes.
-- [ ] Commit history and the latest summary in an idempotent D1 batch. Delete staged active-work rows only after acknowledgment.
-- [ ] Preserve independent alarm retry if a Workflow stops or D1 fails.
-- [ ] Preserve increasing run creation times after local history cleanup and clock rollback.
-- [ ] Make late Workflow calls resolve archived terminal state without recreating a completed run.
-- [ ] Test owner pagination across active, pending, and archived runs with ties and duplicate delivery.
-- [ ] Run server tests before changing the public history read path.
+- [x] Freeze a terminal envelope before releasing the active run. Stage failures as well as successes.
+- [x] Commit history and the latest summary in an idempotent D1 batch. Delete staged active-work rows only after acknowledgment.
+- [x] Preserve independent alarm retry if a Workflow stops or D1 fails.
+- [x] Preserve increasing run creation times after local history cleanup and clock rollback.
+- [x] Make late Workflow calls resolve archived terminal state without recreating a completed run.
+- [x] Test owner pagination across active, pending, and archived runs with ties and duplicate delivery.
+- [x] Run server tests before changing the public history read path.
 
 ## Task 4: Read history and comparisons from D1
 
-- [ ] Route public version, source, screenshot, and history reads through the D1 repository with page-scoped visibility checks.
-- [ ] Replace corpus-wide DO history reads with indexed D1 weekly selection. Select each page and week before applying any display limit.
-- [ ] Pass exact revision dependencies through comparison generation and storage. Exclude stale cached comparisons after a correction.
-- [ ] Preserve public DTOs and run URLs. Update API fixtures for any internal revision identifiers.
-- [ ] Test correction of the current capture, correction of an older capture, and a comparison race with selection changes.
-- [ ] Remove retired permanent-history runtime paths while retaining the explicit legacy import reader.
+- [x] Route public version, source, screenshot, and history reads through the D1 repository with page-scoped visibility checks.
+- [x] Replace corpus-wide DO history reads with indexed D1 weekly selection. Select each page and week before applying any display limit.
+- [x] Pass exact revision dependencies through comparison generation and storage. Exclude stale cached comparisons after a correction.
+- [x] Preserve public DTOs and run URLs. Update API fixtures for any internal revision identifiers.
+- [x] Test correction of the current capture, correction of an older capture, and a comparison race with selection changes.
+- [x] Remove retired permanent-history runtime paths while retaining the explicit legacy import reader.
 
 ## Task 5: Verify and document
 
-- [ ] Run `rtk proxy pnpm test`, `rtk proxy pnpm check-types`, and the repository lint command without format mutations.
-- [ ] Inspect generated migration SQL and replay the full migration chain over populated fixtures.
-- [ ] Exercise public history and archive routes against the running app under the project verification skill. Record missing environment prerequisites if a live check cannot run.
-- [ ] Update `docs/pricing-methodology.md` and operational instructions to match actual ownership and import behavior.
-- [ ] Review the final diff for data loss, authorization changes, retry races, and unsupported claims in the decision trail.
-- [ ] Report local verification separately from production deployment and backfill status.
+- [x] Run `rtk proxy pnpm test`, `rtk proxy pnpm check-types`, and the repository lint command without format mutations.
+- [x] Inspect generated migration SQL and replay the full migration chain over populated fixtures.
+- [x] Exercise public history and archive routes against the running app under the project verification skill. Record missing environment prerequisites if a live check cannot run.
+- [x] Update `docs/pricing-methodology.md` and operational instructions to match actual ownership and import behavior.
+- [x] Review the final diff for data loss, authorization changes, retry races, and unsupported claims in the decision trail.
+- [x] Report local verification separately from production deployment and backfill status.
+
+## Verification result
+
+The final suite passes 269 tests. Workspace types, the web production build, and oxlint pass. Changed-file formatting passes. The repository-wide formatter reports two unchanged historical Markdown files. See [the verification record](../../audits/2026-10-23-d1-history-verification.md).
+
+The local operator import completed all 22 registry pages in five requests. D1 contains 95 terminal runs, 13 captures, and 12 analyses. The existing Botpress source URL returned identical bytes and SHA-256 before and after import. The browser profile and weekly empty state load through D1. No compatible adjacent-week pair exists locally, so weekly evidence-link UI verification remains unavailable. Production deployment and backfill were not run.
 
 ## Design alternatives
 
