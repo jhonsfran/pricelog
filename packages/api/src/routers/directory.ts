@@ -175,11 +175,7 @@ export const directoryRouter = {
     .use(publicCacheMiddleware("weekly"))
     .handler(async ({ context, input }) => {
       const now = new Date();
-      const { observations, comparisons } = await readWeeklyHistory(
-        context.db,
-        context.pageMonitor,
-        now,
-      );
+      const { observations, comparisons } = await readWeeklyHistory(context.db, now);
       return buildWeeklyReport(
         observations,
         comparisons,

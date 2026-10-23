@@ -7,29 +7,12 @@ import {
   type PricingSignalKey,
 } from "@pricelog/db/pricing-intelligence";
 import type { PageChoice, PageSignal } from "@pricelog/db/schema/pages";
-import type { NumericPrices } from "@pricelog/db/numeric-prices";
-import {
-  deriveProfile,
-  type PublishedSnapshot,
-  type SnapshotReview,
-} from "@pricelog/db/pricing-snapshot";
+import { deriveProfile, type PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 
 import type { JevAnswer } from "./types";
 
-export type PublicEvaluation = {
-  choices: PageChoice[];
-  signals: PageSignal[];
-  tags: string[];
-  numericPrices?: NumericPrices;
-  /** Raw extraction output and all review claims stay with the captured version. */
-  draft?: string;
-  snapshot?: PublishedSnapshot;
-  review?: SnapshotReview[];
-  /** PRICING_PIPELINE_ID of the code that produced the snapshot. */
-  pipeline?: string;
-  /** Price literals on the captured page and how many of them a grounded quote covers. */
-  coverage?: { literals: number; claimed: number } | null;
-};
+import type { PublicEvaluation } from "@pricelog/db/history-types";
+export type { PublicEvaluation } from "@pricelog/db/history-types";
 
 /**
  * The page profile: Jev's answers (product category and the monetization questions) plus the

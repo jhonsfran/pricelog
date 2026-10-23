@@ -1,13 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import type { Database } from "@pricelog/db";
-import type { Observation } from "@pricelog/api/pricing-history";
-import { activePageBatches } from "@pricelog/api/pricing-history-store";
+import { describe, expect, it } from "vitest";
+import { archiveInput, historyDatabase } from "@pricelog/api/pricing-history-test-fixtures";
 import type { PublishedSnapshot } from "@pricelog/db/pricing-snapshot";
 import { runWeeklyComparisons } from "./weekly-comparisons";
-
-vi.mock("@pricelog/api/pricing-history-store", () => ({
-  activePageBatches: vi.fn(),
-}));
 
 const snapshot = (amount: number): PublishedSnapshot => ({
   version: "pricing-snapshot-v4",
@@ -30,80 +24,105 @@ const snapshot = (amount: number): PublishedSnapshot => ({
   features: [],
 });
 
-function observations(): Observation[] {
-  return ["broken", "healthy"].flatMap((pageId) =>
-    ["before", "after"].map((week) => ({
-      pageId,
-      runId: `${pageId}-${week}`,
-      contentKey: `${pageId}-${week}`,
-      contentSha256: week,
-      rubricId: week === "before" ? "pricing-intelligence-v10" : "pricing-intelligence-v11",
-      model: "jev-1.13.0",
-      name: pageId,
-      slug: pageId,
-      capturedAt: new Date(week === "before" ? "2026-09-10" : "2026-09-17"),
-      choices: [],
-      signals: [],
-      snapshot: snapshot(week === "before" ? 80 : 90),
-    })),
-  );
+async function corpus(fixture: ReturnType<typeof historyDatabase>) {
+  for (const pageId of ["page", "other"]) {
+    for (const [week, date, amount] of [
+      ["before", "2026-09-10", 80],
+      ["after", "2026-09-17", 90],
+    ] as const) {
+      const input = archiveInput(`${pageId}-${week}`, Date.parse(date));
+      input.pageId = pageId;
+      input.analysis!.evaluation.snapshot = snapshot(amount);
+      await fixture.repo.archive(input);
+    }
+    await fixture.repo.writeImport(pageId, {
+      sourceIdentity: pageId,
+      checkpoint: null,
+      expectedCount: 0,
+      importedCount: 0,
+      ready: true,
+    });
+  }
 }
 
 describe("weekly comparisons", () => {
-  it("diffs paired snapshots without a model and keeps a failed page retryable", async () => {
-    vi.mocked(activePageBatches).mockImplementation(async function* () {
-      yield ["broken", "healthy"].map((id) => ({
-        id,
-        normalizedDomain: id,
-        slug: id,
-        displayName: id,
-      }));
-    });
-    const persistComparison = vi.fn(
-      async (_domain: string, pageId: string, _comparison: unknown) => {
-        if (pageId === "broken") throw new Error("Run broken-after is not published");
-      },
-    );
-    const monitor = {
-      getWeeklyHistory: async (_domain: string, id: string) => ({
-        observations: observations().filter((row) => row.pageId === id),
-        comparisons: [],
-      }),
-      persistComparison,
-    };
-    const pages: Record<string, string> = {
-      "healthy-before": "## Starter\n$80/month",
-      "healthy-after": "## Starter\n$90/month",
-      "broken-before": "## Starter\n$80/month",
-      "broken-after": "## Starter\n$90/month",
-    };
-    const result = await runWeeklyComparisons(
-      {} as Database,
-      monitor,
-      async (key) => pages[key] ?? null,
-      new Date("2026-09-21"),
-    );
-    expect(result).toMatchObject({
-      processed: 1,
-      pending: 1,
-      failures: [{ runId: "broken-after", message: "Run broken-after is not published" }],
-    });
-    expect(persistComparison.mock.calls[1]?.[2]).toMatchObject({
-      id: "snapshot-diff-v1:healthy-before:healthy-after",
-      verifierVersion: "snapshot-diff-v1",
-      model: null,
-      status: "reviewed",
-      changes: [
-        {
-          key: "price:Starter:flat:monthly:month",
-          label: "Starter monthly price",
-          kind: "commercial",
-          beforeLabel: "$80/month",
-          afterLabel: "$90/month",
-          beforeEvidence: "$80/month",
-          afterEvidence: "$90/month",
+  it("diffs real D1 pairs without a model and keeps missing source retryable", async () => {
+    const fixture = historyDatabase();
+    try {
+      await corpus(fixture);
+      const result = await runWeeklyComparisons(
+        fixture.db,
+        async (key) =>
+          key === "page-before.md"
+            ? null
+            : key.endsWith("before.md")
+              ? "## Starter\n$80/month"
+              : "## Starter\n$90/month",
+        new Date("2026-09-21"),
+      );
+      expect(result).toMatchObject({
+        processed: 1,
+        pending: 1,
+        failures: [
+          {
+            pageId: "page",
+            runId: "page-after",
+            message: "Missing captured page for weekly comparison page-after",
+          },
+        ],
+      });
+      const history = await fixture.repo.getWeeklyHistory("other", Date.parse("2026-09-21"));
+      expect(history.comparisons[0]).toMatchObject({
+        beforeAnalysisId: "initial:page:other-before",
+        afterAnalysisId: "initial:page:other-after",
+        status: "reviewed",
+        model: null,
+        changes: [{ kind: "commercial", beforeLabel: "$80/month", afterLabel: "$90/month" }],
+      });
+    } finally {
+      fixture.sqlite.close();
+    }
+  });
+
+  it("stores a comparison made during a selection race but serves only the current analysis pair", async () => {
+    const fixture = historyDatabase();
+    try {
+      await corpus(fixture);
+      const input = archiveInput("page-after", Date.parse("2026-09-17"));
+      const correction = {
+        ...input.analysis!,
+        id: "corrected-after",
+        idempotencyKey: "correction",
+        evaluation: { ...input.analysis!.evaluation, snapshot: snapshot(95) },
+      };
+      await fixture.repo.appendAnalysis("page", correction, input.rubrics[0]!);
+      let changed = false;
+      await runWeeklyComparisons(
+        fixture.db,
+        async (key) => {
+          if (!changed) {
+            changed = true;
+            await fixture.repo.selectAnalysis(
+              "page",
+              "page-after",
+              correction.id,
+              input.analysis!.id,
+            );
+          }
+          return key.endsWith("before.md") ? "## Starter\n$80/month" : "## Starter\n$90/month";
         },
-      ],
-    });
+        new Date("2026-09-21"),
+      );
+      expect(
+        fixture.sqlite
+          .prepare("SELECT count(*) AS count FROM history_comparison WHERE page_id='page'")
+          .get()?.count,
+      ).toBe(1);
+      const history = await fixture.repo.getWeeklyHistory("page", Date.parse("2026-09-21"));
+      expect(history.observations[1]?.analysisId).toBe("corrected-after");
+      expect(history.comparisons).toEqual([]);
+    } finally {
+      fixture.sqlite.close();
+    }
   });
 });

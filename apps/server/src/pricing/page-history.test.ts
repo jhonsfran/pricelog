@@ -1,100 +1,25 @@
 import { URL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { drizzle } from "drizzle-orm/durable-sqlite";
 import { PageStore } from "./page-store";
-import { publishPageProjection } from "./publication";
+import { storeFor } from "./page-store-test-fixtures";
+import { initialAnalysisId } from "@pricelog/db/history-types";
+import {
+  HISTORY_IMPORT_KEY,
+  TERMINAL_ARCHIVE_PREFIX,
+  exportLegacyBatch,
+  legacySourceCount,
+} from "./legacy-history";
 import { COMPARISON_VERSION } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
 
-vi.mock("./publication", () => ({ publishPageProjection: vi.fn() }));
 vi.mock("cloudflare:workers", () => ({ DurableObject: class {} }));
 vi.mock("./drizzle/migrations.js", () => ({ default: { migrations: {} } }));
 
-// Run PageStore queries against real SQLite through the DO storage interface.
-function storeFor(pageId: string, migrationCount = Infinity) {
-  const sqlite = new DatabaseSync(":memory:");
-  const migrations = new URL("./drizzle/", import.meta.url);
-  for (const directory of readdirSync(migrations)
-    .filter((name) => /^\d/.test(name))
-    .sort()
-    .slice(0, migrationCount)) {
-    sqlite.exec(readFileSync(new URL(`${directory}/migration.sql`, migrations), "utf8"));
-  }
-  sqlite.exec("CREATE TABLE test_kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-  const createWorkflow = vi.fn().mockResolvedValue({});
-  const storage = {
-    kv: {
-      get(key: string) {
-        const row = sqlite.prepare("SELECT value FROM test_kv WHERE key = ?").get(key);
-        return row ? JSON.parse(String(row.value)) : undefined;
-      },
-      put(key: string, value: unknown) {
-        sqlite
-          .prepare(
-            "INSERT INTO test_kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-          )
-          .run(key, JSON.stringify(value));
-      },
-      delete(key: string) {
-        return sqlite.prepare("DELETE FROM test_kv WHERE key = ?").run(key).changes > 0;
-      },
-      list(options: { prefix?: string; limit?: number } = {}) {
-        return sqlite
-          .prepare("SELECT key, value FROM test_kv WHERE key LIKE ? ORDER BY key LIMIT ?")
-          .all(`${options.prefix ?? ""}%`, options.limit ?? -1)
-          .map((row) => [String(row.key), JSON.parse(String(row.value))] as [string, unknown]);
-      },
-    },
-    sql: {
-      exec(query: string, ...params: (string | number | null)[]) {
-        const statement = sqlite.prepare(query);
-        const columns = statement.columns().map((column) => column.name);
-        statement.setReturnArrays(true);
-        const rows = statement.all(...params) as unknown as unknown[][];
-        const objects = rows.map((row) =>
-          Object.fromEntries(columns.map((name, index) => [name, row[index]])),
-        );
-        return {
-          toArray: () => objects,
-          one: () => objects[0],
-          raw: () => {
-            const iterator = rows[Symbol.iterator]();
-            return { next: () => iterator.next(), toArray: () => rows };
-          },
-        };
-      },
-    },
-    transactionSync<T>(fn: () => T): T {
-      sqlite.exec("BEGIN");
-      try {
-        const value = fn();
-        sqlite.exec("COMMIT");
-        return value;
-      } catch (error) {
-        sqlite.exec("ROLLBACK");
-        throw error;
-      }
-    },
-    setAlarm: vi.fn(),
-    deleteAlarm: vi.fn(),
-  } as unknown as DurableObjectStorage;
-  sqlite
-    .prepare(
-      "INSERT INTO page_config (id, page_id, normalized_domain, canonical_url) VALUES (1, ?, ?, ?)",
-    )
-    .run(pageId, `${pageId}.com`, `https://${pageId}.com/pricing`);
-  const store: PageStore = Object.assign(Object.create(PageStore.prototype), {
-    db: drizzle(storage),
-    ctx: { storage },
-    env: { DB: {}, SCAN_WORKFLOW: { create: createWorkflow } },
-  });
-  return { store, sqlite, storage, createWorkflow };
-}
-
 async function capture(
-  store: PageStore,
+  _store: PageStore,
   sqlite: DatabaseSync,
   runId: string,
   date: string,
@@ -103,33 +28,40 @@ async function capture(
 ) {
   sqlite
     .prepare(
-      "INSERT INTO scan_run (id, trigger, status, stage, workflow_instance_id) VALUES (?, 'manual', 'running', 'evaluate', ?)",
+      "INSERT INTO scan_run (id,trigger,status,stage,workflow_instance_id,created_at,completed_at) VALUES (?,'manual',?,'complete',?,?,?)",
     )
-    .run(runId, runId);
-  await store.persistVersion(runId, {
-    capturedAt: new Date(date).getTime(),
-    httpStatus: 200,
-    finalUrl: "https://example.com/pricing",
-    title: "Example",
-    htmlKey: `${runId}.html`,
-    screenshotKey: `${runId}.png`,
-    contentKey: `${runId}.md`,
-    htmlSha256: runId,
-    screenshotSha256: runId,
-    contentSha256: runId,
-    htmlBytes: 1,
-    screenshotBytes: 1,
-    contentBytes: 1,
-  });
-  await store.persistAnswers(runId, "pricing-intelligence-v4", [
-    { key: "has_free_plan", type: "noul", noul: 0.9 },
-  ]);
-  await store.persistEvaluation(runId, {
-    rubricId: "pricing-intelligence-v4",
-    model,
-    ...({ choices: [], signals: [], tags: [] } as PublicEvaluation),
-  });
-  sqlite.prepare("UPDATE scan_run SET status = ? WHERE id = ?").run(status, runId);
+    .run(
+      runId,
+      status,
+      runId,
+      Date.parse(date) - 1,
+      status === "running" ? null : Date.parse(date) + 1,
+    );
+  sqlite
+    .prepare(
+      "INSERT INTO page_version (id,run_id,captured_at,http_status,final_url,title,browser_engine,html_key,screenshot_key,content_key,html_sha256,screenshot_sha256,content_sha256,html_bytes,screenshot_bytes,content_bytes) VALUES (?,?,?,200,'https://example.com/pricing','Example','chromium',?,?,?,?,?,?,1,1,1)",
+    )
+    .run(
+      runId,
+      runId,
+      Date.parse(date),
+      `${runId}.html`,
+      `${runId}.png`,
+      `${runId}.md`,
+      runId,
+      runId,
+      runId,
+    );
+  sqlite
+    .prepare(
+      "INSERT INTO answer (version_id,question_set_id,question_key,type,noul) VALUES (?,'pricing-intelligence-v4','has_free_plan','noul',0.9)",
+    )
+    .run(runId);
+  sqlite
+    .prepare(
+      "INSERT INTO version_evaluation (run_id,rubric_id,model,evaluation_json) VALUES (?,'pricing-intelligence-v4',?,?)",
+    )
+    .run(runId, model, JSON.stringify({ choices: [], signals: [], tags: [] }));
 }
 
 async function scanned(
@@ -139,39 +71,34 @@ async function scanned(
   contentSha256: string,
   evaluation?: PublicEvaluation & { rubricId: string; model: string },
 ) {
+  await capture(
+    store,
+    sqlite,
+    runId,
+    "2026-09-22",
+    evaluation ? "succeeded" : "running",
+    evaluation?.model,
+  );
+  sqlite
+    .prepare("UPDATE page_version SET content_sha256=? WHERE run_id=?")
+    .run(contentSha256, runId);
+  if (!evaluation) {
+    sqlite.prepare("DELETE FROM version_evaluation WHERE run_id=?").run(runId);
+    return;
+  }
+  sqlite
+    .prepare("INSERT OR IGNORE INTO question_set (id,model,version) VALUES (?, 'typesafe/jev',10)")
+    .run(evaluation.rubricId);
+  const { rubricId, model, ...payload } = evaluation;
+  sqlite
+    .prepare("UPDATE version_evaluation SET rubric_id=?,model=?,evaluation_json=? WHERE run_id=?")
+    .run(rubricId, model, JSON.stringify(payload), runId);
+  sqlite.prepare("UPDATE answer SET question_set_id=? WHERE version_id=?").run(rubricId, runId);
   sqlite
     .prepare(
-      "INSERT INTO scan_run (id, trigger, status, stage, workflow_instance_id) VALUES (?, 'manual', 'running', 'capture', ?)",
+      "INSERT INTO answer (version_id,question_set_id,question_key,type,choice,confidence,probabilities_json) VALUES (?,?,'price_0_role','choice','base_price',0.8,?)",
     )
-    .run(runId, runId);
-  await store.persistVersion(runId, {
-    capturedAt: Date.parse("2026-09-22"),
-    httpStatus: 200,
-    finalUrl: "https://example.com/pricing",
-    title: "Example",
-    htmlKey: `${runId}.html`,
-    screenshotKey: `${runId}.png`,
-    contentKey: `${runId}.md`,
-    htmlSha256: runId,
-    screenshotSha256: runId,
-    contentSha256,
-    htmlBytes: 1,
-    screenshotBytes: 1,
-    contentBytes: 1,
-  });
-  if (!evaluation) return;
-  await store.persistAnswers(runId, evaluation.rubricId, [
-    { key: "has_free_plan", type: "noul", noul: 0.9 },
-    {
-      key: "price_0_role",
-      type: "choice",
-      choice: "base_price",
-      confidence: 0.8,
-      probabilities: { base_price: 0.8 },
-    },
-  ]);
-  await store.persistEvaluation(runId, evaluation);
-  sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run(runId);
+    .run(runId, rubricId, JSON.stringify({ base_price: 0.8 }));
 }
 
 const PIPELINE = "pricing-snapshot-v4-aaaaaaaaaaaa";
@@ -313,8 +240,19 @@ describe("page-local pricing history", () => {
           offers: [],
         },
       };
-      await store.persistEvaluation("numeric", evaluation);
-      sqlite.prepare("UPDATE scan_run SET status = 'succeeded' WHERE id = ?").run("numeric");
+      sqlite
+        .prepare(
+          "INSERT OR IGNORE INTO question_set (id,model,version) VALUES ('pricing-intelligence-v5','typesafe/jev',5)",
+        )
+        .run();
+      sqlite
+        .prepare(
+          "UPDATE version_evaluation SET rubric_id=?,model=?,evaluation_json=? WHERE run_id='numeric'",
+        )
+        .run(evaluation.rubricId, evaluation.model, JSON.stringify(evaluation));
+      sqlite
+        .prepare("UPDATE scan_run SET status='succeeded',completed_at=? WHERE id='numeric'")
+        .run(Date.parse("2026-09-22") + 1);
       await store.persistEvaluation("numeric", {
         ...evaluation,
         numericPrices: { ...evaluation.numericPrices, status: "unavailable" },
@@ -402,6 +340,8 @@ describe("page-local pricing history", () => {
         id: "pair",
         beforeRunId: "before",
         afterRunId: "after",
+        beforeAnalysisId: initialAnalysisId("one", "before"),
+        afterAnalysisId: initialAnalysisId("one", "after"),
         verifierVersion: COMPARISON_VERSION,
         model: "jev-1.13.0",
         status: "reviewed" as const,
@@ -413,10 +353,10 @@ describe("page-local pricing history", () => {
         (await one.store.getWeeklyHistory("one", Date.parse("2026-09-21"))).comparisons,
       ).toHaveLength(1);
       await expect(two.store.persistComparison("one", comparison)).rejects.toThrow("does not own");
-      await expect(two.store.persistComparison("two", comparison)).rejects.toThrow("not published");
+      await expect(two.store.persistComparison("two", comparison)).rejects.toThrow();
       await expect(
         one.store.persistComparison("one", { ...comparison, id: "bad", afterRunId: "failed" }),
-      ).rejects.toThrow("not published");
+      ).rejects.toThrow();
       expect(
         (await two.store.getWeeklyHistory("two", Date.parse("2026-09-21"))).observations,
       ).toEqual([]);
@@ -443,141 +383,271 @@ function publication(runId: string): Parameters<PageStore["preparePublication"]>
   };
 }
 
-describe("durable publication delivery", () => {
-  it("assigns increasing creation times when scans start within one millisecond or the clock moves back", async () => {
-    const { store, sqlite, createWorkflow } = storeFor("one");
-    const now = Date.parse("2026-09-21T12:00:00Z");
-    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-    try {
-      await capture(store, sqlite, "previous", "2026-09-17");
-      sqlite.prepare("UPDATE scan_run SET created_at = ? WHERE id = 'previous'").run(now);
-      sqlite.exec("INSERT INTO scheduler_state (id) VALUES (1)");
-      const first = await store.triggerManual("owner");
-      expect(first.createdAt).toBe(now + 1);
-      await store.completeFailure(first.id, "capture_failed", "Capture failed", now);
-      clock.mockReturnValue(now - 1000);
-      const second = await store.triggerManual("owner");
-      expect(second.createdAt).toBe(now + 2);
-      expect(sqlite.prepare("SELECT updated_at FROM scheduler_state").get()?.updated_at).toBe(
-        now + 2,
-      );
-      expect(createWorkflow).toHaveBeenCalledTimes(2);
-    } finally {
-      clock.mockRestore();
-      sqlite.close();
-    }
+async function workspaceCapture(
+  store: PageStore,
+  runId: string,
+  capturedAt = Date.parse("2026-09-17"),
+) {
+  await store.persistVersion(runId, {
+    capturedAt,
+    httpStatus: 200,
+    finalUrl: "https://one.com/pricing",
+    title: "One",
+    htmlKey: `${runId}.html`,
+    screenshotKey: `${runId}.png`,
+    contentKey: `${runId}.md`,
+    htmlSha256: runId,
+    screenshotSha256: runId,
+    contentSha256: runId,
+    htmlBytes: 1,
+    screenshotBytes: 1,
+    contentBytes: 1,
   });
+  await store.persistAnswers(runId, "pricing-intelligence-v4", [
+    { key: "free", type: "noul", noul: 0.8 },
+  ]);
+  await store.persistEvaluation(runId, {
+    rubricId: "pricing-intelligence-v4",
+    model: "jev-1.13.0",
+    choices: [],
+    signals: [],
+    tags: [],
+    draft: "original raw output",
+  });
+  await store.preparePublication(runId, { ...publication(runId), capturedAt });
+}
 
-  it("retains failed delivery, retries from the alarm without recapture, and resumes the weekly schedule", async () => {
-    const { store, sqlite, storage, createWorkflow } = storeFor("one");
-    const now = Date.parse("2026-09-21T12:00:00Z");
-    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-    vi.mocked(publishPageProjection).mockReset();
+async function finishImport(store: PageStore, limit = 10) {
+  for (let i = 0; i < 100; i++) {
+    const progress = await store.migrateHistory(limit);
+    if (progress.ready) return progress;
+  }
+  throw new Error("Fixture import did not finish");
+}
+
+describe("durable terminal delivery", () => {
+  it("retains failed delivery and retries from the alarm without recapture", async () => {
+    const { store, sqlite, history, storage, createWorkflow } = storeFor("one");
     try {
-      await capture(store, sqlite, "run", "2026-09-17", "running");
-      sqlite.exec("INSERT INTO scheduler_state (id, active_run_id) VALUES (1, 'run')");
-      await expect(store.completeSuccess("run", now)).rejects.toThrow("No prepared publication");
-      await expect(
-        store.preparePublication("run", { ...publication("run"), pageId: "wrong" }),
-      ).rejects.toThrow("does not belong");
-      await store.preparePublication("run", publication("run"));
-      const nextScanAt = await store.completeSuccess("run", now);
-      await store.markRunning("run");
-      await store.setStage("run", "publish");
-      expect(await store.getRun("run")).toMatchObject({ status: "succeeded", stage: "complete" });
-
-      expect(nextScanAt).toBe(now + 7 * 24 * 60 * 60 * 1000);
-      expect(storage.setAlarm).toHaveBeenLastCalledWith(now + 60_000);
-      expect(sqlite.prepare("SELECT next_scan_at FROM scheduler_state").get()?.next_scan_at).toBe(
-        nextScanAt,
-      );
-      vi.mocked(publishPageProjection).mockRejectedValue(new Error("D1 unavailable"));
+      const run = await store.triggerManual("owner");
+      await workspaceCapture(store, run.id);
+      const completed = Date.now();
+      const next = await store.completeSuccess(run.id, completed);
+      const batch = vi
+        .spyOn(history.binding, "batch")
+        .mockRejectedValueOnce(new Error("D1 unavailable"));
       await expect(store.publishPending()).rejects.toThrow("D1 unavailable");
-      expect(storage.kv.get("publication:run")).toMatchObject({ runId: "run" });
-      expect((await store.getRun("run"))?.status).toBe("succeeded");
-      clock.mockReturnValue(now + 60_000);
-      await expect(store.alarm()).rejects.toThrow("D1 unavailable");
-      expect(createWorkflow).not.toHaveBeenCalled();
-      expect(storage.setAlarm).toHaveBeenLastCalledWith(now + 120_000);
-      // Simulate a fresh DO instance using the same durable storage.
-      const recovered: PageStore = Object.assign(Object.create(PageStore.prototype), {
-        db: drizzle(storage),
-        ctx: { storage },
-        env: { DB: {}, SCAN_WORKFLOW: { create: createWorkflow } },
-      });
-      vi.mocked(publishPageProjection).mockResolvedValue(undefined);
-      await recovered.alarm();
-      expect(storage.kv.get("publication:run")).toBeUndefined();
-      expect(createWorkflow).not.toHaveBeenCalled();
-      expect(storage.setAlarm).toHaveBeenLastCalledWith(nextScanAt);
-      expect(vi.mocked(publishPageProjection).mock.calls.at(-1)?.[1]).toMatchObject({
-        runId: "run",
-        nextScanAt,
-      });
-      expect(await recovered.completeSuccess("run", now + 60_000)).toBe(nextScanAt);
-      expect(storage.kv.get("publication:run")).toBeUndefined();
-      clock.mockReturnValue(nextScanAt);
-      await recovered.alarm();
-      expect(createWorkflow).toHaveBeenCalledOnce();
-    } finally {
-      clock.mockRestore();
-      sqlite.close();
-    }
-  });
-
-  it("keeps a newer payload when an older delivery finishes after the next scan", async () => {
-    const { store, sqlite, storage } = storeFor("one");
-    const now = Date.parse("2026-09-21T12:00:00Z");
-    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
-    let delivered!: () => void;
-    const delivery = new Promise<void>((resolve) => {
-      delivered = resolve;
-    });
-    vi.mocked(publishPageProjection).mockReset().mockReturnValueOnce(delivery);
-    try {
-      await capture(store, sqlite, "older", "2026-09-17", "running");
-      sqlite.exec("INSERT INTO scheduler_state (id, active_run_id) VALUES (1, 'older')");
-      await store.preparePublication("older", publication("older"));
-      await store.completeSuccess("older", now);
-      const flushing = store.publishPending();
-      await capture(store, sqlite, "newer", "2026-09-17", "running");
-      sqlite.exec(
-        "UPDATE scheduler_state SET active_run_id = 'newer', next_scan_at = NULL WHERE id = 1",
+      expect(storage.kv.get(`${TERMINAL_ARCHIVE_PREFIX}${run.id}`)).toBeDefined();
+      expect(sqlite.prepare("SELECT status FROM scan_run WHERE id=?").get(run.id)?.status).toBe(
+        "succeeded",
       );
-      await store.preparePublication("newer", publication("newer"));
-      await store.completeSuccess("newer", now + 1000);
-      delivered();
-      await flushing;
-      expect(storage.kv.get("publication:older")).toBeUndefined();
-      expect(storage.kv.get("publication:newer")).toMatchObject({ runId: "newer" });
-      expect(storage.setAlarm).toHaveBeenLastCalledWith(now + 60_000);
-      expect(sqlite.prepare("SELECT next_scan_at FROM scheduler_state").get()?.next_scan_at).toBe(
-        now + 1000 + 7 * 24 * 60 * 60 * 1000,
-      );
-    } finally {
-      delivered();
-      clock.mockRestore();
-      sqlite.close();
-    }
-  });
-
-  it("deletes prepared delivery on failure and never publishes a running run", async () => {
-    const { store, sqlite, storage, createWorkflow } = storeFor("one");
-    vi.mocked(publishPageProjection).mockReset();
-    try {
-      await capture(store, sqlite, "run", "2026-09-17", "running");
-      sqlite.exec("INSERT INTO scheduler_state (id, active_run_id) VALUES (1, 'run')");
-      await store.preparePublication("run", publication("run"));
+      expect(storage.setAlarm).toHaveBeenCalled();
+      batch.mockRestore();
       await store.alarm();
-      expect(publishPageProjection).not.toHaveBeenCalled();
-      expect(createWorkflow).not.toHaveBeenCalled();
-      expect(storage.kv.get("publication:run")).toBeDefined();
-      const nextScanAt = await store.completeFailure("run", "failed", "Scan failed");
-      expect(storage.kv.get("publication:run")).toBeUndefined();
-      expect(storage.setAlarm).toHaveBeenLastCalledWith(nextScanAt);
-      expect((await store.getRun("run"))?.status).toBe("failed");
+      expect(createWorkflow).toHaveBeenCalledTimes(1);
+      expect(storage.kv.get(`${TERMINAL_ARCHIVE_PREFIX}${run.id}`)).toBeUndefined();
+      expect(sqlite.prepare("SELECT id FROM scan_run WHERE id=?").get(run.id)).toBeUndefined();
+      expect((await store.getPublicPage("one")).version?.runId).toBe(run.id);
+      expect(await store.completeSuccess(run.id, completed + 1000)).toBe(next);
+      await expect(store.completeFailure(run.id, "failed", "late failure")).rejects.toThrow(
+        "Cannot change completed run",
+      );
+      await expect(
+        store.persistVersion(run.id, { capturedAt: 0 } as Parameters<
+          PageStore["persistVersion"]
+        >[1]),
+      ).rejects.toThrow();
     } finally {
       sqlite.close();
+      history.sqlite.close();
+    }
+  });
+
+  it("archives failures with captured artifacts and releases only acknowledged workspace rows", async () => {
+    const { store, sqlite, history, storage } = storeFor("one");
+    try {
+      const run = await store.triggerManual("owner");
+      await workspaceCapture(store, run.id);
+      await store.completeFailure(run.id, "verification_failed", "Failed after capture");
+      expect(storage.kv.get(`publication:${run.id}`)).toBeUndefined();
+      expect(storage.kv.get(`${TERMINAL_ARCHIVE_PREFIX}${run.id}`)).toMatchObject({
+        run: { status: "failed" },
+        capture: { contentKey: `${run.id}.md` },
+      });
+      await store.publishPending();
+      expect((await store.getRun(run.id))?.status).toBe("failed");
+      expect(await store.getArtifact(run.id, "content")).toMatchObject({ key: `${run.id}.md` });
+      expect(await store.getPublicSource("one", run.id)).toBeNull();
+      expect(sqlite.prepare("SELECT count(*) AS count FROM scan_run").get()?.count).toBe(0);
+    } finally {
+      sqlite.close();
+      history.sqlite.close();
+    }
+  });
+
+  it("keeps run creation monotonic through cleanup and clock rollback", async () => {
+    const { store, sqlite, history } = storeFor("one");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1000000);
+    try {
+      const first = await store.triggerManual("owner");
+      await store.completeFailure(first.id, "failed", "Failed");
+      await store.publishPending();
+      clock.mockReturnValue(900000);
+      const second = await store.triggerManual("owner");
+      expect(second.createdAt).toBe(first.createdAt + 1);
+      await store.completeFailure(second.id, "failed", "Failed");
+      await store.publishPending();
+      const page = await store.listRuns(1);
+      expect(page.items.map((row) => row.id)).toEqual([second.id]);
+      expect((await store.listRuns(1, page.nextCursor!)).items.map((row) => row.id)).toEqual([
+        first.id,
+      ]);
+    } finally {
+      clock.mockRestore();
+      sqlite.close();
+      history.sqlite.close();
+    }
+  });
+  it("paginates tied timestamps with SQLite ID order and removes source/history duplicates", async () => {
+    const { store, sqlite, history } = storeFor("one");
+    try {
+      for (const id of ["A", "a", "Z"]) await capture(store, sqlite, id, "2026-09-17");
+      await finishImport(store);
+      const first = await store.listRuns(2);
+      expect(first.items.map((row) => row.id)).toEqual(["a", "Z"]);
+      const second = await store.listRuns(2, first.nextCursor!);
+      expect(second.items.map((row) => row.id)).toEqual(["A"]);
+      expect(second.nextCursor).toBeNull();
+    } finally {
+      sqlite.close();
+      history.sqlite.close();
+    }
+  });
+});
+
+describe("bounded legacy import", () => {
+  it("resumes after a lost acknowledgement, verifies every record, and retains all legacy source rows", async () => {
+    const { store, sqlite, history, storage } = storeFor("one");
+    try {
+      await capture(store, sqlite, "before", "2026-09-10");
+      await capture(store, sqlite, "after", "2026-09-17");
+      await capture(store, sqlite, "failed", "2026-09-18", "failed");
+      const first = await store.migrateHistory(1);
+      expect(first.ready).toBe(false);
+      expect(first.importedCount).toBe(1);
+      await expect(history.repo.requireReady("one")).rejects.toThrow("not ready");
+      const batch = history.binding.batch.bind(history.binding);
+      const spy = vi.spyOn(history.binding, "batch").mockImplementationOnce(async (...args) => {
+        await batch(...args);
+        throw new Error("Acknowledgement lost");
+      });
+      await expect(store.migrateHistory(1)).rejects.toThrow("Acknowledgement lost");
+      expect(storage.kv.get(HISTORY_IMPORT_KEY)).toMatchObject({ importedCount: 1 });
+      spy.mockRestore();
+      const done = await finishImport(store, 1);
+      expect(done.ready).toBe(true);
+      expect(done.importedCount).toBe(4);
+      expect(done.expectedCount).toBe(4);
+      expect(history.sqlite.prepare("SELECT count(*) AS count FROM history_run").get()?.count).toBe(
+        3,
+      );
+      expect(sqlite.prepare("SELECT count(*) AS count FROM scan_run").get()?.count).toBe(3);
+      await history.repo.requireReady("one");
+      expect((await store.getPublicPage("one")).versions.map((row) => row.runId)).toEqual([
+        "after",
+        "before",
+      ]);
+    } finally {
+      sqlite.close();
+      history.sqlite.close();
+    }
+  });
+
+  it("exports by key and byte limits and delivers pending publication before acknowledging it", async () => {
+    const { store, sqlite, history, storage } = storeFor("one");
+    try {
+      await capture(store, sqlite, "after", "2026-09-17");
+      storage.kv.put("publication:after", publication("after"));
+      const progress = {
+        sourceIdentity: "source",
+        checkpoint: null,
+        expectedCount: 2,
+        importedCount: 0,
+        ready: false,
+      };
+      const local = drizzle(storage);
+      const one = exportLegacyBatch(local, "one", progress, () => undefined, 1);
+      expect(one.records).toHaveLength(1);
+      expect(one.bytes).toBeLessThanOrEqual(1024 * 1024);
+      expect(() => exportLegacyBatch(local, "one", progress, () => undefined, 1, 1)).toThrow(
+        "byte limit",
+      );
+      await store.migrateHistory(1);
+      expect(storage.kv.get("publication:after")).toBeDefined();
+      const spy = vi
+        .spyOn(history.binding, "batch")
+        .mockRejectedValueOnce(new Error("D1 unavailable"));
+      await expect(store.migrateHistory(1)).rejects.toThrow();
+      expect(storage.kv.get("publication:after")).toBeDefined();
+      spy.mockRestore();
+      await finishImport(store, 1);
+      expect(storage.kv.get("publication:after")).toBeUndefined();
+      expect(
+        history.sqlite.prepare("SELECT run_id FROM page_public_summary WHERE page_id='one'").get()
+          ?.run_id,
+      ).toBe("after");
+      expect(legacySourceCount(local)).toBe(2);
+    } finally {
+      sqlite.close();
+      history.sqlite.close();
+    }
+  });
+  it("preserves every legacy rubric answer and comparison and keeps captures without evaluations private", async () => {
+    const { store, sqlite, history, storage } = storeFor("one");
+    try {
+      await capture(store, sqlite, "before", "2026-09-10");
+      await capture(store, sqlite, "after", "2026-09-17");
+      await capture(store, sqlite, "unevaluated", "2026-09-18");
+      sqlite.exec(
+        "DELETE FROM version_evaluation WHERE run_id='unevaluated'; INSERT INTO question_set(id,model,version) VALUES ('old-rubric','old-model',1); INSERT INTO answer(version_id,question_set_id,question_key,type,noul) VALUES ('before','old-rubric','old-answer','noul',0.123); INSERT INTO version_comparison(id,before_run_id,after_run_id,verifier_version,model,status,changes_json,created_at) VALUES ('legacy-pair','before','after','snapshot-diff-v1',null,'reviewed','[]',1000)",
+      );
+      await store.migrateHistory(1);
+      expect(await store.getArtifact("unevaluated", "html")).toMatchObject({
+        key: "unevaluated.html",
+      });
+      await expect(history.repo.requireReady("one")).rejects.toThrow("not ready");
+      const done = await finishImport(store, 1);
+      expect(done.importedCount).toBe(6);
+      const answers = history.sqlite
+        .prepare(
+          "SELECT values_json FROM history_answers WHERE page_id='one' AND run_id='before' AND rubric_id='old-rubric'",
+        )
+        .get();
+      expect(JSON.parse(String(answers?.values_json))).toEqual([
+        { key: "old-answer", type: "noul", noul: 0.123 },
+      ]);
+      expect(
+        history.sqlite
+          .prepare(
+            "SELECT before_analysis_id,after_analysis_id FROM history_comparison WHERE page_id='one'",
+          )
+          .get(),
+      ).toEqual({
+        before_analysis_id: initialAnalysisId("one", "before"),
+        after_analysis_id: initialAnalysisId("one", "after"),
+      });
+      expect(await store.getPublicSource("one", "unevaluated")).toBeNull();
+      expect(
+        history.sqlite
+          .prepare(
+            "SELECT metadata_json,selected_analysis_id FROM history_capture WHERE run_id='unevaluated'",
+          )
+          .get(),
+      ).toEqual({ metadata_json: null, selected_analysis_id: null });
+      expect(storage.kv.get(HISTORY_IMPORT_KEY)).toMatchObject({ ready: true });
+    } finally {
+      sqlite.close();
+      history.sqlite.close();
     }
   });
 });

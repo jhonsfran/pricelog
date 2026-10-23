@@ -1,70 +1,58 @@
-import { describe, expect, it, vi } from "vitest";
-import type { Database } from "@pricelog/db";
+import { describe, expect, it } from "vitest";
 import { readWeeklyHistory } from "./pricing-history-store";
+import { archiveInput, historyDatabase } from "./pricing-history-test-fixtures";
 
-function registry() {
-  const pages = Array.from({ length: 45 }, (_, index) => ({
-    id: `page-${index}`,
-    normalizedDomain: `page-${index}.com`,
-    slug: `page-${index}`,
-    displayName: null,
-  }));
-  let offset = 0;
-  const query = {
-    from: () => query,
-    where: () => query,
-    orderBy: () => query,
-    limit: async (size: number) => {
-      const rows = pages.slice(offset, offset + size);
-      offset += size;
-      return rows;
-    },
-  };
-  return { db: { select: () => query } as unknown as Database, pages };
-}
-
-describe("weekly history registry reads", () => {
-  it("visits the full registry with at most 20 concurrent page reads", async () => {
-    const { db, pages } = registry();
-    let active = 0;
-    let maximum = 0;
-    const getWeeklyHistory = vi.fn(async (_domain: string, pageId: string) => {
-      active++;
-      maximum = Math.max(maximum, active);
-      await Promise.resolve();
-      active--;
-      return {
-        observations: [
-          {
-            pageId,
-            runId: pageId,
-            rubricId: "v4",
-            model: "jev-1.13.0",
-            capturedAt: new Date("2026-09-17"),
-            contentKey: pageId,
-            contentSha256: pageId,
-            choices: [],
-            signals: [],
-          },
-        ],
-        comparisons: [],
-      };
-    });
-    const result = await readWeeklyHistory(db, { getWeeklyHistory }, new Date("2026-09-21"));
-    expect(result.observations).toHaveLength(pages.length);
-    expect(result.observations.at(-1)?.name).toBe("page-44.com");
-    expect(getWeeklyHistory).toHaveBeenCalledTimes(pages.length);
-    expect(maximum).toBe(20);
+describe("D1 weekly history queries", () => {
+  it("selects the latest capture for each page and week before returning the corpus", async () => {
+    const { sqlite, repo, db } = historyDatabase();
+    try {
+      await repo.archive(archiveInput("before", Date.parse("2026-09-10")));
+      for (let i = 0; i < 125; i++)
+        await repo.archive(
+          archiveInput(`after-${String(i).padStart(3, "0")}`, Date.parse("2026-09-17") + i),
+        );
+      const other = archiveInput("other-before", Date.parse("2026-09-10"));
+      other.pageId = "other";
+      await repo.archive(other);
+      const latest = archiveInput("other-after", Date.parse("2026-09-17"));
+      latest.pageId = "other";
+      await repo.archive(latest);
+      for (const pageId of ["page", "other"])
+        await repo.writeImport(pageId, {
+          sourceIdentity: pageId,
+          checkpoint: null,
+          expectedCount: 0,
+          importedCount: 0,
+          ready: true,
+        });
+      const result = await readWeeklyHistory(db, new Date("2026-09-21"));
+      expect(result.observations.map((row) => row.runId).sort()).toEqual([
+        "after-124",
+        "before",
+        "other-after",
+        "other-before",
+      ]);
+      expect(result.observations.every((row) => Boolean(row.analysisId))).toBe(true);
+    } finally {
+      sqlite.close();
+    }
   });
 
-  it("does not publish partial coverage when one DO cannot be read", async () => {
-    const { db } = registry();
-    await expect(
-      readWeeklyHistory(db, {
-        getWeeklyHistory: async () => {
-          throw new Error("Unavailable");
-        },
-      }),
-    ).rejects.toThrow("Unavailable");
+  it("rejects incomplete corpus reads and never returns partial coverage", async () => {
+    const { sqlite, repo, db } = historyDatabase();
+    try {
+      await repo.archive(archiveInput());
+      await expect(readWeeklyHistory(db)).rejects.toThrow("not ready");
+      await repo.writeImport("page", {
+        sourceIdentity: "page",
+        checkpoint: null,
+        expectedCount: 0,
+        importedCount: 0,
+        ready: true,
+      });
+      expect((await readWeeklyHistory(db)).observations).toEqual([]);
+    } finally {
+      sqlite.close();
+    }
   });
 });
