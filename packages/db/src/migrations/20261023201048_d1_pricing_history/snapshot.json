@@ -1,0 +1,1884 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "40258af7-bbe9-4a83-b2f9-4362e3de97c6",
+  "prevIds": ["7526a29b-a9df-4178-86d8-bb8193b300b1"],
+  "ddl": [
+    {
+      "name": "account",
+      "entityType": "tables"
+    },
+    {
+      "name": "session",
+      "entityType": "tables"
+    },
+    {
+      "name": "user",
+      "entityType": "tables"
+    },
+    {
+      "name": "verification",
+      "entityType": "tables"
+    },
+    {
+      "name": "benchmark_snapshot",
+      "entityType": "tables"
+    },
+    {
+      "name": "page",
+      "entityType": "tables"
+    },
+    {
+      "name": "page_owner_state",
+      "entityType": "tables"
+    },
+    {
+      "name": "page_public_summary",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_analysis",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_answers",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_capture",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_comparison",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_import",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_rubric",
+      "entityType": "tables"
+    },
+    {
+      "name": "history_run",
+      "entityType": "tables"
+    },
+    {
+      "name": "waitlist_entry",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "provider_id",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access_token",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refresh_token",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id_token",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "access_token_expires_at",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "refresh_token_expires_at",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scope",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ip_address",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_agent",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "session"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "email_verified",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "image",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "identifier",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "verification"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "rubric_id",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cohort",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "computed_at",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_count",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "numeric_prices_json",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "choice_shares_json",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "signal_counts_json",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "signal_shares_json",
+      "entityType": "columns",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "owner_user_id",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_domain",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "canonical_url",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "slug",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "display_name",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "description",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'pending'",
+      "generated": null,
+      "name": "state",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "page"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "active_run_id",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_run_id",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "last_run_created_at",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_run_status",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "next_scan_at",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "page_owner_state"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "analysis_id",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "rubric_id",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "model",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "numeric_prices_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "pricing_facts_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "snapshot_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "review_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "choices_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "signals_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "tags_json",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "browser_engine",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "scanned_at",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "page_public_summary"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "idempotency_key",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "rubric_id",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "model",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "envelope_json",
+      "entityType": "columns",
+      "table": "history_analysis"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_answers"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "history_answers"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "rubric_id",
+      "entityType": "columns",
+      "table": "history_answers"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "values_json",
+      "entityType": "columns",
+      "table": "history_answers"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "captured_at",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "content_sha256",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "manifest_json",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "metadata_json",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "selected_analysis_id",
+      "entityType": "columns",
+      "table": "history_capture"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "before_run_id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "after_run_id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "before_analysis_id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "after_analysis_id",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "verifier_version",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "payload_json",
+      "entityType": "columns",
+      "table": "history_comparison"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_identity",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "checkpoint",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expected_count",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "imported_count",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "ready",
+      "entityType": "columns",
+      "table": "history_import"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_rubric"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "history_rubric"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "document_json",
+      "entityType": "columns",
+      "table": "history_rubric"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "page_id",
+      "entityType": "columns",
+      "table": "history_run"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "history_run"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "history_run"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "history_run"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "payload_json",
+      "entityType": "columns",
+      "table": "history_run"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "waitlist_entry"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "waitlist_entry"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "waitlist_entry"
+    },
+    {
+      "columns": ["user_id"],
+      "tableTo": "user",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_account_user_id_user_id_fk",
+      "entityType": "fks",
+      "table": "account"
+    },
+    {
+      "columns": ["user_id"],
+      "tableTo": "user",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_session_user_id_user_id_fk",
+      "entityType": "fks",
+      "table": "session"
+    },
+    {
+      "columns": ["owner_user_id"],
+      "tableTo": "user",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_page_owner_user_id_user_id_fk",
+      "entityType": "fks",
+      "table": "page"
+    },
+    {
+      "columns": ["page_id"],
+      "tableTo": "page",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_page_owner_state_page_id_page_id_fk",
+      "entityType": "fks",
+      "table": "page_owner_state"
+    },
+    {
+      "columns": ["page_id"],
+      "tableTo": "page",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_page_public_summary_page_id_page_id_fk",
+      "entityType": "fks",
+      "table": "page_public_summary"
+    },
+    {
+      "columns": ["page_id", "run_id"],
+      "tableTo": "history_capture",
+      "columnsTo": ["page_id", "run_id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_analysis_page_id_run_id_history_capture_page_id_run_id_fk",
+      "entityType": "fks",
+      "table": "history_analysis"
+    },
+    {
+      "columns": ["page_id", "rubric_id"],
+      "tableTo": "history_rubric",
+      "columnsTo": ["page_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_analysis_page_id_rubric_id_history_rubric_page_id_id_fk",
+      "entityType": "fks",
+      "table": "history_analysis"
+    },
+    {
+      "columns": ["page_id", "run_id"],
+      "tableTo": "history_capture",
+      "columnsTo": ["page_id", "run_id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_answers_page_id_run_id_history_capture_page_id_run_id_fk",
+      "entityType": "fks",
+      "table": "history_answers"
+    },
+    {
+      "columns": ["page_id", "rubric_id"],
+      "tableTo": "history_rubric",
+      "columnsTo": ["page_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_answers_page_id_rubric_id_history_rubric_page_id_id_fk",
+      "entityType": "fks",
+      "table": "history_answers"
+    },
+    {
+      "columns": ["page_id", "run_id"],
+      "tableTo": "history_run",
+      "columnsTo": ["page_id", "run_id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_capture_page_id_run_id_history_run_page_id_run_id_fk",
+      "entityType": "fks",
+      "table": "history_capture"
+    },
+    {
+      "columns": ["page_id", "before_analysis_id"],
+      "tableTo": "history_analysis",
+      "columnsTo": ["page_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_comparison_page_id_before_analysis_id_history_analysis_page_id_id_fk",
+      "entityType": "fks",
+      "table": "history_comparison"
+    },
+    {
+      "columns": ["page_id", "after_analysis_id"],
+      "tableTo": "history_analysis",
+      "columnsTo": ["page_id", "id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_comparison_page_id_after_analysis_id_history_analysis_page_id_id_fk",
+      "entityType": "fks",
+      "table": "history_comparison"
+    },
+    {
+      "columns": ["page_id"],
+      "tableTo": "page",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_import_page_id_page_id_fk",
+      "entityType": "fks",
+      "table": "history_import"
+    },
+    {
+      "columns": ["page_id"],
+      "tableTo": "page",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_rubric_page_id_page_id_fk",
+      "entityType": "fks",
+      "table": "history_rubric"
+    },
+    {
+      "columns": ["page_id"],
+      "tableTo": "page",
+      "columnsTo": ["id"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_history_run_page_id_page_id_fk",
+      "entityType": "fks",
+      "table": "history_run"
+    },
+    {
+      "columns": ["page_id", "id"],
+      "nameExplicit": false,
+      "name": "history_analysis_pk",
+      "entityType": "pks",
+      "table": "history_analysis"
+    },
+    {
+      "columns": ["page_id", "run_id", "rubric_id"],
+      "nameExplicit": false,
+      "name": "history_answers_pk",
+      "entityType": "pks",
+      "table": "history_answers"
+    },
+    {
+      "columns": ["page_id", "run_id"],
+      "nameExplicit": false,
+      "name": "history_capture_pk",
+      "entityType": "pks",
+      "table": "history_capture"
+    },
+    {
+      "columns": ["page_id", "id"],
+      "nameExplicit": false,
+      "name": "history_comparison_pk",
+      "entityType": "pks",
+      "table": "history_comparison"
+    },
+    {
+      "columns": ["page_id", "id"],
+      "nameExplicit": false,
+      "name": "history_rubric_pk",
+      "entityType": "pks",
+      "table": "history_rubric"
+    },
+    {
+      "columns": ["page_id", "run_id"],
+      "nameExplicit": false,
+      "name": "history_run_pk",
+      "entityType": "pks",
+      "table": "history_run"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "account_pk",
+      "table": "account",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "session_pk",
+      "table": "session",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "user_pk",
+      "table": "user",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "verification_pk",
+      "table": "verification",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "benchmark_snapshot_pk",
+      "table": "benchmark_snapshot",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "page_pk",
+      "table": "page",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["page_id"],
+      "nameExplicit": false,
+      "name": "page_owner_state_pk",
+      "table": "page_owner_state",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["page_id"],
+      "nameExplicit": false,
+      "name": "page_public_summary_pk",
+      "table": "page_public_summary",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["page_id"],
+      "nameExplicit": false,
+      "name": "history_import_pk",
+      "table": "history_import",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["id"],
+      "nameExplicit": false,
+      "name": "waitlist_entry_pk",
+      "table": "waitlist_entry",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "account_userId_idx",
+      "entityType": "indexes",
+      "table": "account"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "session_userId_idx",
+      "entityType": "indexes",
+      "table": "session"
+    },
+    {
+      "columns": [
+        {
+          "value": "identifier",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "verification_identifier_idx",
+      "entityType": "indexes",
+      "table": "verification"
+    },
+    {
+      "columns": [
+        {
+          "value": "rubric_id",
+          "isExpression": false
+        },
+        {
+          "value": "cohort",
+          "isExpression": false
+        },
+        {
+          "value": "computed_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "benchmark_snapshot_rubric_cohort_computed_at_idx",
+      "entityType": "indexes",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "columns": [
+        {
+          "value": "computed_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "benchmark_snapshot_computed_at_idx",
+      "entityType": "indexes",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "columns": [
+        {
+          "value": "owner_user_id",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "page_owner_created_at_idx",
+      "entityType": "indexes",
+      "table": "page"
+    },
+    {
+      "columns": [
+        {
+          "value": "state",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "page_state_created_at_idx",
+      "entityType": "indexes",
+      "table": "page"
+    },
+    {
+      "columns": [
+        {
+          "value": "scanned_at",
+          "isExpression": false
+        },
+        {
+          "value": "page_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "page_public_summary_scanned_at_idx",
+      "entityType": "indexes",
+      "table": "page_public_summary"
+    },
+    {
+      "columns": [
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "run_id",
+          "isExpression": false
+        },
+        {
+          "value": "idempotency_key",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "history_analysis_idempotency_idx",
+      "entityType": "indexes",
+      "table": "history_analysis"
+    },
+    {
+      "columns": [
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "run_id",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        },
+        {
+          "value": "id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "history_analysis_capture_idx",
+      "entityType": "indexes",
+      "table": "history_analysis"
+    },
+    {
+      "columns": [
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "captured_at",
+          "isExpression": false
+        },
+        {
+          "value": "run_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "history_capture_order_idx",
+      "entityType": "indexes",
+      "table": "history_capture"
+    },
+    {
+      "columns": [
+        {
+          "value": "captured_at",
+          "isExpression": false
+        },
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "run_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "history_capture_week_idx",
+      "entityType": "indexes",
+      "table": "history_capture"
+    },
+    {
+      "columns": [
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "before_analysis_id",
+          "isExpression": false
+        },
+        {
+          "value": "after_analysis_id",
+          "isExpression": false
+        },
+        {
+          "value": "verifier_version",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "history_comparison_pair_idx",
+      "entityType": "indexes",
+      "table": "history_comparison"
+    },
+    {
+      "columns": [
+        {
+          "value": "page_id",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        },
+        {
+          "value": "run_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "history_run_order_idx",
+      "entityType": "indexes",
+      "table": "history_run"
+    },
+    {
+      "columns": ["token"],
+      "nameExplicit": false,
+      "name": "session_token_unique",
+      "entityType": "uniques",
+      "table": "session"
+    },
+    {
+      "columns": ["email"],
+      "nameExplicit": false,
+      "name": "user_email_unique",
+      "entityType": "uniques",
+      "table": "user"
+    },
+    {
+      "columns": ["normalized_domain"],
+      "nameExplicit": false,
+      "name": "page_normalized_domain_unique",
+      "entityType": "uniques",
+      "table": "page"
+    },
+    {
+      "columns": ["slug"],
+      "nameExplicit": false,
+      "name": "page_slug_unique",
+      "entityType": "uniques",
+      "table": "page"
+    },
+    {
+      "columns": ["run_id"],
+      "nameExplicit": false,
+      "name": "page_public_summary_run_id_unique",
+      "entityType": "uniques",
+      "table": "page_public_summary"
+    },
+    {
+      "columns": ["email"],
+      "nameExplicit": false,
+      "name": "waitlist_entry_email_unique",
+      "entityType": "uniques",
+      "table": "waitlist_entry"
+    },
+    {
+      "value": "\"page_count\" >= 0",
+      "name": "benchmark_snapshot_page_count_check",
+      "entityType": "checks",
+      "table": "benchmark_snapshot"
+    },
+    {
+      "value": "\"state\" in ('pending', 'active')",
+      "name": "page_state_check",
+      "entityType": "checks",
+      "table": "page"
+    },
+    {
+      "value": "\"before_run_id\" != \"after_run_id\"",
+      "name": "history_comparison_distinct_capture",
+      "entityType": "checks",
+      "table": "history_comparison"
+    },
+    {
+      "value": "\"status\" in ('succeeded', 'failed')",
+      "name": "history_run_terminal",
+      "entityType": "checks",
+      "table": "history_run"
+    },
+    {
+      "value": "\"email\" = lower(trim(\"email\"))",
+      "name": "waitlist_entry_email_normalized",
+      "entityType": "checks",
+      "table": "waitlist_entry"
+    }
+  ],
+  "renames": []
+}

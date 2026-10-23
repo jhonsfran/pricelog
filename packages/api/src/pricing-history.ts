@@ -17,6 +17,7 @@ export type VerifiedPricingChange = {
 };
 
 export type StoredObservation = {
+  analysisId?: string;
   runId: string;
   pageId: string;
   rubricId: string;
@@ -31,6 +32,8 @@ export type StoredObservation = {
 };
 export type Observation = StoredObservation & { slug: string; name: string };
 export type Comparison = {
+  beforeAnalysisId?: string;
+  afterAnalysisId?: string;
   id: string;
   beforeRunId: string;
   afterRunId: string;
@@ -133,6 +136,18 @@ export function sourceUrl(pageId: string, runId: string) {
   return `/api/public/pages/${encodeURIComponent(pageId)}/runs/${encodeURIComponent(runId)}/source`;
 }
 
+export function comparisonPairKey(
+  before: Pick<StoredObservation, "runId" | "analysisId">,
+  after: Pick<StoredObservation, "runId" | "analysisId">,
+) {
+  return JSON.stringify([
+    before.runId,
+    after.runId,
+    before.analysisId ?? null,
+    after.analysisId ?? null,
+  ]);
+}
+
 export function buildWeeklyReport(
   observations: Observation[],
   comparisons: Comparison[],
@@ -143,13 +158,19 @@ export function buildWeeklyReport(
   const byPair = new Map(
     comparisons
       .filter((row) => row.verifierVersion === COMPARISON_VERSION)
-      .map((row) => [`${row.beforeRunId}:${row.afterRunId}`, row]),
+      .map((row) => [
+        comparisonPairKey(
+          { runId: row.beforeRunId, analysisId: row.beforeAnalysisId },
+          { runId: row.afterRunId, analysisId: row.afterAnalysisId },
+        ),
+        row,
+      ]),
   );
   let reviewedPages = 0;
   let verifiedPages = 0;
   let changedPages = 0;
   const items = pairs.flatMap(({ before, after }) => {
-    const comparison = byPair.get(`${before.runId}:${after.runId}`);
+    const comparison = byPair.get(comparisonPairKey(before, after));
     if (comparison?.status === "reviewed") reviewedPages++;
     if (!comparison) return [];
     if (comparison.changes.length > 0) changedPages++;
