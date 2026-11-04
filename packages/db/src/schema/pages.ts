@@ -56,6 +56,7 @@ export const pagePublicSummary = sqliteTable(
       .primaryKey()
       .references(() => page.id, { onDelete: "cascade" }),
     runId: text("run_id").notNull().unique(),
+    analysisId: text("analysis_id"),
     rubricId: text("rubric_id").notNull(),
     model: text("model").notNull(),
     numericPrices: text("numeric_prices_json", { mode: "json" }).$type<NumericPrices>(),

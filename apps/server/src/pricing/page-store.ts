@@ -1,21 +1,30 @@
 import { createDb } from "@pricelog/db";
-import type { ScanPipelineStage } from "@pricelog/db/scan-stage";
-import { publishPageProjection, type PagePublication } from "./publication";
-import { planCountSql } from "@pricelog/db/pricing-snapshot-count";
 import {
-  COMPARISON_VERSION,
-  completedWeeks,
-  type Comparison,
-  type StoredObservation,
-  type WeeklyPageHistory,
-} from "@pricelog/api/pricing-history";
+  createPricingHistoryRepository,
+  HistoryNotReadyError,
+} from "@pricelog/api/pricing-history-repository";
+import {
+  HISTORY_IMPORT_KEY,
+  IMPORT_RECORD_LIMIT,
+  PUBLICATION_PREFIX,
+  TERMINAL_ARCHIVE_PREFIX,
+  WORKSPACE_RUN_PREFIX,
+  archiveFromWorkspace,
+  exportLegacyBatch,
+  legacySourceCount,
+  type ImportProgress,
+} from "./legacy-history";
+import type { TerminalArchive } from "@pricelog/db/history-types";
+import type { ScanPipelineStage } from "@pricelog/db/scan-stage";
+import { type PagePublication } from "./publication";
+import { type Comparison, type WeeklyPageHistory } from "@pricelog/api/pricing-history";
 import type { PublicEvaluation } from "./evaluation";
 import type { PublishedSnapshot, SnapshotReview } from "@pricelog/db/pricing-snapshot";
 import { DurableObject } from "cloudflare:workers";
 import type { DescendingTimestampCursor } from "@pricelog/api/pagination";
 import { descendingCursorCondition } from "@pricelog/api/pagination";
 import type { PublicVersionSummary } from "@pricelog/api/page-versions";
-import { and, desc, eq, gte, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { drizzle, type DrizzleSqliteDODatabase } from "drizzle-orm/durable-sqlite";
 import { migrate } from "drizzle-orm/durable-sqlite/migrator";
 
@@ -23,7 +32,6 @@ import migrations from "./drizzle/migrations.js";
 import {
   answer,
   versionEvaluation,
-  versionComparison,
   pageConfig,
   pageVersion,
   question,
@@ -66,7 +74,6 @@ export type RunPage = {
 
 type StoreDb = DrizzleSqliteDODatabase;
 type PendingPublication = Omit<PagePublication, "nextScanAt" | "runCreatedAt">;
-const PUBLICATION_PREFIX = "publication:";
 const PUBLICATION_RETRY_MS = 60_000;
 
 export class PageStore extends DurableObject<PageStoreEnv> {
@@ -109,12 +116,9 @@ export class PageStore extends DurableObject<PageStoreEnv> {
       throw new Error("PageStore is already initialized for a different page");
     }
 
-    const [existingRun] = await this.db
-      .select()
-      .from(scanRun)
-      .orderBy(desc(scanRun.createdAt), desc(scanRun.id))
-      .limit(1);
-    return existingRun ? toRunDto(existingRun) : this.startRun("initial", input.requestedByUserId);
+    await this.ensureHistoryReady();
+    const existing = await this.listRuns(1);
+    return existing.items[0] ?? this.startRun("initial", input.requestedByUserId);
   }
 
   triggerManual(requestedByUserId: string): Promise<PageRunDto> {
@@ -123,44 +127,57 @@ export class PageStore extends DurableObject<PageStoreEnv> {
 
   async listRuns(limit = 50, cursor?: DescendingTimestampCursor): Promise<RunPage> {
     const safeLimit = Math.max(1, Math.min(limit, 100));
-    const rows = await this.db
+    const local = this.db
       .select()
       .from(scanRun)
-      .where(
-        cursor === undefined
-          ? undefined
-          : descendingCursorCondition(scanRun.createdAt, scanRun.id, cursor),
-      )
+      .where(cursor ? descendingCursorCondition(scanRun.createdAt, scanRun.id, cursor) : undefined)
       .orderBy(desc(scanRun.createdAt), desc(scanRun.id))
-      .limit(safeLimit + 1);
-    const hasMore = rows.length > safeLimit;
-    const items = rows.slice(0, safeLimit).map(toRunDto);
+      .limit(safeLimit + 1)
+      .all()
+      .map(toRunDto);
+    const ready = this.ctx.storage.kv.get<ImportProgress>(HISTORY_IMPORT_KEY)?.ready;
+    if (!ready) {
+      const items = local.slice(0, safeLimit);
+      const last = items.at(-1);
+      return {
+        items,
+        nextCursor:
+          local.length > safeLimit && last ? { createdAt: last.createdAt, id: last.id } : null,
+      };
+    }
+    const archived = await this.history().listRuns(this.config().pageId, safeLimit + 1, cursor);
+    const unique = new Map(archived.items.map((row) => [row.id, row]));
+    for (const row of local) unique.set(row.id, row);
+    const rows = [...unique.values()].sort(
+      (a, b) => b.createdAt - a.createdAt || (a.id === b.id ? 0 : a.id < b.id ? 1 : -1),
+    );
+    const items = rows.slice(0, safeLimit);
+    const last = items.at(-1);
     return {
       items,
-      nextCursor: hasMore
-        ? (() => {
-            const last = items.at(-1);
-            return last ? { createdAt: last.createdAt, id: last.id } : null;
-          })()
-        : null,
+      nextCursor:
+        last && (rows.length > safeLimit || archived.nextCursor !== null)
+          ? { createdAt: last.createdAt, id: last.id }
+          : null,
     };
   }
 
   async getRun(runId: string): Promise<PageRunDto | null> {
-    const [row] = await this.db.select().from(scanRun).where(eq(scanRun.id, runId)).limit(1);
-    return row ? toRunDto(row) : null;
+    const row = this.db.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+    if (row) return toRunDto(row);
+    await this.ensureHistoryReady();
+    return this.history().getRun(this.config().pageId, runId);
   }
 
   async getArtifact(runId: string, kind: ArtifactKind): Promise<ArtifactReference | null> {
-    const [version] = await this.db
-      .select()
-      .from(pageVersion)
-      .where(eq(pageVersion.runId, runId))
-      .limit(1);
-    return version ? artifactReference(version, kind) : null;
+    const version = this.db.select().from(pageVersion).where(eq(pageVersion.runId, runId)).get();
+    if (version) return artifactReference(version, kind);
+    await this.ensureHistoryReady();
+    return this.history().getArtifact(this.config().pageId, runId, kind);
   }
 
   async markRunning(runId: string, stage: RunStage = "capture"): Promise<void> {
+    await this.ensureHistoryReady();
     const now = Date.now();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
@@ -179,6 +196,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async setStage(runId: string, stage: ScanPipelineStage): Promise<void> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
       if (!run || !["queued", "running"].includes(run.status) || run.stage === stage) return;
@@ -190,9 +208,10 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async recordEvent(runId: string, event: Omit<RunEvent, "at">): Promise<void> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
-      if (!run || run.status === "failed") return;
+      if (!run || (run.status !== "queued" && run.status !== "running")) return;
       tx.update(scanRun)
         .set({ events: [...run.events, { ...event, at: Date.now() }] })
         .where(eq(scanRun.id, runId))
@@ -201,6 +220,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async persistVersion(runId: string, manifest: ArtifactManifest): Promise<string> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
       if (!run || run.status === "failed")
@@ -238,6 +258,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async persistAnswers(runId: string, rubricId: string, values: JevAnswer[]): Promise<void> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
       if (!run || run.status === "failed")
@@ -271,6 +292,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     runId: string,
     input: PublicEvaluation & { rubricId: string; model: string },
   ): Promise<void> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
       if (!run || run.status === "failed") throw new Error(`Cannot evaluate run ${runId}`);
@@ -286,246 +308,164 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     });
   }
 
-  /** The latest succeeded evaluation, when this capture has the same content, rubric and pipeline. */
+  private history() {
+    return createPricingHistoryRepository(createDb({ DB: this.env.DB }));
+  }
+
+  private config() {
+    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
+    if (!config) throw new Error("PageStore is not initialized");
+    return config;
+  }
+
+  private migration: Promise<ImportProgress> | undefined;
+
+  migrateHistory(
+    recordLimit = IMPORT_RECORD_LIMIT,
+    identity?: Pick<InitializePageInput, "pageId" | "normalizedDomain" | "canonicalUrl">,
+  ): Promise<ImportProgress> {
+    if (identity) {
+      this.db
+        .insert(pageConfig)
+        .values({ id: 1, ...identity })
+        .onConflictDoNothing()
+        .run();
+      this.db.insert(schedulerState).values({ id: 1 }).onConflictDoNothing().run();
+      const config = this.config();
+      if (
+        config.pageId !== identity.pageId ||
+        config.normalizedDomain !== identity.normalizedDomain ||
+        config.canonicalUrl !== identity.canonicalUrl
+      )
+        throw new Error("History import identity does not belong to this page");
+    }
+    if (!this.migration)
+      this.migration = this.importHistory(recordLimit).finally(() => {
+        this.migration = undefined;
+      });
+    return this.migration;
+  }
+
+  private async importHistory(recordLimit: number): Promise<ImportProgress> {
+    const { pageId } = this.config();
+    const existing = this.ctx.storage.kv.get<ImportProgress>(HISTORY_IMPORT_KEY);
+    let progress: ImportProgress = existing ?? {
+      sourceIdentity: crypto.randomUUID(),
+      checkpoint: null,
+      expectedCount: legacySourceCount(this.db),
+      importedCount: 0,
+      ready: false,
+    };
+    if (!existing) this.ctx.storage.kv.put(HISTORY_IMPORT_KEY, progress);
+    if (progress.ready) return progress;
+    const repository = this.history();
+    const batch = exportLegacyBatch(
+      this.db,
+      pageId,
+      progress,
+      (runId) => this.ctx.storage.kv.get<PendingPublication>(`${PUBLICATION_PREFIX}${runId}`),
+      recordLimit,
+    );
+    for (const record of batch.records) {
+      if (record.kind === "rubric") await repository.importRubric(pageId, record.rubric);
+      else if (record.kind === "run") await repository.archive(record.archive);
+      else await repository.persistComparison(pageId, record.comparison);
+      const next: ImportProgress = {
+        ...progress,
+        checkpoint: record.key,
+        importedCount: progress.importedCount + 1,
+      };
+      await repository.writeImport(pageId, next);
+      this.ctx.storage.kv.put(HISTORY_IMPORT_KEY, next);
+      if (record.kind === "run")
+        this.ctx.storage.kv.delete(`${PUBLICATION_PREFIX}${record.archive.run.id}`);
+      progress = next;
+    }
+    if (progress.importedCount === progress.expectedCount) {
+      if (legacySourceCount(this.db) !== progress.expectedCount)
+        throw new Error("Legacy source changed during import");
+      const remaining = exportLegacyBatch(this.db, pageId, progress, () => undefined, 1);
+      if (remaining.records.length)
+        throw new Error("Legacy source identities do not match the import checkpoint");
+      progress = { ...progress, ready: true };
+      await repository.writeImport(pageId, progress);
+      this.ctx.storage.kv.put(HISTORY_IMPORT_KEY, progress);
+    }
+    return progress;
+  }
+
+  private async ensureHistoryReady() {
+    const progress = await this.migrateHistory();
+    if (!progress.ready) throw new HistoryNotReadyError(this.config().pageId);
+  }
+
   async findReusableEvaluation(
     runId: string,
     contentSha256: string,
     rubricId: string,
     pipeline: string,
   ): Promise<ReusableEvaluation | null> {
-    const previous = this.db
-      .select({ version: pageVersion, stored: versionEvaluation })
-      .from(scanRun)
-      .innerJoin(pageVersion, eq(pageVersion.runId, scanRun.id))
-      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
-      .where(and(eq(scanRun.status, "succeeded"), ne(scanRun.id, runId)))
-      .orderBy(desc(scanRun.createdAt))
-      .limit(1)
-      .get();
-    const snapshot = previous?.stored.evaluation.snapshot;
-    if (
-      !previous ||
-      previous.version.contentSha256 !== contentSha256 ||
-      previous.stored.rubricId !== rubricId ||
-      previous.stored.evaluation.pipeline !== pipeline ||
-      snapshot?.status !== "collected"
-    )
-      return null;
-    const rows = this.db
-      .select()
-      .from(answer)
-      .where(and(eq(answer.versionId, previous.version.id), eq(answer.questionSetId, rubricId)))
-      .all();
-    return {
-      runId: previous.version.runId,
+    await this.ensureHistoryReady();
+    return this.history().findReusableEvaluation(
+      this.config().pageId,
+      runId,
+      contentSha256,
       rubricId,
-      model: previous.stored.model,
-      evaluation: {
-        ...previous.stored.evaluation,
-        snapshot,
-        review: previous.stored.evaluation.review ?? [],
-      },
-      answers: rows.map(fromStoredAnswer),
-    };
-  }
-
-  async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
-    const row = this.publishedVersion(pageId, runId);
-    return row ? artifactReference(row.version, "content") : null;
-  }
-
-  /** The screenshot of a published version, under the same rule as its archived text. */
-  async getPublicScreenshot(pageId: string, runId: string): Promise<ArtifactReference | null> {
-    const row = this.publishedVersion(pageId, runId);
-    return row ? artifactReference(row.version, "screenshot") : null;
-  }
-
-  /** Published versions, newest first, each marked by whether its text differs from the one before. */
-  async listPublicVersions(pageId: string, limit = 100): Promise<PublicVersionSummary[]> {
-    if (!this.ownsPage(pageId)) return [];
-    const rows = this.db
-      .select({
-        runId: pageVersion.runId,
-        capturedAt: pageVersion.capturedAt,
-        contentSha256: pageVersion.contentSha256,
-        plans: planCountSql(sql`json_extract(${versionEvaluation.evaluation}, '$.snapshot')`),
-      })
-      .from(pageVersion)
-      .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
-      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
-      .where(eq(scanRun.status, "succeeded"))
-      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
-      .limit(limit + 1)
-      .all();
-    return rows.slice(0, limit).map((row, index) => {
-      const previous = rows[index + 1];
-      return {
-        runId: row.runId,
-        capturedAt: row.capturedAt,
-        textChanged: previous ? previous.contentSha256 !== row.contentSha256 : null,
-        plans: row.plans ?? 0,
-      };
-    });
-  }
-
-  /** The version rail and its latest published version in one RPC. */
-  async getPublicPage(pageId: string) {
-    const versions = await this.listPublicVersions(pageId);
-    const latest = versions[0];
-    const version = latest ? await this.getPublicVersion(pageId, latest.runId) : null;
-    return { versions, version };
-  }
-
-  /** One published version with the version before it, so the caller can verify what changed. */
-  async getPublicVersion(pageId: string, runId: string): Promise<StoredPublicVersion | null> {
-    const row = this.publishedVersion(pageId, runId);
-    if (!row) return null;
-    const { version, evaluated } = row;
-    const before = this.publishedVersions()
-      .where(
-        and(
-          eq(scanRun.status, "succeeded"),
-          or(
-            lt(pageVersion.capturedAt, version.capturedAt),
-            and(
-              eq(pageVersion.capturedAt, version.capturedAt),
-              lt(pageVersion.runId, version.runId),
-            ),
-          ),
-        ),
-      )
-      .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
-      .limit(1)
-      .get();
-    const { choices, signals, tags, snapshot, numericPrices } = evaluated.evaluation;
-    return {
-      runId: version.runId,
-      capturedAt: version.capturedAt,
-      title: version.title,
-      finalUrl: version.finalUrl,
-      rubricId: evaluated.rubricId,
-      model: evaluated.model,
-      choices,
-      signals,
-      tags,
-      snapshot: snapshot ?? null,
-      // Decision history stays with the page version, as in the published summary.
-      numericPrices: numericPrices ? { ...numericPrices, audit: undefined } : null,
-      contentKey: version.contentKey,
-      previous: before
-        ? {
-            runId: before.version.runId,
-            capturedAt: before.version.capturedAt,
-            contentKey: before.version.contentKey,
-            model: before.evaluated.model,
-            snapshot: before.evaluated.evaluation.snapshot ?? null,
-          }
-        : null,
-    };
-  }
-
-  private ownsPage(pageId: string) {
-    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
-    return config?.pageId === pageId;
-  }
-
-  /** A version is public once its run succeeded with an evaluation, the rule for every public read. */
-  private publishedVersions() {
-    return this.db
-      .select({ version: pageVersion, evaluated: versionEvaluation })
-      .from(pageVersion)
-      .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
-      .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id));
-  }
-
-  private publishedVersion(pageId: string, runId: string) {
-    if (!this.ownsPage(pageId)) return null;
-    return (
-      this.publishedVersions()
-        .where(and(eq(scanRun.id, runId), eq(scanRun.status, "succeeded")))
-        .get() ?? null
+      pipeline,
     );
   }
 
+  async getPublicSource(pageId: string, runId: string): Promise<ArtifactReference | null> {
+    await this.ensureHistoryReady();
+    return this.config().pageId === pageId
+      ? this.history().getArtifact(pageId, runId, "content", true)
+      : null;
+  }
+
+  async getPublicScreenshot(pageId: string, runId: string): Promise<ArtifactReference | null> {
+    await this.ensureHistoryReady();
+    return this.config().pageId === pageId
+      ? this.history().getArtifact(pageId, runId, "screenshot", true)
+      : null;
+  }
+
+  async listPublicVersions(pageId: string, limit = 100): Promise<PublicVersionSummary[]> {
+    await this.ensureHistoryReady();
+    return this.config().pageId === pageId ? this.history().listPublicVersions(pageId, limit) : [];
+  }
+
+  async getPublicPage(pageId: string) {
+    await this.ensureHistoryReady();
+    return this.config().pageId === pageId
+      ? this.history().getPublicPage(pageId)
+      : { versions: [], version: null };
+  }
+
+  async getPublicVersion(pageId: string, runId: string): Promise<StoredPublicVersion | null> {
+    await this.ensureHistoryReady();
+    return this.config().pageId === pageId ? this.history().getPublicVersion(pageId, runId) : null;
+  }
+
   async getWeeklyHistory(pageId: string, now: number): Promise<WeeklyPageHistory> {
-    const config = this.db.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
-    if (config?.pageId !== pageId) throw new Error("PageStore does not own this page");
-    const { previousPeriodStart, periodStart, periodEnd } = completedWeeks(new Date(now));
-    const observations: StoredObservation[] = [];
-    // Each period needs only its latest successful capture. Query both independently;
-    // a page with many manual scans must not hide the preceding week's version.
-    for (const [start, end] of [
-      [previousPeriodStart, periodStart],
-      [periodStart, periodEnd],
-    ] as const) {
-      const row = this.db
-        .select({ version: pageVersion, evaluated: versionEvaluation })
-        .from(pageVersion)
-        .innerJoin(scanRun, eq(scanRun.id, pageVersion.runId))
-        .innerJoin(versionEvaluation, eq(versionEvaluation.runId, scanRun.id))
-        .where(
-          and(
-            eq(scanRun.status, "succeeded"),
-            gte(pageVersion.capturedAt, start.getTime()),
-            lt(pageVersion.capturedAt, end.getTime()),
-          ),
-        )
-        .orderBy(desc(pageVersion.capturedAt), desc(pageVersion.runId))
-        .limit(1)
-        .get();
-      if (row)
-        observations.push({
-          pageId,
-          runId: row.version.runId,
-          rubricId: row.evaluated.rubricId,
-          model: row.evaluated.model,
-          capturedAt: new Date(row.version.capturedAt),
-          contentKey: row.version.contentKey,
-          contentSha256: row.version.contentSha256,
-          choices: row.evaluated.evaluation.choices,
-          signals: row.evaluated.evaluation.signals,
-          snapshot: row.evaluated.evaluation.snapshot ?? null,
-          pipeline: row.evaluated.evaluation.pipeline,
-        });
-    }
-    const before = observations[0];
-    const after = observations[1];
-    const comparisons =
-      before && after
-        ? this.db
-            .select()
-            .from(versionComparison)
-            .where(
-              and(
-                eq(versionComparison.beforeRunId, before.runId),
-                eq(versionComparison.afterRunId, after.runId),
-                eq(versionComparison.verifierVersion, COMPARISON_VERSION),
-              ),
-            )
-            .all()
-        : [];
-    return { observations, comparisons };
+    await this.ensureHistoryReady();
+    if (this.config().pageId !== pageId) throw new Error("PageStore does not own this page");
+    return this.history().getWeeklyHistory(pageId, now);
   }
 
   async persistComparison(pageId: string, comparison: Comparison): Promise<void> {
-    this.db.transaction((tx) => {
-      const config = tx.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
-      if (config?.pageId !== pageId) throw new Error("PageStore does not own this page");
-      for (const runId of [comparison.beforeRunId, comparison.afterRunId]) {
-        const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
-        if (run?.status !== "succeeded") throw new Error(`Run ${runId} is not published`);
-      }
-      tx.insert(versionComparison)
-        .values({
-          ...comparison,
-          id: `${comparison.verifierVersion}:${comparison.beforeRunId}:${comparison.afterRunId}`,
-        })
-        .onConflictDoNothing()
-        .run();
+    await this.ensureHistoryReady();
+    if (this.config().pageId !== pageId) throw new Error("PageStore does not own this page");
+    if (!comparison.beforeAnalysisId || !comparison.afterAnalysisId)
+      throw new Error("Comparison analysis identities are required");
+    await this.history().persistComparison(pageId, {
+      ...comparison,
+      beforeAnalysisId: comparison.beforeAnalysisId,
+      afterAnalysisId: comparison.afterAnalysisId,
     });
   }
 
   async preparePublication(runId: string, input: PendingPublication): Promise<void> {
+    await this.ensureHistoryReady();
     this.db.transaction((tx) => {
       const config = tx.select().from(pageConfig).where(eq(pageConfig.id, 1)).get();
       if (
@@ -564,21 +504,47 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   async publishPending(): Promise<void> {
-    const pending = Array.from(
-      this.ctx.storage.kv.list<PendingPublication>({ prefix: PUBLICATION_PREFIX }),
-    );
+    await this.ensureHistoryReady();
     try {
-      for (const [key, payload] of pending) {
+      for (const [key, payload] of this.ctx.storage.kv.list<PendingPublication>({
+        prefix: PUBLICATION_PREFIX,
+        limit: 10,
+      })) {
         const run = this.db.select().from(scanRun).where(eq(scanRun.id, payload.runId)).get();
-        if (run?.status !== "succeeded") continue;
-        if (run.completedAt === null)
-          throw new Error(`Successful run ${run.id} has no completion time`);
-        await publishPageProjection(createDb({ DB: this.env.DB }), {
-          ...payload,
-          nextScanAt: nextAlarmAt(run.completedAt),
-          runCreatedAt: run.createdAt,
-        });
+        if (
+          !run ||
+          run.status !== "succeeded" ||
+          this.ctx.storage.kv.get(`${TERMINAL_ARCHIVE_PREFIX}${run.id}`)
+        )
+          continue;
+        await this.history().archive(
+          archiveFromWorkspace(
+            this.db,
+            this.config().pageId,
+            { ...run, status: run.status },
+            payload,
+            "legacy",
+          ),
+        );
         this.ctx.storage.kv.delete(key);
+      }
+      const pending = this.ctx.storage.kv.list<TerminalArchive>({
+        prefix: TERMINAL_ARCHIVE_PREFIX,
+        limit: 10,
+      });
+      for (const [key, payload] of pending) {
+        await this.history().archive(payload);
+        this.db.transaction((tx) => {
+          this.ctx.storage.kv.delete(key);
+          this.ctx.storage.kv.delete(`${PUBLICATION_PREFIX}${payload.run.id}`);
+          if (this.ctx.storage.kv.get(`${WORKSPACE_RUN_PREFIX}${payload.run.id}`)) {
+            tx.delete(answer).where(eq(answer.versionId, payload.run.id)).run();
+            tx.delete(versionEvaluation).where(eq(versionEvaluation.runId, payload.run.id)).run();
+            tx.delete(pageVersion).where(eq(pageVersion.runId, payload.run.id)).run();
+            tx.delete(scanRun).where(eq(scanRun.id, payload.run.id)).run();
+            this.ctx.storage.kv.delete(`${WORKSPACE_RUN_PREFIX}${payload.run.id}`);
+          }
+        });
       }
     } finally {
       await this.scheduleNextAlarm();
@@ -586,12 +552,18 @@ export class PageStore extends DurableObject<PageStoreEnv> {
   }
 
   private async scheduleNextAlarm(): Promise<void> {
+    const importing = this.ctx.storage.kv.get<ImportProgress>(HISTORY_IMPORT_KEY)?.ready === false;
+    const hasArchive = !this.ctx.storage.kv
+      .list({ prefix: TERMINAL_ARCHIVE_PREFIX, limit: 1 })
+      [Symbol.iterator]()
+      .next().done;
     const hasPending = !this.ctx.storage.kv
       .list({ prefix: PUBLICATION_PREFIX, limit: 1 })
       [Symbol.iterator]()
       .next().done;
     const state = this.db.select().from(schedulerState).where(eq(schedulerState.id, 1)).get();
-    if (hasPending) await this.ctx.storage.setAlarm(Date.now() + PUBLICATION_RETRY_MS);
+    if (hasPending || hasArchive || importing)
+      await this.ctx.storage.setAlarm(Date.now() + PUBLICATION_RETRY_MS);
     else if (state?.nextScanAt !== null && state?.nextScanAt !== undefined)
       await this.ctx.storage.setAlarm(state.nextScanAt);
     else await this.ctx.storage.deleteAlarm();
@@ -665,6 +637,7 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     trigger: RunTrigger,
     requestedByUserId: string | null,
   ): Promise<PageRunDto> {
+    await this.ensureHistoryReady();
     const active = await this.getActiveRun();
     if (active && !isStalled(active, Date.now())) return active;
     // A deploy or crash can end a workflow without a terminal step; its run would block the page
@@ -705,7 +678,13 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         .orderBy(desc(scanRun.createdAt))
         .limit(1)
         .get();
-      row.createdAt = Math.max(now, (latest?.createdAt ?? 0) + 1);
+      row.createdAt = Math.max(
+        now,
+        (latest?.createdAt ?? 0) + 1,
+        (this.ctx.storage.kv.get<number>("last-run-created-at") ?? 0) + 1,
+      );
+      this.ctx.storage.kv.put("last-run-created-at", row.createdAt);
+      this.ctx.storage.kv.put(`${WORKSPACE_RUN_PREFIX}${runId}`, true);
       tx.insert(scanRun).values(row).run();
       tx.update(schedulerState)
         .set({ activeRunId: runId, nextScanAt: null, updatedAt: row.createdAt })
@@ -763,6 +742,14 @@ export class PageStore extends DurableObject<PageStoreEnv> {
     errorCode: string | null = null,
     errorMessage: string | null = null,
   ): Promise<number> {
+    await this.ensureHistoryReady();
+    const local = this.db.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+    if (!local) {
+      const archived = await this.history().getRun(this.config().pageId, runId);
+      if (!archived) throw new Error(`Unknown scan run ${runId}`);
+      resolveRunCompletion(archived.status, status);
+      return nextAlarmAt(archived.completedAt ?? completedAt);
+    }
     let effectiveCompletedAt = completedAt;
     this.db.transaction((tx) => {
       const run = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
@@ -797,6 +784,17 @@ export class PageStore extends DurableObject<PageStoreEnv> {
         })
         .where(eq(scanRun.id, runId))
         .run();
+      const terminal = tx.select().from(scanRun).where(eq(scanRun.id, runId)).get();
+      if (!terminal || (terminal.status !== "succeeded" && terminal.status !== "failed"))
+        throw new Error("Terminal run is missing");
+      const archive = archiveFromWorkspace(
+        this.db,
+        this.config().pageId,
+        { ...terminal, status: terminal.status },
+        this.ctx.storage.kv.get<PendingPublication>(publicationKey),
+        "scan",
+      );
+      this.ctx.storage.kv.put(`${TERMINAL_ARCHIVE_PREFIX}${runId}`, archive);
       tx.update(schedulerState)
         .set({ activeRunId: null, nextScanAt, updatedAt: completedAt })
         .where(and(eq(schedulerState.id, 1), eq(schedulerState.activeRunId, runId)))
@@ -827,18 +825,6 @@ type ReusableEvaluation = {
   evaluation: PublicEvaluation & { snapshot: PublishedSnapshot; review: SnapshotReview[] };
   answers: JevAnswer[];
 };
-
-function fromStoredAnswer(row: typeof answer.$inferSelect): JevAnswer {
-  if (row.type === "choice")
-    return {
-      key: row.questionKey,
-      type: "choice",
-      choice: row.choice!,
-      confidence: row.confidence!,
-      probabilities: row.probabilities ?? {},
-    };
-  return { key: row.questionKey, type: "noul", noul: row.noul! };
-}
 
 type StoredAnswer = Omit<
   typeof answer.$inferInsert,

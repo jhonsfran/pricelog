@@ -13,7 +13,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 import { serveArtifact, servePublicScreenshot, servePublicSource } from "./artifacts";
-import { pageMonitorService } from "./pricing/service";
+import { serveHistoryMigration } from "./history-operations";
+import {
+  createPricingHistoryRepository,
+  HistoryNotReadyError,
+} from "@pricelog/api/pricing-history-repository";
 import { runWeeklyComparisons } from "./pricing/weekly-comparisons";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
@@ -56,6 +60,12 @@ const identifyUser = createAuthMiddleware((await createAuth()) as BetterAuthInst
 const app = new Hono<EvlogVariables>();
 
 app.use(evlog());
+app.onError((error, c) => {
+  if (error instanceof HistoryNotReadyError)
+    return c.json({ error: error.message }, 503, { "Retry-After": "60" });
+  logHandlerError(error);
+  return c.json({ error: "Internal server error" }, 500);
+});
 app.use("*", async (c, next) => {
   if (!isPublicDirectoryRequest(c.req.raw)) {
     await identifyUser(c.get("log"), c.req.raw.headers, c.req.path);
@@ -74,6 +84,7 @@ app.use(
 );
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => (await createAuth()).handler(c.req.raw));
+app.post("/api/operations/pricing-history/migrate", serveHistoryMigration);
 app.get("/api/pages/:pageId/runs/:runId/artifacts/:kind", serveArtifact);
 app.get("/api/public/pages/:pageId/runs/:runId/source", servePublicSource);
 app.get("/api/public/pages/:pageId/runs/:runId/screenshot", servePublicScreenshot);
@@ -134,9 +145,16 @@ app.get("/", (c) => {
  */
 async function runBenchmarkSnapshot() {
   try {
+    try {
+      await createPricingHistoryRepository(getDb()).requireAllReady();
+    } catch (error) {
+      if (!(error instanceof HistoryNotReadyError)) throw error;
+      log.info({ action: "pricing-history.awaiting-import", pageId: error.pageId });
+      return;
+    }
     const cohorts = await storeBenchmarks(getDb());
     log.info({ action: "benchmark.snapshot", cohorts });
-    const comparisons = await runWeeklyComparisons(getDb(), pageMonitorService, async (key) => {
+    const comparisons = await runWeeklyComparisons(getDb(), async (key) => {
       const object = await ENV.ARTIFACTS.get(key);
       return object ? object.text() : null;
     });

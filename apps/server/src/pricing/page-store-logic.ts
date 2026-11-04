@@ -1,4 +1,4 @@
-import type { ArtifactKind, ArtifactManifest, ArtifactReference, RunStatus } from "./types";
+import type { RunStatus } from "./types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -17,23 +17,4 @@ export function resolveRunCompletion(
   throw new Error(`Cannot change completed run from ${current} to ${requested}`);
 }
 
-export function artifactReference(
-  manifest: Pick<ArtifactManifest, "htmlKey" | "screenshotKey" | "contentKey">,
-  kind: ArtifactKind,
-): ArtifactReference {
-  if (kind === "screenshot") {
-    return { key: manifest.screenshotKey, contentType: "image/png", filename: "pricing-page.png" };
-  }
-  if (kind === "content") {
-    return {
-      key: manifest.contentKey,
-      contentType: "text/markdown; charset=utf-8",
-      filename: "pricing-page.md",
-    };
-  }
-  return {
-    key: manifest.htmlKey,
-    contentType: "text/html; charset=utf-8",
-    filename: "pricing-page.html",
-  };
-}
+export { artifactReference } from "@pricelog/db/history-types";
